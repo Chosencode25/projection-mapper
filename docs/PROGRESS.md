@@ -142,3 +142,12 @@ Latest feature-branch output is now the rectangle rather than the step-2 diagnos
 - [ ] Steps 5–7 remain pending; full v1.04.2 acceptance and advancement of main have not occurred.
 
 Latest feature-branch geometry now uses normalized corners; the step-3 appearance is preserved. See [V1.04.2_VERIFICATION.md](V1.04.2_VERIFICATION.md). Intermediate work is saved on the feature branch without release/tag/version bump.
+
+## v1.04.2 development — step 5
+
+- [x] Record step-5 plan before implementation; explicitly enable automatic native drawable resizing. Existing aspect fitting required no fix.
+- [x] All 43 tests pass: live five-preset switching in wide/tall/square native windows, actual backing drawable dimensions, window/geometry preservation, and GPU coverage across landscape/4:3/portrait shapes.
+- [x] Running app checked 4K, Portrait, and 4:3 fitting; original 4K preference restored and output closed. Signed/tested local app: `builds/v1.04.2/step5/ProjectionMapper.app`.
+- [ ] Steps 6–7 remain pending; full v1.04.2 acceptance and advancement of main have not occurred.
+
+Simulated target resolution remains independent of drawable pixel dimensions. See [V1.04.2_VERIFICATION.md](V1.04.2_VERIFICATION.md). This feature-branch checkpoint has no release/tag/version bump.

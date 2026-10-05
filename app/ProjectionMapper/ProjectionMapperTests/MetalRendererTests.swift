@@ -104,9 +104,18 @@ struct MetalRendererTests {
         #expect(renderer.geometry == geometry)
     }
 
-    private func verifyScenePixels(_ renderer: MetalRenderer, xRange: Range<Int>, yRange: Range<Int>) throws {
+    @Test func gpuRectanglePreservesFractionalCoverageAcrossOutputShapes() throws {
+        let renderer = try MetalRenderer()
+        for (width, height) in [(64, 36), (32, 24), (36, 64)] {
+            try verifyScenePixels(renderer, xRange: width/4..<width*3/4, yRange: height/4..<height*3/4,
+                                  width: width, height: height)
+        }
+    }
+
+    private func verifyScenePixels(_ renderer: MetalRenderer, xRange: Range<Int>, yRange: Range<Int>,
+                                   width: Int = 16, height: Int = 16) throws {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
-                                                                  width: 16, height: 16, mipmapped: false)
+                                                                  width: width, height: height, mipmapped: false)
         descriptor.storageMode = .shared
         descriptor.usage = .renderTarget
         let texture = try #require(renderer.device.makeTexture(descriptor: descriptor))
@@ -117,15 +126,15 @@ struct MetalRendererTests {
         command.waitUntilCompleted()
         #expect(command.status == .completed)
         #expect(command.error == nil)
-        var pixels = [UInt8](repeating: 0, count: 16 * 16 * 4)
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
         pixels.withUnsafeMutableBytes {
-            texture.getBytes($0.baseAddress!, bytesPerRow: 16 * 4,
-                             from: MTLRegionMake2D(0, 0, 16, 16), mipmapLevel: 0)
+            texture.getBytes($0.baseAddress!, bytesPerRow: width * 4,
+                             from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0)
         }
         // Verify every pixel, including the seam and the black exterior.
-        for y in 0..<16 {
-            for x in 0..<16 {
-                let offset = (y * 16 + x) * 4
+        for y in 0..<height {
+            for x in 0..<width {
+                let offset = (y * width + x) * 4
                 let inside = xRange.contains(x) && yRange.contains(y)
                 #expect(pixels[offset] == 0)
                 #expect(abs(Int(pixels[offset + 1]) - (inside ? 64 : 0)) <= 1)
@@ -142,8 +151,8 @@ struct MetalRendererTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let output = TestOutputCoordinator(preferences: OutputPreferences(defaults: defaults))
         defer { output.close() }
-        for resolution in TestResolution.allCases {
-            #expect(output.open(for: .testWindow, resolution: resolution))
+        for size in [CGSize(width: 800, height: 450), CGSize(width: 400, height: 600), CGSize(width: 600, height: 600)] {
+            #expect(output.open(for: .testWindow))
             let window = try #require(output.window)
             let content = try #require(window.contentView as? TestOutputView)
             let metal = try #require(content.metalView)
@@ -152,14 +161,31 @@ struct MetalRendererTests {
             #expect(content.renderingError == nil)
             #expect(metal.device != nil && metal.delegate != nil)
             #expect(metal.isPaused && metal.enableSetNeedsDisplay)
-            for size in [CGSize(width: 800, height: 450), CGSize(width: 400, height: 600)] {
-                window.setContentSize(size)
+            #expect(metal.autoResizeDrawable)
+            window.setContentSize(size)
+            let originalFrame = window.frame
+            var landscapeDrawableSize: CGSize?
+            for resolution in TestResolution.allCases {
+                output.setResolution(resolution)
                 content.layoutSubtreeIfNeeded()
+                #expect(output.window === window && content.metalView === metal)
+                #expect(window.frame == originalFrame)
                 #expect(content.outputFrame == resolution.fittedRect(in: content.bounds))
+                #expect(abs(content.outputFrame.midX - content.bounds.midX) < 0.001)
+                #expect(abs(content.outputFrame.midY - content.bounds.midY) < 0.001)
+                #expect(abs(content.outputFrame.width / content.outputFrame.height - resolution.aspectRatio) < 0.001)
                 #expect(content.resolution == resolution)
                 #expect(renderer.geometry == originalGeometry && originalGeometry == .diagnostic)
                 metal.draw()
-                #expect(metal.currentDrawable != nil)
+                let drawable = try #require(metal.currentDrawable)
+                let pixels = CGSize(width: drawable.texture.width, height: drawable.texture.height)
+                let nativeSize = metal.convertToBacking(metal.bounds).size
+                #expect(abs(pixels.width - nativeSize.width) <= 1)
+                #expect(abs(pixels.height - nativeSize.height) <= 1)
+                if [.hd, .fullHD, .ultraHD].contains(resolution) {
+                    if let landscapeDrawableSize { #expect(pixels == landscapeDrawableSize) }
+                    else { landscapeDrawableSize = pixels }
+                }
             }
             output.close()
             #expect(!output.isOpen)

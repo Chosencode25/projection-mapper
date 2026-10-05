@@ -27,6 +27,8 @@ final class TestOutputView: NSView {
             let view = MTKView(frame: .zero, device: renderer.device)
             view.colorPixelFormat = MetalRenderer.pixelFormat
             view.clearColor = MetalRenderer.backgroundColor
+            // Native backing pixels follow the fitted view, independently of the simulated target.
+            view.autoResizeDrawable = true
             view.isPaused = true
             view.enableSetNeedsDisplay = true
             view.delegate = renderer

@@ -1,5 +1,11 @@
 # Changelog
 
+## In development — v1.04.2 step 5 — October 5, 2026
+
+- Explicit automatic native drawable sizing; preserve aspect-fitted output independently of simulated resolution.
+- All 43 tests pass, covering live preset switching in wide/tall/square windows, actual drawable dimensions, and GPU rectangle coverage across output aspects. Running 4K/Portrait/4:3 fitting checked.
+- Final acceptance/main advancement remain pending; no release/tag/bundle bump.
+
 ## In development — v1.04.2 step 4 — October 5, 2026
 
 - Store four normalized rectangle corners independently of output dimensions; convert top-left scene coordinates to Metal clip positions.
