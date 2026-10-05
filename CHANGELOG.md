@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.04.2 — First Rectangle — October 5, 2026
+
+- Compiled Metal shaders and pipeline draw a centered orange rectangle on black using four normalized corners.
+- Preserve output aspect fitting, native drawable sizing independent of simulated resolution, window preferences, and navigation.
+- All 43 tests passed in Debug and Release with Xcode 27A5237l; all five presets and window redraw checked in the running app.
+- User-requested Apple Silicon development prerelease, version 1.04.2/build 4, with app ZIP and checksum. Shared editor preview follows in v1.04.3; projector implementation remains deferred.
+
 ## In development — v1.04.2 step 6 — October 5, 2026
 
 - Local acceptance passed: all five resolution presets visually checked, output restore/redraw confirmed, and unchanged implementation's 43-test evidence reviewed.

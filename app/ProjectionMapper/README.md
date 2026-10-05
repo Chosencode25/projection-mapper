@@ -43,4 +43,4 @@ For tests, replace `build` with `test`. Before building, verify the toolchain us
 
 The minimum deployment target is a build setting; runtime verification on the development Mac does not establish testing on every supported macOS release.
 
-Projector output implementation and physical checks are deferred. See ../../docs/V1.03.1_VERIFICATION.md. Test Output now draws a blue Metal diagnostic color with black margins in v1.04.1. See ../../docs/V1.04.1_VERIFICATION.md. Rectangle and shared editor preview remain planned.
+Projector output implementation and physical checks are deferred. See ../../docs/V1.03.1_VERIFICATION.md. Test Output draws an orange Metal rectangle on black with normalized geometry and aspect fitting in v1.04.2. See ../../docs/V1.04.2_VERIFICATION.md. Shared editor preview remains planned in v1.04.3.
