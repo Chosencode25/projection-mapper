@@ -3,6 +3,7 @@ import SwiftUI
 struct ProjectInspectorView: View {
     @Bindable var session: EditorSession
     let refreshDisplays: () -> Void
+    let openOutput: () -> Void
     @FocusState private var nameIsFocused: Bool
 
     var body: some View {
@@ -26,7 +27,7 @@ struct ProjectInspectorView: View {
                 Divider()
                 LabeledContent("Surfaces", value: "0")
                 Divider()
-                OutputDetailsView(output: session.output, refreshDisplays: refreshDisplays)
+                OutputDetailsView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput)
                 Spacer()
                 Label("Projects stay in memory. Saving arrives in v1.14.", systemImage: "info.circle")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)

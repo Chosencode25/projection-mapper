@@ -1,4 +1,4 @@
-# Build and Run v1.02 Preview
+# Build and Run v1.03.1
 
 Required Xcode: **27.0 beta 5 (27A5237l)** at /Applications/Xcode-beta.app.
 
@@ -7,7 +7,7 @@ Required Xcode: **27.0 beta 5 (27A5237l)** at /Applications/Xcode-beta.app.
 1. Open app/ProjectionMapper/ProjectionMapper.xcodeproj with Xcode-beta.
 2. Select **ProjectionMapper** and **My Mac**.
 3. Press **Command–R** to build and run.
-4. Press **Command–U** to run the 21 state tests.
+4. Press **Command–U** to run the 28 state/window tests.
 
 The project uses SwiftUI and programmatic AppKit. Its source is organized under App, Models, State, Views, and Resources. Minimum deployment target: macOS 15.0. Local ad-hoc signing needs no paid developer account.
 
@@ -15,7 +15,7 @@ If Xcode offers to update recommended project settings, review changes against t
 
 ## Standalone local build
 
-Open builds/v1.02/ProjectionMapper.app. The earlier builds/v1.01/ProjectionMapper.app is preserved. This is a local Apple Silicon development build, not a notarized public installer.
+Open builds/v1.03.1/ProjectionMapper.app. The earlier builds/v1.01/ProjectionMapper.app is preserved. This is a local Apple Silicon development build, not a notarized public installer.
 
 ## Commands
 
@@ -37,6 +37,6 @@ Replace build with test to run the tests. The system-wide developer directory re
 - Control–Command–S: Show/hide sidebar.
 - Control–Command–I: Show/hide inspector.
 
-Projects are held in memory. Name changes trigger discard protection; output selection does not. Choose Test Window or an eligible connected display through either output menu. Test Window is configured as 1280 × 720. Selecting it does not open a window yet: the separate test/projector window arrives in v1.03, and rendering in v1.04.
+Projects are held in memory. Name changes trigger discard protection; output actions do not. Select Test Window, then use Open Output in the toolbar, inspector, or Window menu. It opens one black resizable window; repeated Open brings it forward. Close Output or its native close button leaves the editor intact.
 
-The preview has passed local builds, tests, and editor checks; physical external-display checks remain pending. Main stays at v1.01 until those checks are recorded.
+The simulated target remains 1280 × 720 regardless of window size. Resolution/scaling arrives in v1.03.2, persistent window geometry/navigation in v1.03.3, and Metal rendering in v1.04. Projector output implementation and physical testing are deferred at the user's request.

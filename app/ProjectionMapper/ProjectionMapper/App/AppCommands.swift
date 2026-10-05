@@ -14,6 +14,11 @@ struct AppCommands: Commands {
         }
         CommandGroup(after: .windowArrangement) {
             Button("Show Editor") { coordinator.showEditor() }
+            Divider()
+            Button("Open Output") { coordinator.openOutput() }
+                .disabled(coordinator.session.output.destination != .testWindow)
+            Button("Close Output") { coordinator.session.testOutput.close() }
+                .disabled(!coordinator.session.testOutput.isOpen)
         }
         CommandGroup(after: .sidebar) {
             Button(coordinator.session.isSidebarVisible ? "Hide Sidebar" : "Show Sidebar") {

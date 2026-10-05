@@ -3,6 +3,7 @@ import SwiftUI
 struct EditorToolbar: View {
     @Bindable var session: EditorSession
     let newProject: () -> Void
+    let openOutput: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -19,6 +20,7 @@ struct EditorToolbar: View {
             }
             Spacer()
             OutputSelectorView(output: session.output, compact: true)
+            OutputWindowControls(session: session, openOutput: openOutput, compact: true)
             Button(action: { session.isInspectorVisible.toggle() }) {
                 Image(systemName: "sidebar.right")
             }

@@ -36,3 +36,7 @@ Resizing the test window changes preview display size, not mapping coordinates o
 ## Working location and references
 
 Use `/Users/keith/Documents/Projection Mapping` for project work. Keep the original ChatGPT project mirror and synced source files unchanged.
+
+## Test Mode first — October 5, 2026 scope update
+
+The user explicitly deferred projector output implementation and physical testing. v1.03 is split into 1.03.1 basic Test Window, 1.03.2 resolution/scaling, and 1.03.3 window behavior/polish. Test-only milestones can be accepted and merged after local verification; missing projector hardware is no longer a release blocker for that scope. Preserve the shared-renderer direction for v1.04 and record external behavior as deferred/unverified.

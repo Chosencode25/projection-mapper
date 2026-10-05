@@ -31,7 +31,8 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                 session: session,
                 newProject: { [weak self] in self?.newProject() },
                 projectChanged: { [weak self] in self?.updateWindowTitle() },
-                refreshDisplays: { [weak self] in self?.displayDiscovery.refresh() }
+                refreshDisplays: { [weak self] in self?.displayDiscovery.refresh() },
+                openOutput: { [weak self] in self?.openOutput() }
             ))
             window.center()
             editorWindow = window
@@ -43,6 +44,19 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func windowDidChangeScreen(_ notification: Notification) { displayDiscovery.scheduleRefresh() }
+
+    func openOutput() {
+        guard !isPrompting else { return }
+        session.testOutput.open(for: session.output.destination)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        if let closing = notification.object as? NSWindow, closing === editorWindow {
+            session.testOutput.close()
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) { session.testOutput.close() }
 
     func newProject() {
         guard !isPrompting else { return }
@@ -92,7 +106,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
             .applicationName: "Projection Mapper",
             .applicationVersion: AppVersion.version,
             .version: AppVersion.build,
-            .credits: NSAttributedString(string: "A simple workspace for projection mapping.\nOutput selection · v\(AppVersion.version)")
+            .credits: NSAttributedString(string: "A simple workspace for projection mapping.\nBasic Test Window · v\(AppVersion.version)")
         ])
     }
 

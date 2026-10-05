@@ -1,4 +1,4 @@
-# Projection Mapper — v1.02 Preview
+# Projection Mapper — v1.03.1
 
 A native, entirely code-based Mac editor skeleton. Built for **Xcode 27.0 beta 5 (27A5237l)**. Minimum deployment target: **macOS 15.0**.
 
@@ -18,7 +18,8 @@ Local builds use ad-hoc signing (“Sign to Run Locally”); an Apple Developer 
 - Close and Quit protection for changes; Show Editor and Dock reopening.
 - Sidebar/inspector toggles, keyboard shortcuts, and About information.
 - Test Window/display output menus, display information, safe recovery, and remembered preferences.
-- 21 focused model/session/output tests, runnable with Command–U.
+- Open/Close Output actions, one normal resizable black test window, and shared status.
+- 28 focused model/session/output/window tests, runnable with Command–U.
 
 Projects remain in memory. Rendering, test output, media import, mapping, and saving are later milestones.
 
@@ -42,4 +43,4 @@ For tests, replace `build` with `test`. Before building, verify the toolchain us
 
 The minimum deployment target is a build setting; runtime verification on the development Mac does not establish testing on every supported macOS release.
 
-Physical external-display acceptance remains pending. See ../../docs/V1.02_VERIFICATION.md. The preview stays on the feature branch; main remains v1.01.
+Projector output implementation and physical checks are deferred. See ../../docs/V1.03.1_VERIFICATION.md. Test output is black until rendering is added in v1.04.

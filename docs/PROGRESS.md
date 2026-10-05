@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.02 output selection is implemented on feature/v1.02-output-selection and verified locally with Xcode 27.0 beta 5 (27A5237l). All 21 tests pass, and a runnable Apple Silicon Release build lives in builds/v1.02/ProjectionMapper.app. Physical external-display acceptance is pending because no hardware was available. Main remains the tested v1.01 milestone.
+v1.03.1 Basic Test Window is implemented and locally verified with Xcode 27.0 beta 5 (27A5237l). All 28 tests pass. A standalone Apple Silicon Release app is in builds/v1.03.1/ProjectionMapper.app. The user has deferred projector output implementation and physical hardware checks; they do not block this Test Mode milestone.
 
 ## Completed
 
@@ -24,13 +24,13 @@ v1.02 output selection is implemented on feature/v1.02-output-selection and veri
 
 ## Current acceptance and next milestone
 
-Complete physical external-display checks before merging/tagging the final v1.02 milestone. The [v1.02-preview.1 prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.02-preview.1) is published from the feature branch with the runnable app and checksum. The separate output window follows in v1.03; rendering follows in v1.04.
+v1.03.1 is ready for its development release and merge into main. Next: v1.03.2 simulated resolution presets and aspect-preserving scaling, followed by v1.03.3 window persistence/navigation polish. See V1_ROADMAP.md for the approved split.
 
 ## Scope and limitations
 
-Projects stay in memory. Output selection and preferences are implemented; media import, surfaces, rendering, output windows, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
+Projects stay in memory. Output selection and preferences are implemented; the basic Test Window is implemented. Projector output is deferred; media import, surfaces, rendering, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
 
-See V1.02_VERIFICATION.md for current evidence and limitations, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
+See V1.03.1_VERIFICATION.md for current evidence and limitations, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
 
 ## GitHub version history
 
@@ -46,7 +46,19 @@ Private repository: https://github.com/Chosencode25/projection-mapper. The initi
 - [x] Sixteen focused output tests plus the existing five session tests passed.
 - [x] No-external-display runtime, project reset protections, packaged app, About, panel shortcut, and synthetic minimum-size portrait/long-name layout checks.
 - [x] Build and signature verification; preview ZIP and checksum published in the private v1.02-preview.1 prerelease.
-- [ ] Physical extended-display metadata, unplug/reconnect, saved external preference relaunch, mirroring, editor movement, scaling/rotation.
-- [ ] Final v1.02 acceptance, merge to main, and v1.02 milestone tag/release.
+- [ ] Deferred: physical extended-display metadata, unplug/reconnect, saved external preference relaunch, mirroring, editor movement, scaling/rotation.
+- [ ] Final v1.02 hardware acceptance remains deferred. Its preview tag/assets are preserved while Test Mode development proceeds.
 
 The plan is [V1.02_PLAN.md](V1.02_PLAN.md). Current verification is [V1.02_VERIFICATION.md](V1.02_VERIFICATION.md). Preview notes are [releases/v1.02-preview.1.md](releases/v1.02-preview.1.md).
+
+## v1.03.1 implementation
+
+- [x] One app-owned observable Test Output window; normal native controls and plain black content.
+- [x] Toolbar/inspector/Window menu open/close actions and shared open/closed status.
+- [x] Duplicate prevention, minimize restoration, native close/reopen, external destination guard.
+- [x] Project reset independent of output; successful editor close/quit cleanup, Cancel preserving both windows.
+- [x] Seven focused AppKit window tests plus all 21 regressions passed.
+- [x] Local runtime checks and pinned-Xcode Release build/signature verification.
+- [ ] Publish v1.03.1 app/checksum and advance main to the accepted Test Mode milestone.
+
+Plan: [V1.03.1_PLAN.md](V1.03.1_PLAN.md). Verification: [V1.03.1_VERIFICATION.md](V1.03.1_VERIFICATION.md).

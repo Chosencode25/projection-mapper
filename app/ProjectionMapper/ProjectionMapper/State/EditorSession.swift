@@ -6,6 +6,7 @@ import Observation
 final class EditorSession {
     private(set) var project: MappingProject
     let output: OutputSelectionState
+    let testOutput = TestOutputCoordinator()
     var isSidebarVisible = true
     var isInspectorVisible = true
     var hasUserChanges: Bool { project.name != MappingProject.defaultName }

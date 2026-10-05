@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct OutputDetailsView: View {
-    let output: OutputSelectionState
+    let session: EditorSession
+    var output: OutputSelectionState { session.output }
     let refreshDisplays: () -> Void
+    let openOutput: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -20,7 +22,12 @@ struct OutputDetailsView: View {
             Text(output.statusText).font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Button("Refresh Displays", action: refreshDisplays)
-            Text("Output window arrives in v1.03.").font(.caption).foregroundStyle(.secondary)
+            OutputWindowControls(session: session, openOutput: openOutput)
+            Text(session.testOutput.statusText).font(.caption).foregroundStyle(.secondary)
+            Text(output.destination == .testWindow
+                 ? "Blank test output. Rendering arrives in v1.04."
+                 : "Projector output is deferred. Select Test Window to open output.")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
     private func detail(_ label: String, _ value: String) -> some View {

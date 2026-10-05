@@ -6,7 +6,7 @@ V1 is a native Mac app for projecting images, videos, and built-in animations on
 |---|---|
 | 1.01 — App Skeleton | Control window, toolbar, sidebar, empty canvas, project model. |
 | 1.02 — Output Selection | Choose Test Window or a connected display; detect displays; show display properties; default to Test Window without a projector. |
-| 1.03 — Output Window | Separate resizable test output or borderless fullscreen projector output; configurable simulated test resolution. |
+| 1.03 — Test Output Window | Delivered in three slices below. Fullscreen projector implementation and physical checks are deferred. |
 | 1.04 — Metal Renderer | Shared renderer for both output modes, basic rectangle, output sizing, performance target, disconnect/reconnect handling. |
 | 1.05 — First Surface | One surface with four stored normalized corners, initial rectangle, selection state. |
 | 1.06 — Corner Nodes | Draggable handles, live output updates, arrow-key nudging, larger Shift nudges. |
@@ -23,3 +23,13 @@ V1 is a native Mac app for projecting images, videos, and built-in animations on
 The first major mapping milestone is 1.07. A temporary developer test texture or pattern can exercise warping before user-facing image import arrives in 1.08 and full calibration tools in 1.13.
 
 Later major versions cover richer mesh/mask/effect tools, camera-assisted mapping and live control, and professional 3D or multi-projector features.
+
+## v1.03 slices — approved October 5, 2026
+
+| Slice | Scope |
+|---|---|
+| 1.03.1 — Basic Test Window | Open/close controls, one normal resizable black output window, shared status, safe window ownership and cleanup. |
+| 1.03.2 — Resolution and Scaling | Simulated resolution presets, aspect-preserving display with black margins, matching editor preview, remembered resolution independent of window size. |
+| 1.03.3 — Window Behavior and Polish | Remember size/position, offscreen recovery, Show Output/navigation, shortcuts/layout checks, preparation for the shared renderer. |
+
+The user will not have a projector for a while. Projector-window implementation and physical checks are deferred and do not block these Test Mode milestones. Existing display discovery remains available; earlier external hardware checks remain unverified.

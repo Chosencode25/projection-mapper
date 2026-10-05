@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.03.1 — Basic Test Window — October 5, 2026
+
+- Open/Close Output controls in the toolbar, inspector, and Window menu.
+- One normal movable/resizable/minimizable black output window, with duplicate prevention and shared status.
+- Native close preserves the editor/project; New Project preserves output; successful editor close and quit clean up output.
+- Test Window only; projector implementation and physical checks deferred at the user’s request.
+- All 28 tests passed and an Apple Silicon Release build was locally verified with the pinned Xcode toolchain.
+
 ## v1.02-preview.1 — Output Selection Preview — October 5, 2026
 
 - Shared toolbar/inspector selection of Test Window or an eligible connected display.
