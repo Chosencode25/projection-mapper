@@ -25,7 +25,7 @@ Recheck the build before implementation because the installed beta may be update
 
 Write the entire interface in code using SwiftUI and programmatic AppKit where needed. Do not use storyboards or XIBs or require drag-and-drop interface construction. Xcode previews are optional inspection aids.
 
-Use Metal for rendering starting in v1.04 and AVFoundation for video starting in v1.09. No third-party dependency is needed for v1.01.
+Use Metal for rendering starting in v1.04. AVFoundation remains the planned tool for future v1.09 video work; custom image/video import is deferred at the user’s request (October 5, 2026). No third-party dependency is needed for v1.01.
 
 ## Test Mode
 

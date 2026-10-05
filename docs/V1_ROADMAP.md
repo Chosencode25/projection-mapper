@@ -11,8 +11,8 @@ V1 is a native Mac app for projecting images, videos, and built-in animations on
 | [1.05 — First Surface](V1.05_PLAN.md) | Implemented and locally accepted: one project-owned surface, four normalized corners, initial rectangle, sidebar selection and inspector. |
 | [1.06 — Corner Nodes](V1.06_PLAN.md) | Implemented and locally accepted: draggable handles, live output updates, focused arrow-key nudging, larger Shift nudges. |
 | [1.07 — Perspective Warp](V1.07_PLAN.md) | Implemented and locally accepted: projective diagnostic textures, trapezoids, safe invalid geometry and recovery. |
-| 1.08 — Images | PNG/JPEG import and drag/drop; fit/fill/stretch; aspect ratio; replace/remove. |
-| 1.09 — Video | System-supported video import; AVFoundation frames into Metal; play/pause, restart, loop, speed. |
+| 1.08 — Images | Deferred at user request. Future scope: PNG/JPEG import and drag/drop; fit/fill/stretch; aspect ratio; replace/remove. |
+| 1.09 — Video | Deferred at user request. Future scope: system-supported video import; AVFoundation frames into Metal; play/pause, restart, loop, speed. |
 | 1.10 — Built-In Animations | Gradients, plasma, noise, checkers, moving lines, particles/starfield; speed, scale, color, intensity controls. |
 | 1.11 — Multiple Surfaces | Add/select/rename/duplicate/delete/reorder surfaces and toggle visibility. |
 | 1.12 — Surface Controls | Opacity, brightness, crop, flipping, resets, and locking. |
@@ -20,7 +20,7 @@ V1 is a native Mac app for projecting images, videos, and built-in animations on
 | 1.14 — Save & Load | Versioned project files; geometry, media references, generator settings, output configuration; autosave and recent projects. |
 | 1.15 — Polish & Release | Undo/redo, shortcuts, error and missing-media handling, disconnect warning, welcome/demo, profiling, icon, signing, DMG. |
 
-The first major mapping milestone is 1.07. A temporary developer test texture or pattern can exercise warping before user-facing image import arrives in 1.08 and full calibration tools in 1.13.
+The first major mapping milestone is 1.07. A temporary developer test texture or pattern can exercise warping while custom image/video import is deferred; full calibration tools remain planned for 1.13.
 
 Later major versions cover richer mesh/mask/effect tools, camera-assisted mapping and live control, and professional 3D or multi-projector features.
 
@@ -36,7 +36,7 @@ The user will not have a projector for a while. Projector-window implementation 
 
 ## v1.04 slices — approved October 5, 2026
 
-See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). v1.07 is also [implemented and locally accepted](V1.07_VERIFICATION.md). Next development milestone: v1.08 Images.
+See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). v1.07 is also [implemented and locally accepted](V1.07_VERIFICATION.md). Next active development milestone: v1.10 Built-In Animations; v1.08/v1.09 import is deferred.
 
 | Slice | Scope | Finished when |
 |---|---|---|
@@ -79,3 +79,7 @@ All seven steps complete. 60 correctness tests passed in Debug and Release plus 
 ## v1.06 acceptance — October 5, 2026
 
 All five steps complete. 68 correctness tests passed in Debug and Release plus authorized actual-app checks; tested source and local app updated. See [verification](V1.06_VERIFICATION.md). Next: v1.07 perspective-correct texture mapping.
+
+## Custom media import deferred — October 5, 2026
+
+The user requested skipping custom image and video import for now. Defer v1.08 Images and v1.09 Video rather than removing them or marking them complete. Keep existing milestone numbers. The next active roadmap milestone is v1.10 Built-In Animations, which generates content inside the app without imported files. No animation implementation has started. Multiple surfaces, surface controls, mapping tools and saving remain subsequent milestones; Test Mode and shared rendering remain required.

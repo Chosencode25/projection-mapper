@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.07 Perspective Warp is implemented and locally accepted. New projects use a diagnostic grid; one validated projective transform maps content in shared preview/output without a triangle seam. Invalid shapes clear safely with stable editor warning layout and overlapping-handle recovery. All 79 correctness tests passed in Debug/Release with Xcode 27.0 beta 5 (27A5237l); vital screen checks passed. Signed Release copies: builds/v1.07/ProjectionMapper.app and app/ProjectionMapper.app; source preserved on GitHub main. Bundle remains 1.04.2/build 4; latest published release is [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next: v1.08 Images. Physical projector/display transitions remain deferred.
+v1.07 Perspective Warp is implemented and locally accepted. New projects use a diagnostic grid; one validated projective transform maps content in shared preview/output without a triangle seam. Invalid shapes clear safely with stable editor warning layout and overlapping-handle recovery. All 79 correctness tests passed in Debug/Release with Xcode 27.0 beta 5 (27A5237l); vital screen checks passed. Signed Release copies: builds/v1.07/ProjectionMapper.app and app/ProjectionMapper.app; source preserved on GitHub main. Bundle remains 1.04.2/build 4; latest published release is [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next active milestone: v1.10 Built-In Animations; custom image/video import (v1.08/v1.09) is deferred. Physical projector/display transitions remain deferred.
 
 ## Completed
 
@@ -24,7 +24,7 @@ v1.07 Perspective Warp is implemented and locally accepted. New projects use a d
 
 ## Current acceptance and next milestone
 
-v1.07 is complete for local Test Mode and saved to tested main. See [verification](V1.07_VERIFICATION.md), [five-step plan](V1.07_PLAN.md) and [roadmap](V1_ROADMAP.md). Image import is planned for v1.08.
+v1.07 is complete for local Test Mode and saved to tested main. See [verification](V1.07_VERIFICATION.md), [five-step plan](V1.07_PLAN.md) and [roadmap](V1_ROADMAP.md). At the user’s request, v1.08 image import and v1.09 video import are deferred. Next active milestone: v1.10 Built-In Animations (not implemented).
 
 ## Scope and limitations
 
@@ -262,4 +262,11 @@ All five steps complete; evidence: [V1.06_VERIFICATION.md](V1.06_VERIFICATION.md
 - [x] Vital warp/clean-output/invalid/recovery/content/portrait/reset visual checks; fixed warning-induced canvas shift and added regression coverage.
 - [x] Signed Release app copies and GitHub delivery; no release/tag/version bump.
 
-All five steps complete; evidence: [V1.07_VERIFICATION.md](V1.07_VERIFICATION.md). Next: v1.08 Images.
+All five steps complete; evidence: [V1.07_VERIFICATION.md](V1.07_VERIFICATION.md). Next active milestone: v1.10 Built-In Animations; custom image/video import (v1.08/v1.09) is deferred.
+
+
+## Roadmap scope update — October 5, 2026
+
+- Defer custom image import (v1.08) and custom video import (v1.09) at the user’s request.
+- Preserve their milestone numbers and future scope. Next active milestone is v1.10 Built-In Animations.
+- Planning update only: no app/source changes, new tests, build, version bump or release. v1.07 remains the latest accepted app.

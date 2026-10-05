@@ -24,7 +24,7 @@ Local builds use ad-hoc signing (“Sign to Run Locally”); an Apple Developer 
 - Projective diagnostic grid with mipmaps, Solid fill option, safe invalid geometry and overlapping-handle recovery.
 - 79 correctness tests (77 run without presenting windows) plus three opt-in benchmarks, runnable with Command–U; see ../../docs/BUILD_AND_RUN.md.
 
-Projects remain in memory. Basic test output is available. Shared editor/Test Output rendering is implemented. Four-corner surface storage is implemented; corner editing is implemented; perspective mapping is implemented; media import and saving are later milestones.
+Projects remain in memory. Basic test output is available. Shared editor/Test Output rendering is implemented. Four-corner surface storage is implemented; corner editing is implemented; perspective mapping is implemented; custom image/video import is deferred; built-in animations are the next active milestone, and saving remains planned for v1.14.
 
 ## Source organization
 
