@@ -18,6 +18,7 @@ struct EditorToolbar: View {
                 Text(session.project.name).font(.headline).lineLimit(1)
             }
             Spacer()
+            OutputSelectorView(output: session.output, compact: true)
             Button(action: { session.isInspectorVisible.toggle() }) {
                 Image(systemName: "sidebar.right")
             }

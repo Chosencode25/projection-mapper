@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.01 editor skeleton implemented and verified with Xcode 27.0 beta 5 (27A5237l). The project lives in app/ProjectionMapper/; a runnable local Apple Silicon build lives in builds/v1.01/ProjectionMapper.app.
+v1.02 output selection is implemented on feature/v1.02-output-selection and verified locally with Xcode 27.0 beta 5 (27A5237l). All 21 tests pass, and a runnable Apple Silicon Release build lives in builds/v1.02/ProjectionMapper.app. Physical external-display acceptance is pending because no hardware was available. Main remains the tested v1.01 milestone.
 
 ## Completed
 
@@ -22,20 +22,31 @@ v1.01 editor skeleton implemented and verified with Xcode 27.0 beta 5 (27A5237l)
 - [x] Produce an ad-hoc signed local development build.
 - [x] Add build/run instructions and acceptance record.
 
-## Next milestone
+## Current acceptance and next milestone
 
-v1.02: choose Test Window or a connected display, detect displays, and display output information. The separate output window follows in v1.03; rendering follows in v1.04.
+Complete physical external-display checks before merging/tagging the final v1.02 milestone. A v1.02-preview.1 prerelease is prepared from the feature branch. The separate output window follows in v1.03; rendering follows in v1.04.
 
 ## Scope and limitations
 
-Projects stay in memory. Media import, surfaces, rendering, output windows, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
+Projects stay in memory. Output selection and preferences are implemented; media import, surfaces, rendering, output windows, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
 
-See V1.01_VERIFICATION.md for evidence and BUILD_AND_RUN.md for instructions.
+See V1.02_VERIFICATION.md for current evidence and limitations, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
 
 ## GitHub version history
 
 Private repository: https://github.com/Chosencode25/projection-mapper. The initial source snapshot is v1.01; its release notes are in releases/v1.01.md. Follow GITHUB_WORKFLOW.md for future milestone history.
 
-## v1.02 planning
+## v1.02 implementation
 
-The specific plan is saved in [V1.02_PLAN.md](V1.02_PLAN.md) on `feature/v1.02-output-selection`. It covers output selection, display discovery, preference restoration, hot plugging, mirroring, and verification. Implementation has not started; the app remains v1.01. No v1.02 release or tag has been created.
+- [x] Shared toolbar/inspector destination selection and Test Window default.
+- [x] AppKit/Core Graphics display snapshots, names, UUIDs, metadata, mirroring and editor-screen eligibility.
+- [x] App-owned coalesced discovery with screen changes, activation, wake, and manual refresh.
+- [x] Explicit preference persistence, startup restoration, safe fallback, and reconnect without automatic switching.
+- [x] Aspect-aware empty canvas, output details/status, scrollable inspector, version 1.02/build 2.
+- [x] Sixteen focused output tests plus the existing five session tests passed.
+- [x] No-external-display runtime, project reset protections, packaged app, About, panel shortcut, and synthetic minimum-size portrait/long-name layout checks.
+- [x] Build and signature verification; preview ZIP and checksum prepared.
+- [ ] Physical extended-display metadata, unplug/reconnect, saved external preference relaunch, mirroring, editor movement, scaling/rotation.
+- [ ] Final v1.02 acceptance, merge to main, and v1.02 milestone tag/release.
+
+The plan is [V1.02_PLAN.md](V1.02_PLAN.md). Current verification is [V1.02_VERIFICATION.md](V1.02_VERIFICATION.md). Preview notes are [releases/v1.02-preview.1.md](releases/v1.02-preview.1.md).

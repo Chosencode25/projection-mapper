@@ -5,11 +5,15 @@ import Observation
 @Observable
 final class EditorSession {
     private(set) var project: MappingProject
+    let output: OutputSelectionState
     var isSidebarVisible = true
     var isInspectorVisible = true
     var hasUserChanges: Bool { project.name != MappingProject.defaultName }
 
-    init(project: MappingProject = MappingProject()) { self.project = project }
+    init(project: MappingProject = MappingProject(), output: OutputSelectionState = OutputSelectionState()) {
+        self.project = project
+        self.output = output
+    }
 
     func renameProject(_ name: String, now: Date = .now) {
         guard name != project.name else { return }

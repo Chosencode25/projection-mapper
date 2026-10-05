@@ -4,6 +4,7 @@ struct EditorWindowView: View {
     @Bindable var session: EditorSession
     let newProject: () -> Void
     let projectChanged: () -> Void
+    let refreshDisplays: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,10 +15,10 @@ struct EditorWindowView: View {
                     SurfaceSidebarView().frame(width: 220)
                     Divider()
                 }
-                EditorCanvasView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                EditorCanvasView(output: session.output).frame(maxWidth: .infinity, maxHeight: .infinity)
                 if session.isInspectorVisible {
                     Divider()
-                    ProjectInspectorView(session: session).frame(width: 260)
+                    ProjectInspectorView(session: session, refreshDisplays: refreshDisplays).frame(width: 260)
                 }
             }
             Divider()

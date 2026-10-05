@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let session = EditorSession()
+    private lazy var displayDiscovery = DisplayDiscoveryService(output: session.output)
     private var editorWindow: NSWindow?
     private var isPrompting = false
     private var isTerminationPending = false
@@ -29,7 +30,8 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
             window.contentView = NSHostingView(rootView: EditorWindowView(
                 session: session,
                 newProject: { [weak self] in self?.newProject() },
-                projectChanged: { [weak self] in self?.updateWindowTitle() }
+                projectChanged: { [weak self] in self?.updateWindowTitle() },
+                refreshDisplays: { [weak self] in self?.displayDiscovery.refresh() }
             ))
             window.center()
             editorWindow = window
@@ -37,7 +39,10 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         if editorWindow?.isMiniaturized == true { editorWindow?.deminiaturize(nil) }
         editorWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        if let editorWindow { displayDiscovery.start(editorWindow: editorWindow) }
     }
+
+    func windowDidChangeScreen(_ notification: Notification) { displayDiscovery.scheduleRefresh() }
 
     func newProject() {
         guard !isPrompting else { return }
@@ -85,9 +90,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     func showAbout() {
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "Projection Mapper",
-            .applicationVersion: "1.01",
-            .version: "1",
-            .credits: NSAttributedString(string: "A simple workspace for projection mapping.\nApp skeleton · v1.01")
+            .applicationVersion: AppVersion.version,
+            .version: AppVersion.build,
+            .credits: NSAttributedString(string: "A simple workspace for projection mapping.\nOutput selection · v\(AppVersion.version)")
         ])
     }
 
@@ -102,7 +107,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         isPrompting = true
         let alert = NSAlert()
         alert.messageText = "Discard changes?"
-        alert.informativeText = "To \(action), discard your current changes. Version 1.01 keeps projects in memory and cannot save them yet."
+        alert.informativeText = "To \(action), discard your current changes. Projects stay in memory and cannot be saved yet."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Cancel")
         alert.addButton(withTitle: "Discard Changes")

@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.02-preview.1 — Output Selection Preview — October 5, 2026
+
+- Shared toolbar/inspector selection of Test Window or an eligible connected display.
+- Display discovery, UUID preferences, refresh, wake/reactivation updates, and safe disconnect/mirroring/editor-screen fallback.
+- Render pixels, desktop points, scaling, reported refresh, connection messages, and aspect-aware preview.
+- Output preferences stay separate from project changes; bundle-derived version 1.02/build 2.
+- 21 tests passed, pinned-Xcode Release build and local runtime checks completed.
+- Physical external-display acceptance pending; preview remains on the feature branch and main stays v1.01.
+
 ## v1.01 — App Skeleton — October 5, 2026
 
 - Native Mac editor implemented entirely in SwiftUI and programmatic AppKit.
