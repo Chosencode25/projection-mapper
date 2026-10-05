@@ -1,5 +1,11 @@
 # Changelog
 
+## In development — v1.04.2 step 3 — October 5, 2026
+
+- Test Output draws a centered orange rectangle on black using the compiled pipeline and temporary clip-space geometry.
+- All 40 tests pass, including every-pixel GPU rectangle/background checks; native visible output and close/reopen checked.
+- Partial feature-branch work; normalized scene geometry/full acceptance remain pending and main stays v1.04.1. No release/tag/bundle bump.
+
 ## In development — v1.04.2 step 2 — October 5, 2026
 
 - Compiled Metal vertex/fragment shaders and BGRA8 render pipeline; initialization reports missing library/functions or pipeline creation failures.

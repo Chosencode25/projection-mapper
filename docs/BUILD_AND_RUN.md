@@ -51,4 +51,4 @@ Starting with v1.04.2, building `.metal` sources requires Apple's Metal Toolchai
 DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer   xcodebuild -downloadComponent MetalToolchain
 ```
 
-The v1.04.2 feature branch currently has 40 passing tests; full rectangle acceptance is pending. Its step-2 app is `builds/v1.04.2/step2/ProjectionMapper.app` and still displays the diagnostic clear.
+The v1.04.2 feature branch currently has 40 passing tests; full rectangle acceptance is pending. Its latest step-3 app is `builds/v1.04.2/step3/ProjectionMapper.app` and draws an orange rectangle on black.

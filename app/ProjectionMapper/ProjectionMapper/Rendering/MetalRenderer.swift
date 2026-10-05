@@ -25,7 +25,13 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     let commandQueue: any MTLCommandQueue
     let rectanglePipeline: any MTLRenderPipelineState
     static let pixelFormat: MTLPixelFormat = .bgra8Unorm
-    static let diagnosticColor = MTLClearColor(red: 0.05, green: 0.35, blue: 0.55, alpha: 1)
+    static let backgroundColor = MTLClearColorMake(0, 0, 0, 1)
+    static let rectangleColor = SIMD4<Float>(1, 0.25, 0, 1)
+    // Temporary clip-space geometry. Normalized scene geometry follows in step 4.
+    private let rectanglePositions: [SIMD2<Float>] = [
+        SIMD2(-0.5, -0.5), SIMD2(0.5, -0.5), SIMD2(-0.5, 0.5),
+        SIMD2(0.5, -0.5), SIMD2(0.5, 0.5), SIMD2(-0.5, 0.5)
+    ]
 
     init(deviceProvider: () -> (any MTLDevice)? = { MTLCreateSystemDefaultDevice() },
          queueProvider: (any MTLDevice) -> (any MTLCommandQueue)? = { $0.makeCommandQueue() },
@@ -58,14 +64,21 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         super.init()
     }
 
-    /// Also used by GPU readback checks to verify the actual clear operation.
-    func encodeClear(to descriptor: MTLRenderPassDescriptor) -> (any MTLCommandBuffer)? {
+    /// Shared by drawable presentation and offscreen GPU verification.
+    func encodeScene(to descriptor: MTLRenderPassDescriptor) -> (any MTLCommandBuffer)? {
         descriptor.colorAttachments[0].loadAction = .clear
         descriptor.colorAttachments[0].storeAction = .store
-        descriptor.colorAttachments[0].clearColor = Self.diagnosticColor
+        descriptor.colorAttachments[0].clearColor = Self.backgroundColor
         guard let command = commandQueue.makeCommandBuffer(),
               let encoder = command.makeRenderCommandEncoder(descriptor: descriptor) else { return nil }
-        command.label = "Diagnostic output clear"
+        command.label = "Temporary rectangle output"
+        encoder.setRenderPipelineState(rectanglePipeline)
+        rectanglePositions.withUnsafeBytes {
+            encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 0)
+        }
+        var color = Self.rectangleColor
+        encoder.setFragmentBytes(&color, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
+        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: rectanglePositions.count)
         encoder.endEncoding()
         return command
     }
@@ -78,7 +91,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         guard view.drawableSize.width > 0, view.drawableSize.height > 0,
               let descriptor = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
-              let command = encodeClear(to: descriptor) else { return }
+              let command = encodeScene(to: descriptor) else { return }
         command.present(drawable)
         command.commit()
     }

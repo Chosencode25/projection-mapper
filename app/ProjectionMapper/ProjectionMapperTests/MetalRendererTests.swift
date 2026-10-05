@@ -81,7 +81,7 @@ struct MetalRendererTests {
         #expect(missingQueue.outputFrame == TestResolution.portrait.fittedRect(in: missingQueue.bounds))
     }
 
-    @Test func gpuClearWritesDiagnosticPixels() throws {
+    @Test func gpuSceneDrawsRectangleAndBlackBackground() throws {
         let renderer = try MetalRenderer()
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
                                                                   width: 16, height: 16, mipmapped: false)
@@ -90,7 +90,7 @@ struct MetalRendererTests {
         let texture = try #require(renderer.device.makeTexture(descriptor: descriptor))
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = texture
-        let command = try #require(renderer.encodeClear(to: pass))
+        let command = try #require(renderer.encodeScene(to: pass))
         command.commit()
         command.waitUntilCompleted()
         #expect(command.status == .completed)
@@ -100,12 +100,16 @@ struct MetalRendererTests {
             texture.getBytes($0.baseAddress!, bytesPerRow: 16 * 4,
                              from: MTLRegionMake2D(0, 0, 16, 16), mipmapLevel: 0)
         }
-        // BGRA bytes read from GPU memory, including opposite corners.
-        for offset in [0, pixels.count - 4] {
-            #expect(abs(Int(pixels[offset]) - 140) <= 1)
-            #expect(abs(Int(pixels[offset + 1]) - 89) <= 1)
-            #expect(abs(Int(pixels[offset + 2]) - 13) <= 1)
-            #expect(pixels[offset + 3] == 255)
+        // Verify every pixel: both triangles fill the middle half without seams or spills.
+        for y in 0..<16 {
+            for x in 0..<16 {
+                let offset = (y * 16 + x) * 4
+                let inside = (4..<12).contains(x) && (4..<12).contains(y)
+                #expect(pixels[offset] == 0)
+                #expect(abs(Int(pixels[offset + 1]) - (inside ? 64 : 0)) <= 1)
+                #expect(pixels[offset + 2] == (inside ? 255 : 0))
+                #expect(pixels[offset + 3] == 255)
+            }
         }
     }
 

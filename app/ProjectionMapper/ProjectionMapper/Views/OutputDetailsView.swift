@@ -37,7 +37,7 @@ struct OutputDetailsView: View {
             OutputWindowControls(session: session, openOutput: openOutput)
             Text(session.testOutput.statusText).font(.caption).foregroundStyle(.secondary)
             Text(output.destination == .testWindow
-                 ? "Metal diagnostic output. Mapping surfaces arrive in v1.05."
+                 ? "Rectangle test output. Mapping surfaces arrive in v1.05."
                  : "Projector output is deferred. Select Test Window to open output.")
                 .font(.caption).foregroundStyle(.secondary)
         }

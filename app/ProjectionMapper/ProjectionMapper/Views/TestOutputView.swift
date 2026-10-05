@@ -26,7 +26,7 @@ final class TestOutputView: NSView {
             self.renderer = renderer
             let view = MTKView(frame: .zero, device: renderer.device)
             view.colorPixelFormat = MetalRenderer.pixelFormat
-            view.clearColor = MetalRenderer.diagnosticColor
+            view.clearColor = MetalRenderer.backgroundColor
             view.isPaused = true
             view.enableSetNeedsDisplay = true
             view.delegate = renderer
@@ -54,7 +54,7 @@ final class TestOutputView: NSView {
         addSubview(surface)
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
-        setAccessibilityLabel(renderingError ?? "Test output — Metal diagnostic color")
+        setAccessibilityLabel(renderingError ?? "Test output — orange rectangle on black")
         setAccessibilityValue("\(resolution.dimensions) px")
     }
     required init?(coder: NSCoder) { fatalError("TestOutputView is created in code") }

@@ -124,3 +124,12 @@ On `codex/v1.04.2-first-rectangle`, based on tested v1.04.1 commit `ba34723`. Ex
 - [ ] Steps 3–7: rectangle drawing, normalized scene geometry, sizing integration, full acceptance, and advancement of tested main.
 
 The running output remains the v1.04.1 blue diagnostic clear; shader/pipeline creation is ready for step 3. `main` remains the completed v1.04.1 milestone. Interim tested app: `builds/v1.04.2/step2/ProjectionMapper.app`. Evidence: [V1.04.2_VERIFICATION.md](V1.04.2_VERIFICATION.md). This is partial feature-branch work, not completed v1.04.2 acceptance. No release/tag/version bump.
+
+## v1.04.2 development — step 3
+
+- [x] Draw a temporary orange rectangle on black using the compiled Metal pipeline and two triangles. Temporary clip-space vertices precede normalized scene storage in step 4.
+- [x] All 40 tests pass with the exact pinned Xcode, including every-pixel GPU rectangle/background verification and existing native window/preset regressions.
+- [x] Running step-3 app visibly draws the rectangle at Full HD and after native close/reopen. Signature verified; local app is `builds/v1.04.2/step3/ProjectionMapper.app`.
+- [ ] Steps 4–7 and full v1.04.2 acceptance remain pending; main remains v1.04.1. Work preserved on the feature branch without release/tag/bundle bump.
+
+Latest feature-branch output is now the rectangle rather than the step-2 diagnostic clear. See [V1.04.2_VERIFICATION.md](V1.04.2_VERIFICATION.md).
