@@ -6,17 +6,120 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct MetalRendererTests {
+    @Test func renderingAvailabilityCoversSuspensionAndResume() {
+        func available(attached: Bool = true, visible: Bool = true, minimized: Bool = false,
+                       occluded: Bool = false, hidden: Bool = false, size: CGSize = CGSize(width: 640, height: 360)) -> Bool {
+            MetalSceneView.canRender(attached: attached, visible: visible, minimized: minimized,
+                                     occluded: occluded, hidden: hidden, size: size)
+        }
+        #expect(available())
+        #expect(!available(attached: false))
+        #expect(!available(visible: false))
+        #expect(!available(minimized: true))
+        #expect(!available(occluded: true))
+        #expect(!available(hidden: true))
+        #expect(!available(size: .zero))
+        #expect(!available(size: CGSize(width: CGFloat.infinity, height: 10)))
+        #expect(available()) // Returning to a visible nonzero surface permits a new frame.
+    }
+
+    @Test func unavailableDrawableSkipsFrameAndLaterEncodingStillWorks() throws {
+        let renderer = try MetalRenderer()
+        let view = UnavailableDrawableView(frame: CGRect(x: 0, y: 0, width: 16, height: 16), device: renderer.device)
+        view.drawableSize = CGSize(width: 16, height: 16)
+        renderer.draw(in: view)
+        #expect(view.descriptorRequests == 1)
+        #expect(try centerPixel(renderer) == [0, 64, 255, 255])
+    }
+
+    @Test func detachedAndHiddenViewsStayPausedWithoutDrawables() throws {
+        _ = NSApplication.shared
+        let view = MetalSceneView(frame: CGRect(x: 0, y: 0, width: 640, height: 360))
+        view.layoutSubtreeIfNeeded()
+        let metal = try #require(view.metalView)
+        let renderer = try #require(metal.delegate as? MetalRenderer)
+        #expect(!view.isRenderingActive && !renderer.isDrawingEnabled)
+        #expect(metal.isPaused && !metal.enableSetNeedsDisplay)
+        view.isHidden = true
+        view.isHidden = false
+        view.setFrameSize(.zero)
+        view.layoutSubtreeIfNeeded()
+        renderer.draw(in: metal) // No drawable requested for a suspended/zero-sized surface.
+        renderer.mtkView(metal, drawableSizeWillChange: .zero)
+        #expect(!view.isRenderingActive)
+        view.stopRendering(); view.stopRendering()
+        #expect(metal.isPaused && !metal.enableSetNeedsDisplay)
+    }
+
+    @Test func repeatedOutputCloseReleasesViewsAndRenderers() throws {
+        _ = NSApplication.shared
+        let suite = "ProjectionMapper.LifecycleTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let output = TestOutputCoordinator(presentWindow: { _ in }, preferences: OutputPreferences(defaults: defaults))
+        for _ in 0..<20 {
+            weak var view: TestOutputView?
+            weak var renderer: MetalRenderer?
+            try autoreleasepool {
+                #expect(output.open(for: .testWindow))
+                let window = try #require(output.window)
+                view = window.contentView as? TestOutputView
+                renderer = view?.metalView?.delegate as? MetalRenderer
+                #expect(renderer != nil && !window.isVisible)
+                for preset in TestResolution.allCases { output.setResolution(preset) }
+                output.close()
+                #expect(window.contentView == nil && window.delegate == nil)
+                #expect(!output.isOpen)
+            }
+            #expect(view == nil && renderer == nil)
+        }
+    }
+
+    @Test func closingOutputDoesNotSuspendIndependentEditorRenderer() throws {
+        _ = NSApplication.shared
+        let preview = MetalSceneView(frame: CGRect(x: 0, y: 0, width: 600, height: 400))
+        let renderer = try #require(preview.metalView?.delegate as? MetalRenderer)
+        let output = TestOutputCoordinator(presentWindow: { _ in })
+        output.open(for: .testWindow)
+        #expect(output.window?.contentView !== preview)
+        output.close()
+        #expect(preview.metalView?.delegate === renderer)
+        #expect(try centerPixel(renderer) == [0, 64, 255, 255])
+    }
+
+    @Test func movingBetweenUnpresentedWindowsAndDetachingRemovesOwnership() throws {
+        _ = NSApplication.shared
+        let first = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 600, height: 400),
+                             styleMask: [.titled], backing: .buffered, defer: false)
+        let second = NSWindow(contentRect: first.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        first.isReleasedWhenClosed = false; second.isReleasedWhenClosed = false
+        weak var renderer: MetalRenderer?
+        weak var released: MetalSceneView?
+        try autoreleasepool {
+            let view = MetalSceneView(frame: first.contentLayoutRect)
+            renderer = try #require(view.metalView?.delegate as? MetalRenderer)
+            released = view
+            first.contentView = view
+            second.contentView = view
+            NotificationCenter.default.post(name: NSWindow.willCloseNotification, object: first)
+            #expect(view.window === second && !view.isRenderingActive)
+            second.contentView = nil
+        }
+        #expect(released == nil && renderer == nil)
+        first.close(); second.close()
+    }
+
     @Test func sharedPreviewAndOutputUseSessionSceneAcrossPresets() throws {
         _ = NSApplication.shared
         let scene = RenderScene(geometry: .diagnostic, color: SIMD4(0, 1, 0, 1))
-        let session = EditorSession(scene: scene)
+        let session = EditorSession(presentOutput: { _ in }, scene: scene)
         let host = NSHostingView(rootView: MetalScenePreview(scene: session.scene, aspectRatio: 16.0 / 9.0,
                                                            outputDescription: "HD"))
         let editor = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 600, height: 400),
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         editor.isReleasedWhenClosed = false
         editor.contentView = host
-        editor.orderFront(nil)
+        // Hosted layout is exercised without presenting the test window.
         defer { editor.close(); session.testOutput.close() }
         for resolution in TestResolution.allCases {
             session.setTestResolution(resolution)
@@ -256,5 +359,16 @@ struct MetalRendererTests {
             output.close()
             #expect(!output.isOpen)
         }
+    }
+}
+
+
+/// No layer/drawable is acquired, so this probe never presents a window.
+@MainActor
+private final class UnavailableDrawableView: MTKView {
+    var descriptorRequests = 0
+    override var currentRenderPassDescriptor: MTLRenderPassDescriptor? {
+        descriptorRequests += 1
+        return nil
     }
 }

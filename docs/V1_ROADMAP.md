@@ -36,7 +36,7 @@ The user will not have a projector for a while. Projector-window implementation 
 
 ## v1.04 slices — approved October 5, 2026
 
-See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. v1.04.1–v1.04.3 are implemented and locally verified; v1.04.4–v1.04.5 remain planned. See [v1.04.1 verification](V1.04.1_VERIFICATION.md).
+See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. v1.04.1–v1.04.3 are implemented and locally verified; v1.04.4 is implemented with automated verification (interactive acceptance pending); v1.04.5 remains planned. See [v1.04.1 verification](V1.04.1_VERIFICATION.md).
 
 | Slice | Scope | Finished when |
 |---|---|---|

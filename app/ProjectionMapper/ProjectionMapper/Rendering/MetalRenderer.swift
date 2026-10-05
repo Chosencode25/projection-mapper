@@ -26,6 +26,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     let rectanglePipeline: any MTLRenderPipelineState
     static let pixelFormat: MTLPixelFormat = .bgra8Unorm
     static let backgroundColor = MTLClearColorMake(0, 0, 0, 1)
+    var isDrawingEnabled = true
     let scene: RenderScene
     var geometry: NormalizedRectangle { scene.geometry }
 
@@ -83,11 +84,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     }
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-        view.needsDisplay = true
+        if isDrawingEnabled { view.needsDisplay = true }
     }
 
     func draw(in view: MTKView) {
-        guard view.drawableSize.width > 0, view.drawableSize.height > 0,
+        guard isDrawingEnabled, view.drawableSize.width > 0, view.drawableSize.height > 0,
               let descriptor = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
               let command = encodeScene(to: descriptor) else { return }

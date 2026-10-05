@@ -7,7 +7,7 @@ Required Xcode: **27.0 beta 5 (27A5237l)** at /Applications/Xcode-beta.app.
 1. Open app/ProjectionMapper/ProjectionMapper.xcodeproj with Xcode-beta.
 2. Select **ProjectionMapper** and **My Mac**.
 3. Press **Command–R** to build and run.
-4. Press **Command–U** to run the 44 state/window/Metal tests.
+4. Press **Command–U** to run the 50 state/window/Metal tests (two require visible windows).
 
 The project uses SwiftUI and programmatic AppKit. Its source is organized under App, Models, State, Views, and Resources. Minimum deployment target: macOS 15.0. Local ad-hoc signing needs no paid developer account.
 
@@ -15,7 +15,7 @@ If Xcode offers to update recommended project settings, review changes against t
 
 ## Standalone local build
 
-Open builds/v1.04.3/ProjectionMapper.app (the tested Debug build with shared editor preview; bundle version remains 1.04.2/build 4). The published Release build is preserved in builds/v1.04.2/ProjectionMapper.app. The earlier builds/v1.01/ProjectionMapper.app is preserved. This is a local Apple Silicon development build, not a notarized public installer.
+Open app/ProjectionMapper.app or builds/v1.04.4/ProjectionMapper.app (the Debug build with automated lifecycle verification; bundle version remains 1.04.2/build 4). The published Release build is preserved in builds/v1.04.2/ProjectionMapper.app. The earlier builds/v1.01/ProjectionMapper.app is preserved. This is a local Apple Silicon development build, not a notarized public installer.
 
 ## Commands
 
@@ -52,3 +52,18 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer   xcodebuild -down
 ```
 
 v1.04.3 has 44 passing Debug tests. v1.04.2 has 43 passing Debug and Release tests. The accepted Release app is `builds/v1.04.2/ProjectionMapper.app` and draws an orange rectangle on black.
+
+
+## Automated checks without onscreen windows
+
+v1.04.4 passed 48 automated tests without presenting windows. To run that subset from the project root, use:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
+xcodebuild -project app/ProjectionMapper/ProjectionMapper.xcodeproj -scheme ProjectionMapper \
+  -destination 'platform=macOS,arch=arm64' -derivedDataPath builds/v1.04.4/DerivedData \
+  '-skip-testing:ProjectionMapperTests/TestOutputCoordinatorTests/normalFrameRestoresAcrossCloseAndNewCoordinator()' \
+  '-skip-testing:ProjectionMapperTests/MetalRendererTests/nativeMetalOutputSurvivesPresetsResizeAndReopen()' test
+```
+
+The two excluded tests exercise visible minimize/zoom and drawable behavior. Interactive lifecycle acceptance remains pending; see V1.04.4_VERIFICATION.md. No production app launch is needed for this subset.

@@ -9,9 +9,12 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
     private let preferences: OutputPreferences
     private let visibleFrames: () -> [CGRect]
     private let scene: RenderScene
+    private let presentWindow: (NSWindow) -> Void
 
-    init(scene: RenderScene = .diagnostic, preferences: OutputPreferences = OutputPreferences(),
+    init(presentWindow: @escaping (NSWindow) -> Void = { $0.makeKeyAndOrderFront(nil) },
+         scene: RenderScene = .diagnostic, preferences: OutputPreferences = OutputPreferences(),
          visibleFrames: @escaping () -> [CGRect] = { NSScreen.screens.map(\.visibleFrame) }) {
+        self.presentWindow = presentWindow
         self.preferences = preferences
         self.scene = scene
         self.visibleFrames = visibleFrames
@@ -98,7 +101,8 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
         if let window, !window.isZoomed, !window.styleMask.contains(.fullScreen) {
             recover(window, frame: window.frame)
         }
-        window?.makeKeyAndOrderFront(nil)
+        if let window { presentWindow(window) }
+        (window?.contentView as? TestOutputView)?.updateRenderingAvailability()
         return true
     }
 
@@ -116,6 +120,9 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow, closing === window else { return }
         saveNormalFrame()
+        (closing.contentView as? TestOutputView)?.stopRendering()
+        closing.contentView = nil
+        closing.delegate = nil
         window = nil
     }
 }

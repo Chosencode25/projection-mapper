@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.04.3 Shared Editor Preview is implemented and locally verified with Xcode 27.0 beta 5 (27A5237l). All 44 Debug tests pass. Editor preview and Test Output use the same session scene and Metal rendering implementation, with independent view resources. Tested Apple Silicon app: builds/v1.04.3/ProjectionMapper.app. Bundle remains 1.04.2/build 4; latest published release remains the [v1.04.2 development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next: v1.04.4 Rendering Lifecycle. Projector implementation and physical checks remain deferred.
+v1.04.4 Rendering Lifecycle is implemented and verified through 48 automated Debug tests with Xcode 27.0 beta 5 (27A5237l). Two existing tests that need visible windows were excluded; interactive lifecycle acceptance remains unverified at the user's request. Rendering now follows view/window availability, and output close releases view/renderer ownership. Tested app: builds/v1.04.4/ProjectionMapper.app, also copied to app/ProjectionMapper.app. Bundle remains 1.04.2/build 4; latest published release remains [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next planned slice: v1.04.5 Performance and Acceptance. Projector work remains deferred.
 
 ## Completed
 
@@ -24,13 +24,13 @@ v1.04.3 Shared Editor Preview is implemented and locally verified with Xcode 27.
 
 ## Current acceptance and next milestone
 
-v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. v1.03.2 adds verified simulated resolution presets and aspect-preserving scaling as a source update without a new release or tag. v1.03.3 completes Test Window persistence/navigation. v1.04.3 Shared Editor Preview is now verified. Next: v1.04.4 Rendering Lifecycle. Projector implementation remains deferred. See [v1.04 plan](V1.04_PLAN.md) and [roadmap](V1_ROADMAP.md) for the approved split.
+v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. v1.03.2 adds verified simulated resolution presets and aspect-preserving scaling as a source update without a new release or tag. v1.03.3 completes Test Window persistence/navigation. v1.04.4 Rendering Lifecycle has passed automated verification; interactive acceptance remains pending. Next planned slice: v1.04.5 Performance and Acceptance. Projector implementation remains deferred. See [v1.04 plan](V1.04_PLAN.md) and [roadmap](V1_ROADMAP.md) for the approved split.
 
 ## Scope and limitations
 
 Projects stay in memory. Output selection and preferences are implemented; the Test Window, Metal rectangle rendering, and shared editor preview are implemented. Projector output is deferred; media import, surfaces, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
 
-See V1.04.3_VERIFICATION.md for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
+See V1.04.4_VERIFICATION.md for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
 
 ## GitHub version history
 
@@ -177,3 +177,16 @@ Publication verified: non-draft development prerelease at [v1.04.2](https://gith
 - [x] Tested Debug app copied to builds/v1.04.3/ProjectionMapper.app and strict signature verified.
 
 Source delivery through codex/v1.04.3-shared-preview into main; no new release/tag/archive or bundle bump. Evidence: [V1.04.3_VERIFICATION.md](V1.04.3_VERIFICATION.md). Next: v1.04.4 Rendering Lifecycle; lifecycle stress and performance acceptance remain planned.
+
+
+## v1.04.4 implementation
+
+- [x] Gate on-demand drawing by attachment, visibility/occlusion, minimization, hiding, and valid surface size; re-invalidate when eligible.
+- [x] Stop/release output drawables and detach content/delegate on close; clear editor hosting content on close/termination.
+- [x] Add injectable presentation so automated window checks do not appear on the user's desktop.
+- [x] Six new lifecycle/GPU/resource tests; 48 automated Debug tests passed, with two visible-window checks excluded.
+- [x] Preserve separate editor/output rendering and verify weak view/renderer deallocation over 20 output cycles.
+- [x] Deliver signed local Debug app in builds/v1.04.4/ and, as requested, app/ProjectionMapper.app; commit/push tested source into main without release/tag/version bump.
+- [ ] Interactive minimize/restore, occlusion wakeup, navigation, backing transitions, and quit acceptance: not performed because the user prohibited onscreen app use.
+
+Evidence and exclusions: [V1.04.4_VERIFICATION.md](V1.04.4_VERIFICATION.md). v1.04.5 performance/final acceptance remains planned.

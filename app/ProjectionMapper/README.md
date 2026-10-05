@@ -1,4 +1,4 @@
-# Projection Mapper — v1.04.3 source
+# Projection Mapper — v1.04.4 source
 
 A native, entirely code-based Mac editor skeleton. Built for **Xcode 27.0 beta 5 (27A5237l)**. Minimum deployment target: **macOS 15.0**.
 
@@ -19,7 +19,7 @@ Local builds use ad-hoc signing (“Sign to Run Locally”); an Apple Developer 
 - Sidebar/inspector toggles, keyboard shortcuts, and About information.
 - Test Window/display output menus, display information, safe recovery, and remembered preferences.
 - Open/Close Output actions, one normal resizable test window with shared scene rendering, and shared status.
-- 44 focused model/session/output/window/Metal tests, runnable with Command–U.
+- 50 focused model/session/output/window/Metal tests (48 run without presenting windows), runnable with Command–U.
 
 Projects remain in memory. Basic test output is available. Shared editor/Test Output rendering is implemented. Media import, mapping, and saving are later milestones.
 
@@ -43,4 +43,4 @@ For tests, replace `build` with `test`. Before building, verify the toolchain us
 
 The minimum deployment target is a build setting; runtime verification on the development Mac does not establish testing on every supported macOS release.
 
-Projector output implementation and physical checks are deferred. See ../../docs/V1.03.1_VERIFICATION.md. Test Output draws an orange Metal rectangle on black with normalized geometry and aspect fitting in v1.04.2. See ../../docs/V1.04.2_VERIFICATION.md. Shared editor preview is implemented in v1.04.3; see ../../docs/V1.04.3_VERIFICATION.md. Bundle remains 1.04.2/build 4.
+Projector output implementation and physical checks are deferred. See ../../docs/V1.03.1_VERIFICATION.md. Test Output draws an orange Metal rectangle on black with normalized geometry and aspect fitting in v1.04.2. See ../../docs/V1.04.2_VERIFICATION.md. Shared editor preview is implemented in v1.04.3; see ../../docs/V1.04.3_VERIFICATION.md. Bundle remains 1.04.2/build 4. Lifecycle handling is implemented in v1.04.4; see ../../docs/V1.04.4_VERIFICATION.md for automated evidence and pending interactive acceptance. The local built app is ../ProjectionMapper.app.

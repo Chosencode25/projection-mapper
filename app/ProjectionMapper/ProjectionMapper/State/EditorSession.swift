@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 
 @MainActor
@@ -12,12 +12,13 @@ final class EditorSession {
     var isInspectorVisible = true
     var hasUserChanges: Bool { project.name != MappingProject.defaultName }
 
-    init(project: MappingProject = MappingProject(), output: OutputSelectionState = OutputSelectionState(),
+    init(presentOutput: @escaping (NSWindow) -> Void = { $0.makeKeyAndOrderFront(nil) },
+         project: MappingProject = MappingProject(), output: OutputSelectionState = OutputSelectionState(),
          scene: RenderScene = .diagnostic) {
         self.project = project
         self.output = output
         self.scene = scene
-        testOutput = TestOutputCoordinator(scene: scene)
+        testOutput = TestOutputCoordinator(presentWindow: presentOutput, scene: scene)
     }
 
     func setTestResolution(_ resolution: TestResolution) {

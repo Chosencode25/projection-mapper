@@ -6,7 +6,7 @@ import Testing
 struct TestOutputCoordinatorTests {
     @Test func launchStartsClosedAndRepeatedOpenReusesOneWindow() {
         _ = NSApplication.shared
-        let output = TestOutputCoordinator()
+        let output = TestOutputCoordinator(presentWindow: { _ in })
         defer { output.close() }
         #expect(!output.isOpen)
         #expect(output.open(for: .testWindow))
@@ -19,7 +19,7 @@ struct TestOutputCoordinatorTests {
     }
     @Test func nativeCloseUpdatesStatusAndReopenCreatesOneFreshWindow() {
         _ = NSApplication.shared
-        let output = TestOutputCoordinator()
+        let output = TestOutputCoordinator(presentWindow: { _ in })
         defer { output.close() }
         output.open(for: .testWindow)
         let first = output.window
@@ -32,7 +32,7 @@ struct TestOutputCoordinatorTests {
     }
     @Test func closeIsSafeWhenRepeatedAndPreservesProjectData() {
         _ = NSApplication.shared
-        let session = EditorSession()
+        let session = EditorSession(presentOutput: { _ in })
         session.renameProject("House")
         let original = session.project
         session.testOutput.open(for: .testWindow)
@@ -43,7 +43,7 @@ struct TestOutputCoordinatorTests {
     }
     @Test func realDisplayCannotOpenOutputAndDestinationChangeClosesTest() {
         _ = NSApplication.shared
-        let output = TestOutputCoordinator()
+        let output = TestOutputCoordinator(presentWindow: { _ in })
         defer { output.close() }
         #expect(!output.open(for: .display(2)))
         #expect(!output.isOpen)
@@ -55,7 +55,7 @@ struct TestOutputCoordinatorTests {
     }
     @Test func windowHasNormalControlsAndResizingPreservesConfiguredTarget() {
         _ = NSApplication.shared
-        let session = EditorSession()
+        let session = EditorSession(presentOutput: { _ in })
         let original = session.project
         defer { session.testOutput.close() }
         session.testOutput.open(for: .testWindow)
@@ -71,7 +71,7 @@ struct TestOutputCoordinatorTests {
     }
     @Test func resetKeepsOpenOutputAndProjectorPreferenceIndependent() {
         _ = NSApplication.shared
-        let session = EditorSession()
+        let session = EditorSession(presentOutput: { _ in })
         defer { session.testOutput.close() }
         session.testOutput.open(for: .testWindow)
         let window = session.testOutput.window
@@ -82,7 +82,7 @@ struct TestOutputCoordinatorTests {
     }
     @Test func unrelatedWindowClosingDoesNotClearOutputOwnership() {
         _ = NSApplication.shared
-        let output = TestOutputCoordinator()
+        let output = TestOutputCoordinator(presentWindow: { _ in })
         defer { output.close() }
         output.open(for: .testWindow)
         let other = NSWindow(contentRect: .zero, styleMask: .titled, backing: .buffered, defer: false)
@@ -125,7 +125,7 @@ struct TestOutputCoordinatorTests {
         let suite = "ProjectionMapper.LiveResolutionTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        let session = EditorSession(output: OutputSelectionState(preferences: OutputPreferences(defaults: defaults)))
+        let session = EditorSession(presentOutput: { _ in }, output: OutputSelectionState(preferences: OutputPreferences(defaults: defaults)))
         let original = session.project
         session.setTestResolution(.portrait)
         #expect(!session.testOutput.isOpen)
@@ -147,7 +147,7 @@ struct TestOutputCoordinatorTests {
         #expect(session.project == original && !session.hasUserChanges)
         session.resetProject()
         #expect(session.output.testResolution == .standard)
-        let restarted = EditorSession(output: OutputSelectionState(preferences: OutputPreferences(defaults: defaults)))
+        let restarted = EditorSession(presentOutput: { _ in }, output: OutputSelectionState(preferences: OutputPreferences(defaults: defaults)))
         #expect(restarted.output.testResolution == .standard)
         #expect(!restarted.testOutput.isOpen)
     }
@@ -227,7 +227,7 @@ struct TestOutputCoordinatorTests {
         let screen = NSScreen.main!.visibleFrame
         let preferences = OutputPreferences(defaults: defaults)
         preferences.saveTestWindowFrame(CGRect(x: 30000, y: 30000, width: 3000, height: 2000))
-        let output = TestOutputCoordinator(preferences: preferences, visibleFrames: { [screen] })
+        let output = TestOutputCoordinator(presentWindow: { _ in }, preferences: preferences, visibleFrames: { [screen] })
         defer { output.close() }
         output.open(for: .testWindow)
         let window = output.window!

@@ -5,6 +5,7 @@ import MetalKit
 class MetalSceneView: NSView {
     private let surface: NSView
     private let renderer: MetalRenderer?
+    private(set) var isRenderingActive = false
     private(set) var renderingError: String?
     var metalView: MTKView? { surface as? MTKView }
     var outputFrame: CGRect { surface.frame }
@@ -57,6 +58,7 @@ class MetalSceneView: NSView {
         surface.wantsLayer = true
         surface.layer?.backgroundColor = NSColor.black.cgColor
         addSubview(surface)
+        updateRenderingAvailability()
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
         setAccessibilityLabel(renderingError ?? "Test output — orange rectangle on black")
@@ -75,8 +77,68 @@ class MetalSceneView: NSView {
         let height = width / ratio
         surface.frame = CGRect(x: bounds.midX - width / 2, y: bounds.midY - height / 2,
                                width: width, height: height)
-        surface.needsDisplay = true
+        updateRenderingAvailability()
     }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        NotificationCenter.default.removeObserver(self)
+        if let window {
+            for name in [NSWindow.didChangeOcclusionStateNotification, NSWindow.didMiniaturizeNotification,
+                         NSWindow.didDeminiaturizeNotification, NSWindow.didChangeBackingPropertiesNotification,
+                         NSWindow.willCloseNotification] {
+                NotificationCenter.default.addObserver(self, selector: #selector(windowAvailabilityChanged(_:)),
+                                                       name: name, object: window)
+            }
+        }
+        updateRenderingAvailability()
+    }
+
+    override func viewDidHide() { super.viewDidHide(); updateRenderingAvailability() }
+    override func viewDidUnhide() { super.viewDidUnhide(); updateRenderingAvailability() }
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        needsLayout = true
+        updateRenderingAvailability()
+    }
+
+    @objc private func windowAvailabilityChanged(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }
+        if notification.name == NSWindow.willCloseNotification { stopRendering() }
+        else { updateRenderingAvailability() }
+    }
+
+    /// Also used by headless tests; window visibility is supplied without presenting a window.
+    static func canRender(attached: Bool, visible: Bool, minimized: Bool, occluded: Bool,
+                          hidden: Bool, size: CGSize) -> Bool {
+        attached && visible && !minimized && !occluded && !hidden &&
+        size.width.isFinite && size.height.isFinite && size.width > 0 && size.height > 0
+    }
+
+    func updateRenderingAvailability() {
+        setRenderingActive(Self.canRender(attached: window != nil, visible: window?.isVisible == true,
+                                          minimized: window?.isMiniaturized == true,
+                                          occluded: window?.occlusionState.contains(.visible) != true,
+                                          hidden: isHiddenOrHasHiddenAncestor, size: surface.bounds.size))
+    }
+
+    private func setRenderingActive(_ active: Bool) {
+        isRenderingActive = active
+        renderer?.isDrawingEnabled = active
+        if let metalView {
+            metalView.isPaused = true // No display link or repeating render loop for this static scene.
+            metalView.enableSetNeedsDisplay = active
+            if active { metalView.needsDisplay = true }
+        }
+    }
+
+    func stopRendering() {
+        setRenderingActive(false)
+        metalView?.releaseDrawables()
+    }
+
+    deinit { NotificationCenter.default.removeObserver(self) }
+
 }
 
 /// Test-window preset metadata is independent of the reusable scene drawing view.

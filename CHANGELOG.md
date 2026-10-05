@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — v1.04.4 Rendering Lifecycle — October 5, 2026
+
+- Gate drawing by view/window availability and request redraw on restoration/backing changes, preserving on-demand rendering.
+- Release output content/delegate and cached drawables on close; clear editor hosting content on close/termination.
+- Add headless window presentation injection and six lifecycle/GPU/resource tests. 48 automated Debug tests pass with pinned Xcode; two onscreen tests and interactive acceptance are deferred at the user’s request.
+- Signed Debug app copied to builds/v1.04.4/ and app/ProjectionMapper.app. Source update only; bundle remains 1.04.2/build 4.
+
 ## Unreleased — v1.04.3 Shared Editor Preview — October 5, 2026
 
 - Editor preview and Test Output draw the same session-owned scene through a reusable Metal view and renderer implementation.

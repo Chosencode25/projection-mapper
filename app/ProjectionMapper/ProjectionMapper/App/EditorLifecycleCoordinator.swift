@@ -53,10 +53,18 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     func windowWillClose(_ notification: Notification) {
         if let closing = notification.object as? NSWindow, closing === editorWindow {
             session.testOutput.close()
+            closing.contentView = nil
+            closing.delegate = nil
+            editorWindow = nil
         }
     }
 
-    func applicationWillTerminate(_ notification: Notification) { session.testOutput.close() }
+    func applicationWillTerminate(_ notification: Notification) {
+        session.testOutput.close()
+        editorWindow?.contentView = nil
+        editorWindow?.delegate = nil
+        editorWindow = nil
+    }
 
     func newProject() {
         guard !isPrompting else { return }
