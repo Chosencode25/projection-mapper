@@ -201,3 +201,8 @@ Evidence and exclusions: [V1.04.4_VERIFICATION.md](V1.04.4_VERIFICATION.md). v1.
 - [ ] Broader visible-frame occlusion wakeup, backing-scale transitions, editor navigation, and quit acceptance remain pending.
 
 Evidence: [V1.04.4_VERIFICATION.md](V1.04.4_VERIFICATION.md). Previous exclusions above describe the original file-only delivery.
+
+
+## v1.04.5 detailed planning
+
+Expanded [V1.04.5_PLAN.md](V1.04.5_PLAN.md) into seven implementation/delivery steps with exact texture sizes, sampling counts, lifecycle stress workloads, measurement limits, and acceptance criteria. Plan only: no renderer changes, new build, or performance results. Preserve the user's file-only workflow; broader visual checks require user participation or specific authorization.
