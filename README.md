@@ -9,6 +9,7 @@ The app will let you map images, videos, and built-in animations onto physical s
 - [Development requirements](docs/PROJECT_DEVELOPMENT.md): exact Xcode version and code-based interface requirements.
 - [v1.01 plan](docs/V1.01_PLAN.md): first milestone scope, implementation steps, and completion criteria.
 - [V1 roadmap](docs/V1_ROADMAP.md): all 15 milestones, including Test Mode.
+- [v1.02 plan](docs/V1.02_PLAN.md): specific output-selection and display-discovery plan; implementation pending.
 - [Progress tracker](docs/PROGRESS.md): current status, completed work, and next steps.
 
 ## Folder organization

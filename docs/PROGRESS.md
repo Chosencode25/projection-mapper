@@ -35,3 +35,7 @@ See V1.01_VERIFICATION.md for evidence and BUILD_AND_RUN.md for instructions.
 ## GitHub version history
 
 Private repository: https://github.com/Chosencode25/projection-mapper. The initial source snapshot is v1.01; its release notes are in releases/v1.01.md. Follow GITHUB_WORKFLOW.md for future milestone history.
+
+## v1.02 planning
+
+The specific plan is saved in [V1.02_PLAN.md](V1.02_PLAN.md) on `feature/v1.02-output-selection`. It covers output selection, display discovery, preference restoration, hot plugging, mirroring, and verification. Implementation has not started; the app remains v1.01. No v1.02 release or tag has been created.
