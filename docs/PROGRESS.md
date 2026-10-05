@@ -62,3 +62,7 @@ The plan is [V1.02_PLAN.md](V1.02_PLAN.md). Current verification is [V1.02_VERIF
 - [x] Published v1.03.1 app/checksum and advanced main to the accepted Test Mode milestone.
 
 Plan: [V1.03.1_PLAN.md](V1.03.1_PLAN.md). Verification: [V1.03.1_VERIFICATION.md](V1.03.1_VERIFICATION.md).
+
+## Version-history preference — October 5, 2026
+
+Small changes are preserved by commits pushed to the private repository. Full releases, version bumps, tags, and downloadable archives are reserved for substantial milestones or explicit requests. Existing published versions remain preserved. This workflow-only update requires no app build.

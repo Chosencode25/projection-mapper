@@ -15,3 +15,5 @@
 - Keep main as the latest tested milestone; use a feature branch for subsequent milestones.
 - Keep CHANGELOG.md and progress/verification notes accurate. Preserve published milestone tags and release assets.
 - Keep generated builds, caches, test-result bundles, and personal Xcode state out of commits. Store downloadable app archives as release assets.
+
+- Small changes need an appropriate verification, commit, and push for recoverable history. Do not automatically bump versions, tag, package builds, or publish releases for minuscule changes. Reserve releases for substantial milestones or explicit user requests.
