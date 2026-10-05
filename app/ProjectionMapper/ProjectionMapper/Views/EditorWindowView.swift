@@ -16,7 +16,7 @@ struct EditorWindowView: View {
                     SurfaceSidebarView(session: session).frame(width: 220)
                     Divider()
                 }
-                EditorCanvasView(output: session.output, scene: session.scene).frame(maxWidth: .infinity, maxHeight: .infinity)
+                EditorCanvasView(session: session).frame(maxWidth: .infinity, maxHeight: .infinity)
                 if session.isInspectorVisible {
                     Divider()
                     ProjectInspectorView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput).frame(width: 260)

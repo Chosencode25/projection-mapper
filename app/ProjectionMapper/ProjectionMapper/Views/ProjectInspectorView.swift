@@ -11,6 +11,10 @@ struct ProjectInspectorView: View {
             Text("SURFACE").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             if let surface = session.selectedSurface {
                 Text(surface.name).font(.subheadline.weight(.medium)).textSelection(.enabled)
+                Text(session.selectedCorner.map { "Active corner: \($0.title)" } ?? "Click a corner handle to edit")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("Arrow keys nudge 0.1%; hold Shift for 1%. Escape clears the corner selection.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Text("Normalized corners").font(.caption).foregroundStyle(.secondary)
                 corner("Top left", surface.corners.topLeft)
                 corner("Top right", surface.corners.topRight)
@@ -29,7 +33,7 @@ struct ProjectInspectorView: View {
     }
 
     private func corner(_ name: String, _ point: SIMD2<Float>) -> some View {
-        LabeledContent(name, value: String(format: "%.2f, %.2f", point.x, point.y))
+        LabeledContent(name, value: String(format: "%.3f, %.3f", point.x, point.y))
             .font(.caption).monospacedDigit()
     }
 

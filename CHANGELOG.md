@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — v1.06 Corner Nodes — October 5, 2026
+
+- Add editor-only four-corner handles and outline with active-corner highlighting.
+- Drag in fitted normalized coordinates, preserve grab offset, clamp to canvas, and update project geometry and shared render snapshots live.
+- Native canvas focus routes arrow keys (0.001 normalized units) and Shift (0.01); text fields retain their own arrow handling.
+- Selection/reset/dirty state and three-decimal inspector integration; eight new focused tests. All 68 correctness tests passed in Debug/Release; vital actual-app checks passed.
+- Signed Release app copied to builds/v1.06/ and app/ProjectionMapper.app; source saved to GitHub. Bundle stays 1.04.2/build 4; no release/tag/archive.
+
 ## Unreleased — v1.05 First Surface — October 5, 2026
 
 - Replace the diagnostic scene as project data with one project-owned Surface 1: identity, name, four normalized corners and orange fill.

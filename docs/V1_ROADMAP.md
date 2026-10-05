@@ -9,7 +9,7 @@ V1 is a native Mac app for projecting images, videos, and built-in animations on
 | 1.03 — Test Output Window | Delivered in three slices below. Fullscreen projector implementation and physical checks are deferred. |
 | 1.04 — Metal Renderer | Five slices below: Metal foundation, rectangle, shared preview, lifecycle, performance. Renderer reusable for both output modes; projector implementation/physical reconnect checks deferred. |
 | [1.05 — First Surface](V1.05_PLAN.md) | Implemented and locally accepted: one project-owned surface, four normalized corners, initial rectangle, sidebar selection and inspector. |
-| 1.06 — Corner Nodes | Draggable handles, live output updates, arrow-key nudging, larger Shift nudges. |
+| [1.06 — Corner Nodes](V1.06_PLAN.md) | Implemented and locally accepted: draggable handles, live output updates, focused arrow-key nudging, larger Shift nudges. |
 | 1.07 — Perspective Warp | Correct perspective mapping, texture coordinates, trapezoids, and extreme-position handling. |
 | 1.08 — Images | PNG/JPEG import and drag/drop; fit/fill/stretch; aspect ratio; replace/remove. |
 | 1.09 — Video | System-supported video import; AVFoundation frames into Metal; play/pause, restart, loop, speed. |
@@ -36,7 +36,7 @@ The user will not have a projector for a while. Projector-window implementation 
 
 ## v1.04 slices — approved October 5, 2026
 
-See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). Next development milestone: v1.06 Corner Nodes.
+See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). Next development milestone: v1.07 Perspective Warp.
 
 | Slice | Scope | Finished when |
 |---|---|---|
@@ -75,3 +75,7 @@ These are subjective implementation/testing-complexity estimates relative to thi
 ## v1.05 acceptance — October 5, 2026
 
 All seven steps complete. 60 correctness tests passed in Debug and Release plus authorized actual-app checks; source and local app updated. See [verification](V1.05_VERIFICATION.md). v1.06 introduces corner dragging and keyboard nudging; v1.07 perspective mapping.
+
+## v1.06 acceptance — October 5, 2026
+
+All five steps complete. 68 correctness tests passed in Debug and Release plus authorized actual-app checks; tested source and local app updated. See [verification](V1.06_VERIFICATION.md). Next: v1.07 perspective-correct texture mapping.

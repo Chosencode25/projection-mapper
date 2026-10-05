@@ -127,6 +127,31 @@ struct SurfaceTests {
         #expect(reopened.scene == .diagnostic)
     }
 
+    @Test func cornerEditsReachLivePreviewAndOutputGPU() throws {
+        _ = NSApplication.shared
+        let session = EditorSession(presentOutput: { _ in })
+        let host = NSHostingView(rootView: MetalScenePreview(scene: session.scene, aspectRatio: 1, outputDescription: "Test"))
+        host.frame = CGRect(x: 0,y: 0,width: 300,height: 300)
+        host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.03))
+        let preview = try #require(findSceneView(host))
+        let renderer = try #require(preview.metalView?.delegate as? MetalRenderer)
+        session.testOutput.open(for: .testWindow)
+        defer { session.testOutput.close() }
+        let output = try #require((session.testOutput.window?.contentView as? TestOutputView)?.metalView?.delegate as? MetalRenderer)
+        session.selectCorner(.topLeft)
+        session.moveSelectedCorner(to: SIMD2(0.6,0.5), surfaceID: session.project.surface.id)
+        host.rootView = MetalScenePreview(scene: session.scene, aspectRatio: 1, outputDescription: "Test")
+        host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.03))
+        for item in [renderer, output] {
+            #expect(item.scene == session.scene)
+            #expect(try pixels(item).first == [0,0,0,255]) // Former interior pixel is outside the edited quadrilateral.
+        }
+        session.selectSurface(nil)
+        #expect(renderer.scene == output.scene && session.hasUserChanges)
+    }
+
     private func findSceneView(_ view: NSView) -> MetalSceneView? {
         if let scene = view as? MetalSceneView { return scene }
         return view.subviews.lazy.compactMap { findSceneView($0) }.first
