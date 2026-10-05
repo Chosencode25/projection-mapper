@@ -1,0 +1,14 @@
+# Local build products and reports
+/builds/
+DerivedData/
+.build/
+*.xcresult
+*.app
+*.dmg
+
+# Personal Xcode state (shared schemes stay tracked)
+xcuserdata/
+*.xcuserstate
+
+# macOS metadata
+.DS_Store
