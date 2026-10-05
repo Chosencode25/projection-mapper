@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.04.4 onscreen verification follow-up — October 5, 2026
+
+- Both deferred onscreen tests pass: native minimize/restore/zoom/frame persistence and drawable resizing/presets/reopen.
+- Honor actual occlusion in drawable-test expectations; restrict scene-view observer removal to its lifecycle notifications.
+- Remaining 48 headless regressions pass again, covering all 50 tests across complementary runs. App copies refreshed; no release or version bump.
+
 ## Unreleased — v1.04.4 Rendering Lifecycle — October 5, 2026
 
 - Gate drawing by view/window availability and request redraw on restoration/backing changes, preserving on-demand rendering.

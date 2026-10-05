@@ -80,13 +80,19 @@ class MetalSceneView: NSView {
         updateRenderingAvailability()
     }
 
+    private static let windowNotifications: [Notification.Name] = [
+        NSWindow.didChangeOcclusionStateNotification, NSWindow.didMiniaturizeNotification,
+        NSWindow.didDeminiaturizeNotification, NSWindow.didChangeBackingPropertiesNotification,
+        NSWindow.willCloseNotification
+    ]
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        NotificationCenter.default.removeObserver(self)
+        for name in Self.windowNotifications {
+            NotificationCenter.default.removeObserver(self, name: name, object: nil)
+        }
         if let window {
-            for name in [NSWindow.didChangeOcclusionStateNotification, NSWindow.didMiniaturizeNotification,
-                         NSWindow.didDeminiaturizeNotification, NSWindow.didChangeBackingPropertiesNotification,
-                         NSWindow.willCloseNotification] {
+            for name in Self.windowNotifications {
                 NotificationCenter.default.addObserver(self, selector: #selector(windowAvailabilityChanged(_:)),
                                                        name: name, object: window)
             }

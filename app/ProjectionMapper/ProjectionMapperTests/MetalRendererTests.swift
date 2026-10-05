@@ -324,12 +324,21 @@ struct MetalRendererTests {
             #expect(output.open(for: .testWindow))
             let window = try #require(output.window)
             let content = try #require(window.contentView as? TestOutputView)
+            // AppKit can report these windows as occluded; that must suspend invalidation.
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.03))
+            content.layoutSubtreeIfNeeded()
+            let expectedActive = MetalSceneView.canRender(attached: content.window === window,
+                visible: window.isVisible, minimized: window.isMiniaturized,
+                occluded: !window.occlusionState.contains(.visible), hidden: content.isHiddenOrHasHiddenAncestor,
+                size: content.outputFrame.size)
+            #expect(content.isRenderingActive == expectedActive)
             let metal = try #require(content.metalView)
             let renderer = try #require(metal.delegate as? MetalRenderer)
             let originalGeometry = renderer.geometry
             #expect(content.renderingError == nil)
             #expect(metal.device != nil && metal.delegate != nil)
-            #expect(metal.isPaused && metal.enableSetNeedsDisplay)
+            #expect(metal.isPaused && metal.enableSetNeedsDisplay == expectedActive)
+            #expect(renderer.isDrawingEnabled == expectedActive)
             #expect(metal.autoResizeDrawable)
             window.setContentSize(size)
             let originalFrame = window.frame

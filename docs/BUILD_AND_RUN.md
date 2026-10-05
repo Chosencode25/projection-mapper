@@ -67,3 +67,6 @@ xcodebuild -project app/ProjectionMapper/ProjectionMapper.xcodeproj -scheme Proj
 ```
 
 The two excluded tests exercise visible minimize/zoom and drawable behavior. Interactive lifecycle acceptance remains pending; see V1.04.4_VERIFICATION.md. No production app launch is needed for this subset.
+
+
+The two onscreen tests were subsequently authorized and passed. After scoped observer cleanup, the remaining 48 tests passed again: all 50 have passing evidence across complementary runs. Broader interactive acceptance is still pending.

@@ -190,3 +190,14 @@ Source delivery through codex/v1.04.3-shared-preview into main; no new release/t
 - [ ] Interactive minimize/restore, occlusion wakeup, navigation, backing transitions, and quit acceptance: not performed because the user prohibited onscreen app use.
 
 Evidence and exclusions: [V1.04.4_VERIFICATION.md](V1.04.4_VERIFICATION.md). v1.04.5 performance/final acceptance remains planned.
+
+
+## v1.04.4 onscreen follow-up
+
+- [x] User authorized the two previously deferred onscreen tests; both passed with the pinned Xcode.
+- [x] Verified native minimize/restore/zoom/frame persistence and native drawable dimensions across five presets, window shapes, and close/reopen.
+- [x] Updated the drawable test’s obsolete always-enabled assumption to honor actual occlusion eligibility; narrowed observer cleanup to lifecycle notification names.
+- [x] Remaining 48 headless regressions passed again; all 50 tests passed across the two runs. Refreshed signed app copies and saved changes to GitHub.
+- [ ] Broader visible-frame occlusion wakeup, backing-scale transitions, editor navigation, and quit acceptance remain pending.
+
+Evidence: [V1.04.4_VERIFICATION.md](V1.04.4_VERIFICATION.md). Previous exclusions above describe the original file-only delivery.
