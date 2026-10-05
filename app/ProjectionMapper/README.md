@@ -21,7 +21,7 @@ Local builds use ad-hoc signing (“Sign to Run Locally”); an Apple Developer 
 - Open/Close Output actions, one normal resizable black test window, and shared status.
 - 28 focused model/session/output/window tests, runnable with Command–U.
 
-Projects remain in memory. Rendering, test output, media import, mapping, and saving are later milestones.
+Projects remain in memory. Basic test output is available. Rendering, media import, mapping, and saving are later milestones.
 
 ## Source organization
 

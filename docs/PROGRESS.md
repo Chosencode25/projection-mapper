@@ -24,7 +24,7 @@ v1.03.1 Basic Test Window is implemented and locally verified with Xcode 27.0 be
 
 ## Current acceptance and next milestone
 
-v1.03.1 is ready for its development release and merge into main. Next: v1.03.2 simulated resolution presets and aspect-preserving scaling, followed by v1.03.3 window persistence/navigation polish. See V1_ROADMAP.md for the approved split.
+v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. Next: v1.03.2 simulated resolution presets and aspect-preserving scaling, followed by v1.03.3 window persistence/navigation polish. See V1_ROADMAP.md for the approved split.
 
 ## Scope and limitations
 
@@ -59,6 +59,6 @@ The plan is [V1.02_PLAN.md](V1.02_PLAN.md). Current verification is [V1.02_VERIF
 - [x] Project reset independent of output; successful editor close/quit cleanup, Cancel preserving both windows.
 - [x] Seven focused AppKit window tests plus all 21 regressions passed.
 - [x] Local runtime checks and pinned-Xcode Release build/signature verification.
-- [ ] Publish v1.03.1 app/checksum and advance main to the accepted Test Mode milestone.
+- [x] Published v1.03.1 app/checksum and advanced main to the accepted Test Mode milestone.
 
 Plan: [V1.03.1_PLAN.md](V1.03.1_PLAN.md). Verification: [V1.03.1_VERIFICATION.md](V1.03.1_VERIFICATION.md).
