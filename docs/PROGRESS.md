@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.04.2 First Rectangle is implemented and locally accepted with Xcode 27.0 beta 5 (27A5237l). All 43 tests pass in Debug and Release. The Apple Silicon Release app is in builds/v1.04.2/ProjectionMapper.app, version 1.04.2/build 4. Test Output draws a centered orange rectangle on black with normalized geometry and aspect fitting. Release publication requested by the user; see step-7 delivery below. Shared editor preview is next in v1.04.3. Projector implementation and physical checks remain deferred.
+v1.04.2 First Rectangle is implemented and locally accepted with Xcode 27.0 beta 5 (27A5237l). All 43 tests pass in Debug and Release. The Apple Silicon Release app is in builds/v1.04.2/ProjectionMapper.app, version 1.04.2/build 4. Test Output draws a centered orange rectangle on black with normalized geometry and aspect fitting. Published as the [v1.04.2 development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2) with app/checksum. Shared editor preview is next in v1.04.3. Projector implementation and physical checks remain deferred.
 
 ## Completed
 
@@ -164,4 +164,4 @@ No app change or repeated test run was needed in this acceptance-only step. Test
 
 All seven steps are complete. The user explicitly requested a release during delivery, superseding the earlier source-only checkpoint plan. Bundle advanced to v1.04.2/build 4; all 43 Release tests passed with pinned Xcode. Signed Apple Silicon Release app copied to `builds/v1.04.2/ProjectionMapper.app`, runtime rendering/version checked, and ZIP/checksum prepared. Feature source is finalized for main and the v1.04.2 development prerelease; see [release notes](releases/v1.04.2.md). Earlier step entries are historical checkpoints.
 
-Publication verification is recorded after the GitHub operation. Next: v1.04.3 Shared Editor Preview. Performance measurements and projector implementation remain deferred.
+Publication verified: non-draft development prerelease at [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2), tag fixed at tested source `afd2440`. Both app ZIP and checksum assets report uploaded; GitHub archive digest matches the local SHA-256. Main advanced to tested source, with this subsequent documentation confirmation. Next: v1.04.3 Shared Editor Preview. Performance measurements and projector implementation remain deferred.
