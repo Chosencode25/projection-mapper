@@ -11,16 +11,16 @@ V1 is a native Mac app for projecting images, videos, and built-in animations on
 | [1.05 — First Surface](V1.05_PLAN.md) | Implemented and locally accepted: one project-owned surface, four normalized corners, initial rectangle, sidebar selection and inspector. |
 | [1.06 — Corner Nodes](V1.06_PLAN.md) | Implemented and locally accepted: draggable handles, live output updates, focused arrow-key nudging, larger Shift nudges. |
 | [1.07 — Perspective Warp](V1.07_PLAN.md) | Implemented and locally accepted: projective diagnostic textures, trapezoids, safe invalid geometry and recovery. |
-| 1.08 — Images | Deferred at user request. Future scope: PNG/JPEG import and drag/drop; fit/fill/stretch; aspect ratio; replace/remove. |
-| 1.09 — Video | Deferred at user request. Future scope: system-supported video import; AVFoundation frames into Metal; play/pause, restart, loop, speed. |
-| 1.10 — Built-In Animations | Gradients, plasma, noise, checkers, moving lines, particles/starfield; speed, scale, color, intensity controls. |
-| 1.11 — Multiple Surfaces | Add/select/rename/duplicate/delete/reorder surfaces and toggle visibility. |
-| 1.12 — Surface Controls | Opacity, brightness, crop, flipping, resets, and locking. |
-| 1.13 — Mapping Tools | Grid, checkerboard, crosshairs, white/black output, global blackout, handle visibility. |
-| 1.14 — Save & Load | Versioned project files; geometry, media references, generator settings, output configuration; autosave and recent projects. |
-| 1.15 — Polish & Release | Undo/redo, shortcuts, error and missing-media handling, disconnect warning, welcome/demo, profiling, icon, signing, DMG. |
+| 1.08 — Multiple Surfaces | Add/select/rename/duplicate/delete/reorder surfaces and toggle visibility. Next active milestone. |
+| 1.09 — Built-In Animations | Gradients, plasma, noise, checkers, moving lines, particles/starfield; speed, scale, color, intensity controls. |
+| 1.10 — Save & Load | Versioned project files; surface geometry, generator settings, output configuration; autosave and recent projects. Extend saved media references when import arrives. |
+| 1.11 — Surface Controls | Opacity, brightness, crop, flipping, resets, and locking. |
+| 1.12 — Mapping Tools | Grid, checkerboard, crosshairs, white/black output, global blackout, handle visibility. |
+| 1.13 — Images | PNG/JPEG import and drag/drop; fit/fill/stretch; aspect ratio; replace/remove; integrate media references with saved projects. |
+| 1.14 — Video | System-supported video import; AVFoundation frames into Metal; play/pause, restart, loop, speed; integrate media references/playback settings with saved projects. |
+| 1.15 — Polish & Release | Undo/redo, shortcuts, error and missing-media handling, disconnect warning, welcome/demo, profiling, icon, signing, DMG, final verification and release upload. |
 
-The first major mapping milestone is 1.07. A temporary developer test texture or pattern can exercise warping while custom image/video import is deferred; full calibration tools remain planned for 1.13.
+The first major mapping milestone is 1.07. A temporary developer test texture or pattern can exercise warping before image/video import, now scheduled after the core mapping tools; full calibration tools remain planned for 1.12.
 
 Later major versions cover richer mesh/mask/effect tools, camera-assisted mapping and live control, and professional 3D or multi-projector features.
 
@@ -36,7 +36,7 @@ The user will not have a projector for a while. Projector-window implementation 
 
 ## v1.04 slices — approved October 5, 2026
 
-See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). v1.07 is also [implemented and locally accepted](V1.07_VERIFICATION.md). Next active development milestone: v1.10 Built-In Animations; v1.08/v1.09 import is deferred.
+See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). v1.07 is also [implemented and locally accepted](V1.07_VERIFICATION.md). Next active development milestone: v1.08 Multiple Surfaces. See the reordered remaining roadmap below.
 
 | Slice | Scope | Finished when |
 |---|---|---|
@@ -63,14 +63,14 @@ These are subjective implementation/testing-complexity estimates relative to thi
 | 1.05 — First Surface | 3/10 | Geometry model and selection on the renderer. |
 | 1.06 — Corner Nodes | 6/10 | Dragging, coordinate conversion, nudging, live updates. |
 | 1.07 — Perspective Warp | 8/10 | Mapping math, texture correctness, extreme shapes. |
-| 1.08 — Images | 5/10 | Import, GPU textures, fit/fill/stretch, replacement. |
-| 1.09 — Video | 9/10 | Playback timing, decoding, Metal integration, resource management. |
-| 1.10 — Built-In Animations | 7/10 | Several shaders, controls, consistent performance. |
-| 1.11 — Multiple Surfaces | 6/10 | Selection, ordering, duplication, visibility, multiple draws. |
-| 1.12 — Surface Controls | 5/10 | Controls interacting with media and mapping. |
-| 1.13 — Mapping Tools | 4/10 | Patterns and output controls on established rendering. |
-| 1.14 — Save & Load | 8/10 | Reliable files, media references, autosave, migrations, recovery. |
-| 1.15 — Polish & Release | 9/10 | Undo/redo, error handling, profiling, packaging, release verification. |
+| 1.08 — Multiple Surfaces | 6/10 | Selection, ordering, duplication, visibility, multiple draws. |
+| 1.09 — Built-In Animations | 7/10 | Several shaders, controls, consistent performance. |
+| 1.10 — Save & Load | 8/10 | Reliable files, generator settings, autosave, migrations, recovery; later media extensions. |
+| 1.11 — Surface Controls | 5/10 | Controls interacting with content and mapping. |
+| 1.12 — Mapping Tools | 4/10 | Patterns and output controls on established rendering. |
+| 1.13 — Images | 5/10 | Import, GPU textures, fit/fill/stretch, replacement, saved media references. |
+| 1.14 — Video | 9/10 | Playback timing, decoding, Metal integration, resource management, saved settings. |
+| 1.15 — Polish & Release | 9/10 | Undo/redo, error handling, profiling, packaging, release verification and upload. |
 
 ## v1.05 acceptance — October 5, 2026
 
@@ -80,6 +80,23 @@ All seven steps complete. 60 correctness tests passed in Debug and Release plus 
 
 All five steps complete. 68 correctness tests passed in Debug and Release plus authorized actual-app checks; tested source and local app updated. See [verification](V1.06_VERIFICATION.md). Next: v1.07 perspective-correct texture mapping.
 
-## Custom media import deferred — October 5, 2026
+## Earlier media deferral — October 5, 2026 (superseded by reorder below)
 
 The user requested skipping custom image and video import for now. Defer v1.08 Images and v1.09 Video rather than removing them or marking them complete. Keep existing milestone numbers. The next active roadmap milestone is v1.10 Built-In Animations, which generates content inside the app without imported files. No animation implementation has started. Multiple surfaces, surface controls, mapping tools and saving remain subsequent milestones; Test Mode and shared rendering remain required.
+
+## Remaining roadmap reordered — approved October 5, 2026
+
+The user explicitly requested this sequence and renumbering: multiple surfaces, animations, saving, remaining core tools in their prior relative order, image import, video import, then polishing and upload. Completed v1.01–v1.07 milestones, historical plans, verification records, Git tags and release assets retain their original identities. Only future milestones are renumbered. The earlier deferral above records the previous decision and numbering.
+
+| Previous number | New number | Milestone |
+|---|---|---|
+| 1.11 | 1.08 | Multiple Surfaces |
+| 1.10 | 1.09 | Built-In Animations |
+| 1.14 | 1.10 | Save & Load |
+| 1.12 | 1.11 | Surface Controls |
+| 1.13 | 1.12 | Mapping Tools |
+| 1.08 | 1.13 | Images |
+| 1.09 | 1.14 | Video |
+| 1.15 | 1.15 | Polish & Release |
+
+Saving begins with the content supported at v1.10; subsequent surface settings and imported media extend that versioned format as their milestones arrive. Image/video import is scheduled later, rather than permanently removed. Physical projector output/testing remains separately deferred; Test Mode and shared rendering remain required. This is an approved roadmap update, not implementation of v1.08 or authorization to publish a release now.
