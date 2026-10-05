@@ -7,7 +7,7 @@ struct MetalScenePreview: NSViewRepresentable {
 
     func makeNSView(context: Context) -> MetalSceneView {
         let view = MetalSceneView(frame: .zero, scene: scene)
-        view.setAccessibilityLabel(view.renderingError ?? "Editor preview — orange rectangle on black")
+        view.setAccessibilityLabel(view.renderingError ?? "Editor preview — project surface on black")
         return view
     }
 

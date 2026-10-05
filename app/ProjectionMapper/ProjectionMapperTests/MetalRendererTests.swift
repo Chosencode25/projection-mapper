@@ -112,7 +112,7 @@ struct MetalRendererTests {
     @Test func sharedPreviewAndOutputUseSessionSceneAcrossPresets() throws {
         _ = NSApplication.shared
         let scene = RenderScene(geometry: .diagnostic, color: SIMD4(0, 1, 0, 1))
-        let session = EditorSession(presentOutput: { _ in }, project: MappingProject(surface: MappingSurface(color: scene.color)))
+        let session = EditorSession(presentOutput: { _ in }, project: MappingProject(surface: MappingSurface(color: scene.color, content: .solid)))
         let host = NSHostingView(rootView: MetalScenePreview(scene: session.scene, aspectRatio: 16.0 / 9.0,
                                                            outputDescription: "HD"))
         let editor = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 600, height: 400),
@@ -145,7 +145,7 @@ struct MetalRendererTests {
         session.isInspectorVisible = false
         session.renameProject("House")
         session.resetProject()
-        #expect(session.scene == .diagnostic && !session.hasUserChanges)
+        #expect(session.scene == .diagnosticGrid && !session.hasUserChanges)
         #expect(findSceneView(in: host)?.metalView != nil)
     }
 

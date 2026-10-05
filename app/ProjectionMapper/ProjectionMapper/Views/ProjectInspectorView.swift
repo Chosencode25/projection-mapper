@@ -15,6 +15,18 @@ struct ProjectInspectorView: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Text("Arrow keys nudge 0.1%; hold Shift for 1%. Escape clears the corner selection.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Picker("Content", selection: Binding(get: { surface.content }, set: { session.setSurfaceContent($0) })) {
+                    ForEach(SurfaceContent.allCases) { Text($0.title).tag($0) }
+                }
+                Picker("Edit corner", selection: Binding<SurfaceCorner?>(get: { session.selectedCorner },
+                    set: { session.selectCorner($0) })) {
+                    Text("None").tag(Optional<SurfaceCorner>.none)
+                    ForEach(SurfaceCorner.allCases) { Text($0.title).tag(Optional($0)) }
+                }
+                if surface.renderScene.perspective == nil {
+                    Label("Corners must form a convex shape. Move a corner to restore output.", systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                }
                 Text("Normalized corners").font(.caption).foregroundStyle(.secondary)
                 corner("Top left", surface.corners.topLeft)
                 corner("Top right", surface.corners.topRight)

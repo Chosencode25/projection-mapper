@@ -1,6 +1,8 @@
 import MetalKit
+import simd
 
 enum MetalInitializationError: LocalizedError {
+    case diagnosticTextureUnavailable
     case deviceUnavailable
     case commandQueueUnavailable
     case shaderLibraryUnavailable(String)
@@ -9,6 +11,7 @@ enum MetalInitializationError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .diagnosticTextureUnavailable: "Metal could not create the diagnostic texture. Close and reopen the window to try again."
         case .deviceUnavailable: "Metal is unavailable on this Mac. Test Output cannot render."
         case .commandQueueUnavailable: "Metal could not create a command queue. Close and reopen Test Output to try again."
         case .shaderLibraryUnavailable(let reason): "Metal could not load the output shaders: \(reason)"
@@ -24,6 +27,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     let device: any MTLDevice
     let commandQueue: any MTLCommandQueue
     let rectanglePipeline: any MTLRenderPipelineState
+    let diagnosticTexture: any MTLTexture
+    private var perspective: PerspectiveTransform?
     static let pixelFormat: MTLPixelFormat = .bgra8Unorm
     static let backgroundColor = MTLClearColorMake(0, 0, 0, 1)
     let diagnostics: RenderDiagnostics?
@@ -46,6 +51,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         self.diagnostics = diagnostics
         self.device = device
         self.scene = scene
+        perspective = scene.perspective
+        guard let texture = DiagnosticTexture.make(device: device) else {
+            throw MetalInitializationError.diagnosticTextureUnavailable
+        }
+        diagnosticTexture = texture
         commandQueue = queue
         let library: any MTLLibrary
         do { library = try libraryProvider(device) }
@@ -78,15 +88,22 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             diagnostics?.skipped("encoding-unavailable")
             return nil
         }
-        command.label = "Temporary rectangle output"
-        encoder.setRenderPipelineState(rectanglePipeline)
-        let rectanglePositions = geometry.trianglePositions
-        rectanglePositions.withUnsafeBytes {
-            encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 0)
+        command.label = "Mapped surface output"
+        if let perspective {
+            encoder.setRenderPipelineState(rectanglePipeline)
+            let positions = geometry.trianglePositions
+            positions.withUnsafeBytes {
+                encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 0)
+            }
+            var color = scene.color
+            var inverse = perspective.shaderInverse
+            var textured: UInt32 = scene.content == .diagnosticGrid ? 1 : 0
+            encoder.setFragmentBytes(&color, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
+            encoder.setFragmentBytes(&inverse, length: MemoryLayout<simd_float3x3>.stride, index: 1)
+            encoder.setFragmentBytes(&textured, length: MemoryLayout<UInt32>.stride, index: 2)
+            encoder.setFragmentTexture(diagnosticTexture, index: 0)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: positions.count)
         }
-        var color = scene.color
-        encoder.setFragmentBytes(&color, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
-        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: rectanglePositions.count)
         encoder.endEncoding()
         if let diagnostics, let encodeStart {
             let encodeMilliseconds = (ProcessInfo.processInfo.systemUptime - encodeStart) * 1_000
@@ -105,7 +122,10 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         return command
     }
 
-    func setScene(_ scene: RenderScene) { self.scene = scene }
+    func setScene(_ scene: RenderScene) {
+        self.scene = scene
+        perspective = scene.perspective
+    }
 
     func requestDraw(in view: MTKView) {
         guard isDrawingEnabled else { return }

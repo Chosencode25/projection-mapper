@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — v1.07 Perspective Warp — October 5, 2026
+
+- Add mipmapped diagnostic grid with orientation markers; new projects default to grid, with Solid fill available in the inspector.
+- Map texture through one validated homography across both triangles in shared preview/output.
+- Clear crossed/concave/collapsed/unsafe shapes to black, show stable editor warnings and support recovery of overlapping handles.
+- Eleven new tests; all 79 correctness tests pass in Debug/Release. Vital actual-app warp, clean output, invalid/recovery, content, portrait and reset checks passed.
+- Signed Release app copied to builds/v1.07/ and app/ProjectionMapper.app; source saved to GitHub. Bundle remains 1.04.2/build 4; no release/tag/archive.
+
 ## Unreleased — v1.06 Corner Nodes — October 5, 2026
 
 - Add editor-only four-corner handles and outline with active-corner highlighting.

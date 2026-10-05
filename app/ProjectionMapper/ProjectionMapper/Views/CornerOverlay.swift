@@ -67,7 +67,11 @@ final class CornerOverlayView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        let nearest = SurfaceCorner.allCases.min {
+        // Prefer the inspector-selected handle when corners overlap, so each can be recovered.
+        let activeHit = activeCorner.flatMap { corner in
+            distance(point, SurfaceCoordinates.position(corners[corner], in: previewRect)) <= 12 ? corner : nil
+        }
+        let nearest = activeHit ?? SurfaceCorner.allCases.min {
             distance(point, SurfaceCoordinates.position(corners[$0], in: previewRect)) <
             distance(point, SurfaceCoordinates.position(corners[$1], in: previewRect))
         }

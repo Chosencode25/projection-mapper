@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.06 Corner Nodes is implemented and locally accepted. Selected surfaces have editor-only handles/outline; drag and focused arrow/Shift nudging update project geometry and both render scenes. Inspector shows active corner and three-decimal coordinates. Geometry changes activate discard protection; deselection/reset clear active corner. All 68 correctness tests passed in Debug and Release with Xcode 27.0 beta 5 (27A5237l); vital drag/nudge/focus/portrait/clean-output/reset screen checks passed. Signed Release app: builds/v1.06/ProjectionMapper.app and app/ProjectionMapper.app; tested source preserved on GitHub main. Bundle remains 1.04.2/build 4, with latest published release [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next: v1.07 Perspective Warp. Physical projector/display transitions remain deferred.
+v1.07 Perspective Warp is implemented and locally accepted. New projects use a diagnostic grid; one validated projective transform maps content in shared preview/output without a triangle seam. Invalid shapes clear safely with stable editor warning layout and overlapping-handle recovery. All 79 correctness tests passed in Debug/Release with Xcode 27.0 beta 5 (27A5237l); vital screen checks passed. Signed Release copies: builds/v1.07/ProjectionMapper.app and app/ProjectionMapper.app; source preserved on GitHub main. Bundle remains 1.04.2/build 4; latest published release is [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next: v1.08 Images. Physical projector/display transitions remain deferred.
 
 ## Completed
 
@@ -24,13 +24,13 @@ v1.06 Corner Nodes is implemented and locally accepted. Selected surfaces have e
 
 ## Current acceptance and next milestone
 
-v1.06 Corner Nodes is complete for local Test Mode and saved to tested main. See [verification](V1.06_VERIFICATION.md), [five-step plan](V1.06_PLAN.md), and [roadmap](V1_ROADMAP.md). Next planned development milestone is v1.07 Perspective Warp; no v1.07 implementation has started.
+v1.07 is complete for local Test Mode and saved to tested main. See [verification](V1.07_VERIFICATION.md), [five-step plan](V1.07_PLAN.md) and [roadmap](V1_ROADMAP.md). Image import is planned for v1.08.
 
 ## Scope and limitations
 
-Projects stay in memory. Output selection and preferences are implemented; the Test Window, Metal rectangle rendering, and shared editor preview are implemented. Projector output is deferred; One project surface and corner editing are implemented; perspective textures, media import, multiple surfaces and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
+Projects stay in memory. Output selection and preferences are implemented; the Test Window, Metal rectangle rendering, and shared editor preview are implemented. Projector output is deferred; One project surface and corner editing are implemented; perspective textures are implemented and accepted; media import, multiple surfaces and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The local Release build contains arm64 and x86_64 slices; runtime verification is Apple Silicon only.
 
-See V1.06_VERIFICATION.md for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
+See V1.07_VERIFICATION.md for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
 
 ## GitHub version history
 
@@ -249,3 +249,17 @@ Evidence: [V1.05_VERIFICATION.md](V1.05_VERIFICATION.md). All seven steps are co
 - [x] Signed app copies delivered and tested source saved to GitHub without release/tag/bundle bump.
 
 All five steps complete; evidence: [V1.06_VERIFICATION.md](V1.06_VERIFICATION.md). Next: v1.07 Perspective Warp.
+
+
+## v1.07 implementation and acceptance
+
+- [x] Record five-step plan, verify pinned Xcode and branch from tested v1.06.
+- [x] Diagnostic texture with mipmaps and corner orientation markers; solid fill option.
+- [x] Validated projective transform, shared snapshots and seamless Metal texture mapping.
+- [x] Invalid geometry clears safely; editor warning and overlapping-corner recovery.
+- [x] Initial headless correctness/GPU checks pass.
+- [x] Complete Debug/Release: 79 correctness tests passed; three optional benchmarks skipped (82 declarations).
+- [x] Vital warp/clean-output/invalid/recovery/content/portrait/reset visual checks; fixed warning-induced canvas shift and added regression coverage.
+- [x] Signed Release app copies and GitHub delivery; no release/tag/version bump.
+
+All five steps complete; evidence: [V1.07_VERIFICATION.md](V1.07_VERIFICATION.md). Next: v1.08 Images.

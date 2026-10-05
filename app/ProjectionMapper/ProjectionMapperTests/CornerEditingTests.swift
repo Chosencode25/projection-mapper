@@ -77,7 +77,7 @@ struct CornerEditingTests {
         #expect(session.selectedCorner == nil && !session.hasUserChanges)
         session.selectCorner(.topLeft)
         session.moveSelectedCorner(to: SIMD2(0,0), surfaceID: edited.id)
-        #expect(session.scene == .diagnostic)
+        #expect(session.scene == .diagnosticGrid)
     }
 
     @Test func nativeDragPreservesGrabOffsetAndOwnsKeyboardFocus() throws {

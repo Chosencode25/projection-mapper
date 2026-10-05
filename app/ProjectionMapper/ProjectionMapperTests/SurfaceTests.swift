@@ -13,7 +13,7 @@ struct SurfaceTests {
         #expect(first.surface.corners.topRight == SIMD2<Float>(0.75, 0.25))
         #expect(first.surface.corners.bottomRight == SIMD2<Float>(0.75, 0.75))
         #expect(first.surface.corners.bottomLeft == SIMD2<Float>(0.25, 0.75))
-        #expect(first.surface.renderScene == .diagnostic)
+        #expect(first.surface.renderScene == .diagnosticGrid)
         let copy = first
         #expect(copy.surface.id == first.surface.id)
         let session = EditorSession(project: first)
@@ -67,7 +67,7 @@ struct SurfaceTests {
         session.selectSurface(previous.surface.id)
         #expect(session.selectedSurfaceID == session.project.surface.id)
         #expect(session.testOutput.window === window && session.output.testResolution == .portrait)
-        #expect(!session.isSidebarVisible && !session.hasUserChanges && session.scene == .diagnostic)
+        #expect(!session.isSidebarVisible && !session.hasUserChanges && session.scene == .diagnosticGrid)
     }
 
     @Test func nondefaultSurfaceContentRequiresDiscardProtection() {
@@ -88,7 +88,7 @@ struct SurfaceTests {
         _ = NSApplication.shared
         let corners = NormalizedRectangle(topLeft: SIMD2(0.1, 0.2), topRight: SIMD2(0.4, 0.2),
                                           bottomRight: SIMD2(0.4, 0.6), bottomLeft: SIMD2(0.1, 0.6))
-        let project = MappingProject(surface: MappingSurface(corners: corners, color: SIMD4(0, 1, 0, 1)))
+        let project = MappingProject(surface: MappingSurface(corners: corners, color: SIMD4(0, 1, 0, 1), content: .solid))
         let session = EditorSession(presentOutput: { _ in }, project: project)
         let host = NSHostingView(rootView: MetalScenePreview(scene: session.scene, aspectRatio: 16.0 / 9.0,
                                                            outputDescription: "HD"))
@@ -117,14 +117,16 @@ struct SurfaceTests {
         #expect(findSceneView(host) === preview)
         #expect(session.testOutput.window?.contentView === output)
         for renderer in [previewRenderer, outputRenderer] {
-            #expect(renderer.scene == .diagnostic)
-            #expect(try pixels(renderer) == [[0,64,255,255],[0,64,255,255],[0,0,0,255]])
+            #expect(renderer.scene == .diagnosticGrid)
+            let resetPixels = try pixels(renderer)
+            #expect(resetPixels[0] != [0,0,0,255] && resetPixels[1] != [0,0,0,255])
+            #expect(resetPixels[2] == [0,0,0,255]) // Mip-filtered grid; exact texels checked in warp GPU tests.
         }
         #expect(!preview.isRenderingActive && !output.isRenderingActive) // No onscreen window presentation.
         session.testOutput.close()
         session.testOutput.open(for: .testWindow)
         let reopened = try #require((session.testOutput.window?.contentView as? TestOutputView)?.metalView?.delegate as? MetalRenderer)
-        #expect(reopened.scene == .diagnostic)
+        #expect(reopened.scene == .diagnosticGrid)
     }
 
     @Test func cornerEditsReachLivePreviewAndOutputGPU() throws {
@@ -140,7 +142,7 @@ struct SurfaceTests {
         defer { session.testOutput.close() }
         let output = try #require((session.testOutput.window?.contentView as? TestOutputView)?.metalView?.delegate as? MetalRenderer)
         session.selectCorner(.topLeft)
-        session.moveSelectedCorner(to: SIMD2(0.6,0.5), surfaceID: session.project.surface.id)
+        session.moveSelectedCorner(to: SIMD2(0.35,0.4), surfaceID: session.project.surface.id)
         host.rootView = MetalScenePreview(scene: session.scene, aspectRatio: 1, outputDescription: "Test")
         host.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.03))
@@ -148,6 +150,8 @@ struct SurfaceTests {
             #expect(item.scene == session.scene)
             #expect(try pixels(item).first == [0,0,0,255]) // Former interior pixel is outside the edited quadrilateral.
         }
+        #expect(session.scene.perspective != nil && session.scene.content == .diagnosticGrid)
+        #expect(try pixels(renderer) == pixels(output))
         session.selectSurface(nil)
         #expect(renderer.scene == output.scene && session.hasUserChanges)
     }

@@ -63,6 +63,13 @@ final class EditorSession {
         testOutput.setScene(scene)
     }
 
+    func setSurfaceContent(_ content: SurfaceContent, now: Date = .now) {
+        guard selectedSurface != nil, project.surface.content != content else { return }
+        project.surface.content = content
+        project.modifiedAt = now
+        testOutput.setScene(scene)
+    }
+
     func nudgeSelectedCorner(direction: SIMD2<Float>, larger: Bool) {
         guard let corner = selectedCorner, selectedSurface != nil else { return }
         moveSelectedCorner(to: project.surface.corners[corner] + direction * (larger ? 0.01 : 0.001),

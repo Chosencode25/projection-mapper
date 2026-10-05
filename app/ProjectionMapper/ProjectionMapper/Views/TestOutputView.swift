@@ -61,7 +61,7 @@ class MetalSceneView: NSView {
         updateRenderingAvailability()
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
-        setAccessibilityLabel(renderingError ?? "Test output — orange rectangle on black")
+        setAccessibilityLabel(renderingError ?? "Test output — project surface on black")
         setAccessibilityValue("\(TestResolution.hd.dimensions) px")
     }
     required init?(coder: NSCoder) { fatalError("MetalSceneView is created in code") }

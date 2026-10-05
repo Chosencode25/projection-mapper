@@ -7,17 +7,20 @@ struct MappingSurface: Identifiable, Equatable, Sendable {
     var name: String
     var corners: NormalizedRectangle
     var color: SIMD4<Float>
+    var content: SurfaceContent
 
     init(id: UUID = UUID(), name: String = MappingSurface.defaultName,
-         corners: NormalizedRectangle = .diagnostic, color: SIMD4<Float> = RenderScene.diagnostic.color) {
+         corners: NormalizedRectangle = .diagnostic, color: SIMD4<Float> = RenderScene.diagnostic.color,
+         content: SurfaceContent = .diagnosticGrid) {
         self.id = id
         self.name = name
         self.corners = corners
         self.color = color
+        self.content = content
     }
 
     var hasDefaultContent: Bool {
-        name == Self.defaultName && corners == .diagnostic && color == RenderScene.diagnostic.color
+        name == Self.defaultName && corners == .diagnostic && color == RenderScene.diagnostic.color && content == .diagnosticGrid
     }
-    var renderScene: RenderScene { RenderScene(geometry: corners, color: color) }
+    var renderScene: RenderScene { RenderScene(geometry: corners, color: color, content: content) }
 }

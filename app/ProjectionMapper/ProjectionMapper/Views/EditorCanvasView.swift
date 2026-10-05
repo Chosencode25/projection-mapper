@@ -32,6 +32,16 @@ struct EditorCanvasView: View {
                     .lineLimit(2).multilineTextAlignment(.center)
                     .frame(maxWidth: max(0, availableWidth))
                     .help("\(output.selectedName) · \(output.renderSizeText)")
+                // Reserve warning space so validation changes cannot move the canvas during a drag.
+                Group {
+                    if session.scene.perspective == nil {
+                        Label("Invalid surface — move a corner to restore output", systemImage: "exclamationmark.triangle")
+                            .font(.caption).foregroundStyle(.orange).multilineTextAlignment(.center)
+                    } else {
+                        Color.clear.accessibilityHidden(true)
+                    }
+                }
+                .frame(width: max(0, availableWidth), height: 32)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
