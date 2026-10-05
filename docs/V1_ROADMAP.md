@@ -2,6 +2,8 @@
 
 V1 is a native Mac app for projecting images, videos, and built-in animations onto multiple surfaces using four-corner mapping. The editor stays on the Mac; clean output appears in a separate test window or on a projector.
 
+See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). Those steps are planned, not implemented.
+
 | Stage | Scope |
 |---|---|
 | 1.01 — App Skeleton | Control window, toolbar, sidebar, empty canvas, project model. |

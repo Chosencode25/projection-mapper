@@ -277,3 +277,8 @@ All five steps complete; evidence: [V1.07_VERIFICATION.md](V1.07_VERIFICATION.md
 Approved sequence: v1.08 Multiple Surfaces → v1.09 Built-In Animations → v1.10 Save & Load → v1.11 Surface Controls → v1.12 Mapping Tools → v1.13 Images → v1.14 Video → v1.15 Polish & Release, including final upload. See [roadmap and old/new number mapping](V1_ROADMAP.md).
 
 Completed milestones and historical acceptance records retain their original numbers. Saving will initially cover surfaces, generators and output settings, then gain later settings/media as those features arrive. Projector hardware work remains separately deferred. Planning-only update: no app rebuild, feature implementation, version bump or release. The existing v1.07 app’s historical saving-version label will be brought into line when next modifying the interface.
+
+
+## Remaining milestone steps — October 5, 2026
+
+Expanded all eight reordered milestones into [ordered implementation and verification steps](V1_REMAINING_PLAN.md), including collection/renderer migration, shared animation timing, early saving and later schema/media extensions, surface controls, calibration/blackout, image/video resources, and final undo/redo/packaging/upload. Planning only: no feature implementation, app changes, builds, tests or publication. Next implementation remains v1.08 Multiple Surfaces.
