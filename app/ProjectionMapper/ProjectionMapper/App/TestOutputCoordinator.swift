@@ -8,10 +8,12 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
     private var isChangingPresentation = false
     private let preferences: OutputPreferences
     private let visibleFrames: () -> [CGRect]
+    private let scene: RenderScene
 
-    init(preferences: OutputPreferences = OutputPreferences(),
+    init(scene: RenderScene = .diagnostic, preferences: OutputPreferences = OutputPreferences(),
          visibleFrames: @escaping () -> [CGRect] = { NSScreen.screens.map(\.visibleFrame) }) {
         self.preferences = preferences
+        self.scene = scene
         self.visibleFrames = visibleFrames
         super.init()
     }
@@ -85,7 +87,7 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
             output.isReleasedWhenClosed = false
             output.appearance = NSAppearance(named: .darkAqua)
             output.backgroundColor = .black
-            output.contentView = TestOutputView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))
+            output.contentView = TestOutputView(frame: NSRect(x: 0, y: 0, width: 640, height: 360), scene: scene)
             output.center()
             if let saved = preferences.loadTestWindowFrame() { recover(output, frame: saved) }
             window = output

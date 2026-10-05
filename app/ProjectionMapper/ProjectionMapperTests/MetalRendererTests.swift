@@ -1,10 +1,76 @@
 import AppKit
 import MetalKit
+import SwiftUI
 import Testing
 
 @MainActor
 @Suite(.serialized)
 struct MetalRendererTests {
+    @Test func sharedPreviewAndOutputUseSessionSceneAcrossPresets() throws {
+        _ = NSApplication.shared
+        let scene = RenderScene(geometry: .diagnostic, color: SIMD4(0, 1, 0, 1))
+        let session = EditorSession(scene: scene)
+        let host = NSHostingView(rootView: MetalScenePreview(scene: session.scene, aspectRatio: 16.0 / 9.0,
+                                                           outputDescription: "HD"))
+        let editor = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 600, height: 400),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        editor.isReleasedWhenClosed = false
+        editor.contentView = host
+        editor.orderFront(nil)
+        defer { editor.close(); session.testOutput.close() }
+        for resolution in TestResolution.allCases {
+            session.setTestResolution(resolution)
+            host.rootView = MetalScenePreview(scene: session.scene, aspectRatio: resolution.aspectRatio,
+                                             outputDescription: resolution.dimensions)
+            host.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.03))
+            let preview = try #require(findSceneView(in: host))
+            let previewRenderer = try #require(preview.metalView?.delegate as? MetalRenderer)
+            #expect(session.testOutput.open(for: .testWindow, resolution: resolution))
+            let output = try #require(session.testOutput.window?.contentView as? TestOutputView)
+            let outputRenderer = try #require(output.metalView?.delegate as? MetalRenderer)
+            #expect(previewRenderer !== outputRenderer)
+            #expect(previewRenderer.scene == session.scene && outputRenderer.scene == session.scene)
+            #expect(abs(preview.outputFrame.width / preview.outputFrame.height - resolution.aspectRatio) < 0.001)
+            #expect(abs(output.outputFrame.width / output.outputFrame.height - resolution.aspectRatio) < 0.001)
+            #expect(try centerPixel(previewRenderer) == [0, 255, 0, 255])
+            #expect(try centerPixel(outputRenderer) == [0, 255, 0, 255])
+            session.testOutput.close()
+            #expect(previewRenderer.scene == scene && !session.testOutput.isOpen)
+        }
+        session.isSidebarVisible = false
+        session.isInspectorVisible = false
+        session.renameProject("House")
+        session.resetProject()
+        #expect(session.scene == scene && !session.hasUserChanges)
+        #expect(findSceneView(in: host)?.metalView != nil)
+    }
+
+    private func findSceneView(in view: NSView) -> MetalSceneView? {
+        if let scene = view as? MetalSceneView { return scene }
+        return view.subviews.lazy.compactMap { findSceneView(in: $0) }.first
+    }
+
+    private func centerPixel(_ renderer: MetalRenderer) throws -> [UInt8] {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: MetalRenderer.pixelFormat,
+                                                                  width: 16, height: 16, mipmapped: false)
+        descriptor.storageMode = .shared
+        descriptor.usage = .renderTarget
+        let texture = try #require(renderer.device.makeTexture(descriptor: descriptor))
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = texture
+        let command = try #require(renderer.encodeScene(to: pass))
+        command.commit()
+        command.waitUntilCompleted()
+        #expect(command.status == .completed && command.error == nil)
+        var pixel = [UInt8](repeating: 0, count: 4)
+        pixel.withUnsafeMutableBytes {
+            texture.getBytes($0.baseAddress!, bytesPerRow: 4,
+                             from: MTLRegionMake2D(8, 8, 1, 1), mipmapLevel: 0)
+        }
+        return pixel
+    }
+
     @Test func compiledPipelineRendersSuppliedVerticesAndColor() throws {
         let renderer = try MetalRenderer()
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: MetalRenderer.pixelFormat,
@@ -99,7 +165,7 @@ struct MetalRendererTests {
             topLeft: SIMD2(0.125, 0.0625), topRight: SIMD2(0.375, 0.0625),
             bottomRight: SIMD2(0.375, 0.3125), bottomLeft: SIMD2(0.125, 0.3125)
         )
-        let renderer = try MetalRenderer(geometry: geometry)
+        let renderer = try MetalRenderer(scene: RenderScene(geometry: geometry, color: RenderScene.diagnostic.color))
         try verifyScenePixels(renderer, xRange: 2..<6, yRange: 1..<5)
         #expect(renderer.geometry == geometry)
     }

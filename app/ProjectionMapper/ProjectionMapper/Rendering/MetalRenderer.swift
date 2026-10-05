@@ -26,10 +26,10 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     let rectanglePipeline: any MTLRenderPipelineState
     static let pixelFormat: MTLPixelFormat = .bgra8Unorm
     static let backgroundColor = MTLClearColorMake(0, 0, 0, 1)
-    static let rectangleColor = SIMD4<Float>(1, 0.25, 0, 1)
-    let geometry: NormalizedRectangle
+    let scene: RenderScene
+    var geometry: NormalizedRectangle { scene.geometry }
 
-    init(geometry: NormalizedRectangle = .diagnostic,
+    init(scene: RenderScene = .diagnostic,
          deviceProvider: () -> (any MTLDevice)? = { MTLCreateSystemDefaultDevice() },
          queueProvider: (any MTLDevice) -> (any MTLCommandQueue)? = { $0.makeCommandQueue() },
          libraryProvider: (any MTLDevice) throws -> any MTLLibrary = {
@@ -41,7 +41,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         guard let device = deviceProvider() else { throw MetalInitializationError.deviceUnavailable }
         guard let queue = queueProvider(device) else { throw MetalInitializationError.commandQueueUnavailable }
         self.device = device
-        self.geometry = geometry
+        self.scene = scene
         commandQueue = queue
         let library: any MTLLibrary
         do { library = try libraryProvider(device) }
@@ -75,7 +75,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         rectanglePositions.withUnsafeBytes {
             encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 0)
         }
-        var color = Self.rectangleColor
+        var color = scene.color
         encoder.setFragmentBytes(&color, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: rectanglePositions.count)
         encoder.endEncoding()

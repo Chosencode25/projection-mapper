@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — v1.04.3 Shared Editor Preview — October 5, 2026
+
+- Editor preview and Test Output draw the same session-owned scene through a reusable Metal view and renderer implementation.
+- Preserve independent drawable resources, aspect fitting, output window behavior, and editor-only caption/border.
+- All 44 Debug tests pass with Xcode 27A5237l, including hosted preview/output integration and GPU pixels across all five presets; runtime panel/reset/closed-output checks passed.
+- Source update only; bundle remains 1.04.2/build 4 and the published v1.04.2 release is preserved.
+
 ## v1.04.2 — First Rectangle — October 5, 2026
 
 - Compiled Metal shaders and pipeline draw a centered orange rectangle on black using four normalized corners.

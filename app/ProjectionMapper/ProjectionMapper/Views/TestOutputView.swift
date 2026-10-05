@@ -2,18 +2,21 @@ import AppKit
 import MetalKit
 
 /// The output surface is fitted in points; its configured pixel resolution stays independent.
-final class TestOutputView: NSView {
+class MetalSceneView: NSView {
     private let surface: NSView
     private let renderer: MetalRenderer?
     private(set) var renderingError: String?
     var metalView: MTKView? { surface as? MTKView }
     var outputFrame: CGRect { surface.frame }
-    var resolution: TestResolution = .hd {
+    var outputAspectRatio = TestResolution.hd.aspectRatio {
         didSet {
             needsLayout = true
             layoutSubtreeIfNeeded()
-            setAccessibilityValue("\(resolution.dimensions) px")
         }
+    }
+
+    convenience init(frame: NSRect, scene: RenderScene) {
+        self.init(frame: frame, rendererFactory: { try MetalRenderer(scene: scene) })
     }
 
     override convenience init(frame frameRect: NSRect) {
@@ -57,9 +60,9 @@ final class TestOutputView: NSView {
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
         setAccessibilityLabel(renderingError ?? "Test output — orange rectangle on black")
-        setAccessibilityValue("\(resolution.dimensions) px")
+        setAccessibilityValue("\(TestResolution.hd.dimensions) px")
     }
-    required init?(coder: NSCoder) { fatalError("TestOutputView is created in code") }
+    required init?(coder: NSCoder) { fatalError("MetalSceneView is created in code") }
     override var isOpaque: Bool { true }
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
@@ -67,7 +70,21 @@ final class TestOutputView: NSView {
     }
     override func layout() {
         super.layout()
-        surface.frame = resolution.fittedRect(in: bounds)
+        let ratio = outputAspectRatio.isFinite && outputAspectRatio > 0 ? outputAspectRatio : 16.0 / 9.0
+        let width = min(max(0, bounds.width), max(0, bounds.height) * ratio)
+        let height = width / ratio
+        surface.frame = CGRect(x: bounds.midX - width / 2, y: bounds.midY - height / 2,
+                               width: width, height: height)
         surface.needsDisplay = true
+    }
+}
+
+/// Test-window preset metadata is independent of the reusable scene drawing view.
+final class TestOutputView: MetalSceneView {
+    var resolution: TestResolution = .hd {
+        didSet {
+            outputAspectRatio = resolution.aspectRatio
+            setAccessibilityValue("\(resolution.dimensions) px")
+        }
     }
 }

@@ -6,14 +6,18 @@ import Observation
 final class EditorSession {
     private(set) var project: MappingProject
     let output: OutputSelectionState
-    let testOutput = TestOutputCoordinator()
+    let scene: RenderScene
+    let testOutput: TestOutputCoordinator
     var isSidebarVisible = true
     var isInspectorVisible = true
     var hasUserChanges: Bool { project.name != MappingProject.defaultName }
 
-    init(project: MappingProject = MappingProject(), output: OutputSelectionState = OutputSelectionState()) {
+    init(project: MappingProject = MappingProject(), output: OutputSelectionState = OutputSelectionState(),
+         scene: RenderScene = .diagnostic) {
         self.project = project
         self.output = output
+        self.scene = scene
+        testOutput = TestOutputCoordinator(scene: scene)
     }
 
     func setTestResolution(_ resolution: TestResolution) {
