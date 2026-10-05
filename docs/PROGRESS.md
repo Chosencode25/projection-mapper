@@ -24,7 +24,7 @@ v1.02 output selection is implemented on feature/v1.02-output-selection and veri
 
 ## Current acceptance and next milestone
 
-Complete physical external-display checks before merging/tagging the final v1.02 milestone. A v1.02-preview.1 prerelease is prepared from the feature branch. The separate output window follows in v1.03; rendering follows in v1.04.
+Complete physical external-display checks before merging/tagging the final v1.02 milestone. The [v1.02-preview.1 prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.02-preview.1) is published from the feature branch with the runnable app and checksum. The separate output window follows in v1.03; rendering follows in v1.04.
 
 ## Scope and limitations
 
@@ -45,7 +45,7 @@ Private repository: https://github.com/Chosencode25/projection-mapper. The initi
 - [x] Aspect-aware empty canvas, output details/status, scrollable inspector, version 1.02/build 2.
 - [x] Sixteen focused output tests plus the existing five session tests passed.
 - [x] No-external-display runtime, project reset protections, packaged app, About, panel shortcut, and synthetic minimum-size portrait/long-name layout checks.
-- [x] Build and signature verification; preview ZIP and checksum prepared.
+- [x] Build and signature verification; preview ZIP and checksum published in the private v1.02-preview.1 prerelease.
 - [ ] Physical extended-display metadata, unplug/reconnect, saved external preference relaunch, mirroring, editor movement, scaling/rotation.
 - [ ] Final v1.02 acceptance, merge to main, and v1.02 milestone tag/release.
 
