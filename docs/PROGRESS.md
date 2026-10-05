@@ -114,3 +114,13 @@ v1.04.1 is implemented and locally verified; the other four remain planned. Test
 - [x] Tested Debug app copied to builds/v1.04.1/ProjectionMapper.app; ad-hoc signature verified.
 
 Plan: [V1.04.1_PLAN.md](V1.04.1_PLAN.md). Verification: [V1.04.1_VERIFICATION.md](V1.04.1_VERIFICATION.md). No frame-rate/4K-performance claim; actual performance measurement is v1.04.5. The rectangle and shared editor preview remain planned. No bundle version bump, tag, archive, or release.
+
+## v1.04.2 development — steps 1–2
+
+On `codex/v1.04.2-first-rectangle`, based on tested v1.04.1 commit `ba34723`. Exact Xcode build reverified. Apple Metal Toolchain component **27A5237l** installed for shader compilation.
+
+- [x] Step 1: verify toolchain and create feature branch from tested main.
+- [x] Step 2: compiled vertex/fragment shaders and initialized BGRA8 render pipeline, with visible library/function/pipeline errors. All **40 tests pass**, including actual shader GPU pixel readback and injected failure handling.
+- [ ] Steps 3–7: rectangle drawing, normalized scene geometry, sizing integration, full acceptance, and advancement of tested main.
+
+The running output remains the v1.04.1 blue diagnostic clear; shader/pipeline creation is ready for step 3. `main` remains the completed v1.04.1 milestone. Interim tested app: `builds/v1.04.2/step2/ProjectionMapper.app`. Evidence: [V1.04.2_VERIFICATION.md](V1.04.2_VERIFICATION.md). This is partial feature-branch work, not completed v1.04.2 acceptance. No release/tag/version bump.

@@ -25,7 +25,7 @@ final class TestOutputView: NSView {
             let renderer = try rendererFactory()
             self.renderer = renderer
             let view = MTKView(frame: .zero, device: renderer.device)
-            view.colorPixelFormat = .bgra8Unorm
+            view.colorPixelFormat = MetalRenderer.pixelFormat
             view.clearColor = MetalRenderer.diagnosticColor
             view.isPaused = true
             view.enableSetNeedsDisplay = true

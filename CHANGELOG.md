@@ -1,5 +1,11 @@
 # Changelog
 
+## In development — v1.04.2 step 2 — October 5, 2026
+
+- Compiled Metal vertex/fragment shaders and BGRA8 render pipeline; initialization reports missing library/functions or pipeline creation failures.
+- All 40 tests pass, including a shader GPU readback probe and initialization failure checks. Blue diagnostic output remains until rectangle drawing in step 3.
+- Partial work on the feature branch; main remains v1.04.1. No release, tag, or bundle bump.
+
 ## Unreleased — v1.04.1 Metal Foundation — October 5, 2026
 
 - Metal device/command queue and on-demand drawing in the fitted Test Output area, showing a fixed blue diagnostic color with black margins.

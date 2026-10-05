@@ -42,3 +42,13 @@ Replace build with test to run the tests. The system-wide developer directory re
 Projects are held in memory. Name changes trigger discard protection; output actions do not. Select Test Window, then use Show Output in the toolbar, inspector, or Window menu. It opens one resizable window with blue Metal diagnostic output and black margins; repeated Open brings it forward. Close Output or its native close button leaves the editor intact.
 
 Choose HD, Full HD, 4:3, Portrait, or 4K in the inspector. The saved simulated resolution controls the preview and aspect-fitted output surface independently of window size. The normal window size/position is remembered; inaccessible frames recover onto a current screen. Output starts closed on launch. Metal diagnostic rendering is implemented in v1.04.1; rectangle/shared editor preview arrive in subsequent slices. Projector output implementation and physical testing are deferred at the user's request.
+
+## Metal shader compiler component
+
+Starting with v1.04.2, building `.metal` sources requires Apple's Metal Toolchain component for the pinned Xcode. Component **27A5237l** was installed and verified during step 2. If missing, install it with the same developer directory:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer   xcodebuild -downloadComponent MetalToolchain
+```
+
+The v1.04.2 feature branch currently has 40 passing tests; full rectangle acceptance is pending. Its step-2 app is `builds/v1.04.2/step2/ProjectionMapper.app` and still displays the diagnostic clear.
