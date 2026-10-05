@@ -1,5 +1,10 @@
 # Changelog
 
+## In development — v1.04.2 step 6 — October 5, 2026
+
+- Local acceptance passed: all five resolution presets visually checked, output restore/redraw confirmed, and unchanged implementation's 43-test evidence reviewed.
+- Acceptance/documentation checkpoint only; delivery and main advancement remain step 7. No app changes, release, tag, or bundle bump.
+
 ## In development — v1.04.2 step 5 — October 5, 2026
 
 - Explicit automatic native drawable sizing; preserve aspect-fitted output independently of simulated resolution.

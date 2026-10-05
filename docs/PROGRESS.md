@@ -151,3 +151,11 @@ Latest feature-branch geometry now uses normalized corners; the step-3 appearanc
 - [ ] Steps 6–7 remain pending; full v1.04.2 acceptance and advancement of main have not occurred.
 
 Simulated target resolution remains independent of drawable pixel dimensions. See [V1.04.2_VERIFICATION.md](V1.04.2_VERIFICATION.md). This feature-branch checkpoint has no release/tag/version bump.
+
+## v1.04.2 development — step 6
+
+- [x] Local rectangle acceptance passed: all five presets visually checked; running minimize/restore and native close/reopen redraw confirmed.
+- [x] Reviewed unchanged implementation and its complete 43-test passing run for GPU geometry/pixels, failure handling, native wide/tall/square windows, and existing regressions. Required Xcode build rechecked; strict app signature verified.
+- [ ] Step 7 delivery/main advancement remains pending. Main still contains completed v1.04.1; accepted feature implementation remains at `0ddacc1` with documentation checkpoints on the feature branch.
+
+No app change or repeated test run was needed in this acceptance-only step. Tested app remains `builds/v1.04.2/step5/ProjectionMapper.app`. See [acceptance record](V1.04.2_VERIFICATION.md). Original 4K preference restored and output closed; no release/tag/version bump.
