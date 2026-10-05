@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.03.1 Basic Test Window is implemented and locally verified with Xcode 27.0 beta 5 (27A5237l). All 28 tests pass. A standalone Apple Silicon Release app is in builds/v1.03.1/ProjectionMapper.app. The user has deferred projector output implementation and physical hardware checks; they do not block this Test Mode milestone.
+v1.03.2 resolution/scaling is implemented and locally verified with Xcode 27.0 beta 5 (27A5237l). All 31 tests pass. The tested Apple Silicon Debug app is in builds/v1.03.2/ProjectionMapper.app. The last published Release app remains v1.03.1. The user has deferred projector output implementation and physical hardware checks; they do not block this Test Mode milestone.
 
 ## Completed
 
@@ -24,13 +24,13 @@ v1.03.1 Basic Test Window is implemented and locally verified with Xcode 27.0 be
 
 ## Current acceptance and next milestone
 
-v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. Next: v1.03.2 simulated resolution presets and aspect-preserving scaling, followed by v1.03.3 window persistence/navigation polish. See V1_ROADMAP.md for the approved split.
+v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. v1.03.2 adds verified simulated resolution presets and aspect-preserving scaling as a source update without a new release or tag. Next: v1.03.3 window persistence/navigation polish. See V1_ROADMAP.md for the approved split.
 
 ## Scope and limitations
 
 Projects stay in memory. Output selection and preferences are implemented; the basic Test Window is implemented. Projector output is deferred; media import, surfaces, rendering, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
 
-See V1.03.1_VERIFICATION.md for current evidence and limitations, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
+See the v1.03.2 implementation record below for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
 
 ## GitHub version history
 
@@ -66,3 +66,15 @@ Plan: [V1.03.1_PLAN.md](V1.03.1_PLAN.md). Verification: [V1.03.1_VERIFICATION.md
 ## Version-history preference — October 5, 2026
 
 Small changes are preserved by commits pushed to the private repository. Full releases, version bumps, tags, and downloadable archives are reserved for substantial milestones or explicit requests. Existing published versions remain preserved. This workflow-only update requires no app build.
+
+## v1.03.2 implementation
+
+- [x] HD, Full HD, 4:3, Portrait, and 4K presets in the Test Window inspector.
+- [x] Resolution preference saved separately from project data; HD default and invalid-value fallback.
+- [x] Editor preview/details and existing output window update immediately without changing the window size or project state.
+- [x] Centered aspect-preserving black output surface and black margins; native window resizing preserves simulated resolution.
+- [x] All 31 tests passed with the pinned Xcode toolchain, including preset persistence, fitted geometry, live window updates, resizing, reset, and session restoration.
+- [x] Native runtime checks: Portrait/Full HD selection, minimized output restoration, live window title/canvas metadata, and relaunch restoring Full HD with output closed.
+- [x] Tested Debug app copied to builds/v1.03.2/ProjectionMapper.app and its signature verified.
+
+Plan: [V1.03.2_PLAN.md](V1.03.2_PLAN.md). Test evidence: builds/v1.03.2/test.log and Tests.xcresult (local, excluded from Git). This is a source-history update; no version bump, tag, archive, or release. Bundle version remains the last published v1.03.1/build 3. Rendering remains scheduled for v1.04; window geometry persistence/navigation for v1.03.3.

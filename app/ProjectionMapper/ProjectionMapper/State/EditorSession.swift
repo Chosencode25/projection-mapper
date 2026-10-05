@@ -16,6 +16,11 @@ final class EditorSession {
         self.output = output
     }
 
+    func setTestResolution(_ resolution: TestResolution) {
+        output.setTestResolution(resolution)
+        testOutput.setResolution(resolution)
+    }
+
     func renameProject(_ name: String, now: Date = .now) {
         guard name != project.name else { return }
         project.name = name

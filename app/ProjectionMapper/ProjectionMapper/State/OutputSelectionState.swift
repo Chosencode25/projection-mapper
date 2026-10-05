@@ -6,6 +6,7 @@ import Observation
 final class OutputSelectionState {
     private(set) var displays: [DisplayDescriptor] = []
     private(set) var destination: OutputDestination = .testWindow
+    private(set) var testResolution: TestResolution
     private(set) var recoveryMessage: String?
     private(set) var savedPreference: SavedOutputPreference
     private var didRestore = false
@@ -14,14 +15,23 @@ final class OutputSelectionState {
     init(preferences: OutputPreferences = OutputPreferences()) {
         self.preferences = preferences
         savedPreference = preferences.load()
+        testResolution = preferences.loadTestResolution()
     }
     var selectedDisplay: DisplayDescriptor? {
         guard case .display(let id) = destination else { return nil }
         return displays.first { $0.id == id }
     }
     var selectedName: String { selectedDisplay?.name ?? "Test Window" }
-    var aspectRatio: Double { selectedDisplay?.aspectRatio ?? 16.0 / 9.0 }
-    var renderSizeText: String { selectedDisplay?.renderSizeText ?? "1280 × 720 px" }
+    var aspectRatio: Double {
+        destination == .testWindow ? testResolution.aspectRatio : (selectedDisplay?.aspectRatio ?? 16.0 / 9.0)
+    }
+    var renderSizeText: String {
+        destination == .testWindow ? "\(testResolution.dimensions) px" : (selectedDisplay?.renderSizeText ?? "Not reported")
+    }
+    func setTestResolution(_ resolution: TestResolution) {
+        testResolution = resolution
+        preferences.saveTestResolution(resolution)
+    }
     var statusText: String { recoveryMessage ?? "\(selectedName) selected" }
 
     func menuName(for display: DisplayDescriptor) -> String {

@@ -17,6 +17,18 @@ struct OutputDetailsView: View {
                 detail("Scale", display.scaleText)
                 detail("Reported refresh", display.refreshText)
             } else {
+                Picker("Test resolution", selection: Binding(
+                    get: { output.testResolution },
+                    set: { session.setTestResolution($0) }
+                )) {
+                    ForEach(TestResolution.allCases) { resolution in
+                        Text(resolution.label).tag(resolution)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .accessibilityLabel("Test resolution")
+                .help("Simulated output resolution; independent of the window size")
                 detail("Reported refresh", "Not applicable")
             }
             Text(output.statusText).font(.caption).foregroundStyle(.secondary)

@@ -63,8 +63,9 @@ struct TestOutputCoordinatorTests {
         #expect(window.styleMask.contains([.titled, .closable, .resizable, .miniaturizable]))
         #expect(window.contentView is TestOutputView)
         #expect(window.contentMinSize == NSSize(width: 320, height: 180))
+        let configuredTarget = session.output.renderSizeText
         window.setContentSize(NSSize(width: 800, height: 450))
-        #expect(session.output.renderSizeText == "1280 × 720 px")
+        #expect(session.output.renderSizeText == configuredTarget)
         #expect(session.project == original)
         #expect(!session.hasUserChanges)
     }
@@ -89,4 +90,66 @@ struct TestOutputCoordinatorTests {
         output.windowWillClose(Notification(name: NSWindow.willCloseNotification, object: other))
         #expect(output.isOpen)
     }
+    @Test func testResolutionPersistsAndInvalidPreferenceDefaultsToHD() {
+        let suite = "ProjectionMapper.ResolutionTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = OutputPreferences(defaults: defaults)
+        #expect(OutputSelectionState(preferences: preferences).testResolution == .hd)
+        for resolution in TestResolution.allCases {
+            OutputSelectionState(preferences: preferences).setTestResolution(resolution)
+            let restored = OutputSelectionState(preferences: preferences)
+            #expect(restored.testResolution == resolution)
+            #expect(restored.renderSizeText == "\(resolution.dimensions) px")
+            #expect(restored.aspectRatio == resolution.aspectRatio)
+        }
+        defaults.set("invalid", forKey: "output.testResolution.v1")
+        #expect(OutputSelectionState(preferences: preferences).testResolution == .hd)
+    }
+    @Test func presetsFitCenteredWithoutStretchingAcrossWindowShapes() {
+        for resolution in TestResolution.allCases {
+            for size in [CGSize(width: 640, height: 360), CGSize(width: 320, height: 700), CGSize(width: 800, height: 800)] {
+                let bounds = CGRect(origin: CGPoint(x: 10, y: 20), size: size)
+                let frame = resolution.fittedRect(in: bounds)
+                #expect(abs(frame.width / frame.height - resolution.aspectRatio) < 0.0001)
+                #expect(abs(frame.midX - bounds.midX) < 0.0001)
+                #expect(abs(frame.midY - bounds.midY) < 0.0001)
+                #expect(frame.width <= bounds.width + 0.0001 && frame.height <= bounds.height + 0.0001)
+                #expect(abs(frame.width - bounds.width) < 0.0001 || abs(frame.height - bounds.height) < 0.0001)
+            }
+        }
+        #expect(TestResolution.hd.fittedRect(in: .zero) == .zero)
+    }
+    @Test func liveResolutionUpdatesReuseWindowAndLeaveProjectClean() {
+        _ = NSApplication.shared
+        let suite = "ProjectionMapper.LiveResolutionTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let session = EditorSession(output: OutputSelectionState(preferences: OutputPreferences(defaults: defaults)))
+        let original = session.project
+        session.setTestResolution(.portrait)
+        #expect(!session.testOutput.isOpen)
+        session.testOutput.open(for: .testWindow, resolution: session.output.testResolution)
+        defer { session.testOutput.close() }
+        let window = session.testOutput.window!
+        let windowFrame = window.frame
+        let view = window.contentView as! TestOutputView
+        #expect(view.resolution == .portrait)
+        #expect(view.outputFrame == TestResolution.portrait.fittedRect(in: view.bounds))
+        session.setTestResolution(.standard)
+        #expect(session.testOutput.window === window)
+        #expect(window.frame == windowFrame)
+        #expect(view.outputFrame == TestResolution.standard.fittedRect(in: view.bounds))
+        window.setContentSize(NSSize(width: 400, height: 600))
+        view.layoutSubtreeIfNeeded()
+        #expect(view.outputFrame == TestResolution.standard.fittedRect(in: view.bounds))
+        #expect(session.output.testResolution == .standard)
+        #expect(session.project == original && !session.hasUserChanges)
+        session.resetProject()
+        #expect(session.output.testResolution == .standard)
+        let restarted = EditorSession(output: OutputSelectionState(preferences: OutputPreferences(defaults: defaults)))
+        #expect(restarted.output.testResolution == .standard)
+        #expect(!restarted.testOutput.isOpen)
+    }
+
 }

@@ -47,7 +47,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
 
     func openOutput() {
         guard !isPrompting else { return }
-        session.testOutput.open(for: session.output.destination)
+        session.testOutput.open(for: session.output.destination, resolution: session.output.testResolution)
     }
 
     func windowWillClose(_ notification: Notification) {

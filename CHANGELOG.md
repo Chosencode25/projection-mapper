@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — v1.03.2 resolution/scaling — October 5, 2026
+
+- Five saved Test Window resolution presets: HD, Full HD, 4:3, Portrait, and 4K.
+- Editor preview/details and open output update immediately; centered aspect-preserving output surface keeps the simulated resolution independent of window size.
+- Preferences stay separate from project changes. All 31 tests passed plus native live-update/relaunch checks with the pinned Xcode toolchain.
+- Source update only; no new release, tag, or bundle version bump.
+
 ## v1.03.1 — Basic Test Window — October 5, 2026
 
 - Open/Close Output controls in the toolbar, inspector, and Window menu.

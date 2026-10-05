@@ -9,7 +9,7 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
     var statusText: String { isOpen ? "Test Window open" : "Test Window closed" }
 
     @discardableResult
-    func open(for destination: OutputDestination) -> Bool {
+    func open(for destination: OutputDestination, resolution: TestResolution = .hd) -> Bool {
         guard destination == .testWindow else { close(); return false }
         if window == nil {
             let output = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 360),
@@ -25,9 +25,15 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
             output.center()
             window = output
         }
+        setResolution(resolution)
         if window?.isMiniaturized == true { window?.deminiaturize(nil) }
         window?.makeKeyAndOrderFront(nil)
         return true
+    }
+
+    func setResolution(_ resolution: TestResolution) {
+        (window?.contentView as? TestOutputView)?.resolution = resolution
+        window?.title = "Test Output — \(resolution.dimensions)"
     }
 
     func close() { window?.close() }
