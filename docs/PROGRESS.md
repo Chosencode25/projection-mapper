@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.04.4 Rendering Lifecycle is implemented and verified through 48 automated Debug tests with Xcode 27.0 beta 5 (27A5237l). Two existing tests that need visible windows were excluded; interactive lifecycle acceptance remains unverified at the user's request. Rendering now follows view/window availability, and output close releases view/renderer ownership. Tested app: builds/v1.04.4/ProjectionMapper.app, also copied to app/ProjectionMapper.app. Bundle remains 1.04.2/build 4; latest published release remains [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next planned slice: v1.04.5 Performance and Acceptance. Projector work remains deferred.
+v1.04.5 Performance and Acceptance is implemented and locally accepted, completing v1.04 for Test Mode. All 54 correctness tests passed in Debug and Release with Xcode 27.0 beta 5 (27A5237l), plus three opt-in performance/lifecycle benchmarks. Exact-resolution 4K GPU p95 is 0.1527 ms for the diagnostic rectangle; no renderer tuning was needed. Remaining local visual lifecycle acceptance passed. Signed Release app: builds/v1.04.5/ProjectionMapper.app, also copied to app/ProjectionMapper.app. Bundle remains 1.04.2/build 4; latest published release remains [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next: v1.05 First Surface. Physical projector/backing-scale transitions remain deferred.
 
 ## Completed
 
@@ -24,13 +24,13 @@ v1.04.4 Rendering Lifecycle is implemented and verified through 48 automated Deb
 
 ## Current acceptance and next milestone
 
-v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. v1.03.2 adds verified simulated resolution presets and aspect-preserving scaling as a source update without a new release or tag. v1.03.3 completes Test Window persistence/navigation. v1.04.4 Rendering Lifecycle has passed automated verification; interactive acceptance remains pending. Next planned slice: v1.04.5 Performance and Acceptance. Projector implementation remains deferred. See [v1.04 plan](V1.04_PLAN.md) and [roadmap](V1_ROADMAP.md) for the approved split.
+All five v1.04 slices are implemented and locally accepted for Test Mode. Tested source is preserved on GitHub main without a new tag/release. See [performance and acceptance](V1.04.5_VERIFICATION.md), [v1.04 plan](V1.04_PLAN.md), and [roadmap](V1_ROADMAP.md). Next planned development milestone is v1.05 First Surface; no v1.05 implementation has started.
 
 ## Scope and limitations
 
 Projects stay in memory. Output selection and preferences are implemented; the Test Window, Metal rectangle rendering, and shared editor preview are implemented. Projector output is deferred; media import, surfaces, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
 
-See V1.04.4_VERIFICATION.md for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
+See V1.04.5_VERIFICATION.md for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
 
 ## GitHub version history
 
@@ -206,3 +206,18 @@ Evidence: [V1.04.4_VERIFICATION.md](V1.04.4_VERIFICATION.md). Previous exclusion
 ## v1.04.5 detailed planning
 
 Expanded [V1.04.5_PLAN.md](V1.04.5_PLAN.md) into seven implementation/delivery steps with exact texture sizes, sampling counts, lifecycle stress workloads, measurement limits, and acceptance criteria. Plan only: no renderer changes, new build, or performance results. Preserve the user's file-only workflow; broader visual checks require user participation or specific authorization.
+
+
+## v1.04.5 implementation and acceptance
+
+- [x] Add optional bounded diagnostics, default off, without continuous production drawing.
+- [x] Four new regular correctness tests; all 54 regular tests passed in Debug and Release. Three benchmarks are opt-in (57 declarations total).
+- [x] Measure all five exact texture resolutions, one/two-view queues: 9,000 samples with GPU status and representative pixels verified.
+- [x] Verify 30 native drawable records and zero submissions in five settled occluded idle states. Actual Release app idle samples supplement counters.
+- [x] 150 window/view cycles and 15,000 preset changes release weak ownership; peak RSS stable across three batches.
+- [x] 100 synthetic request-to-GPU completions passed; distinguish synthetic timing from OS restoration and display presentation.
+- [x] Complete authorized actual-app restore/occlusion, shortcuts/panels, compact/larger portrait layouts, reset/close/quit protection and final process cleanup.
+- [x] Deliver signed Release app copies and preserve source on GitHub; no bundle bump, tag, archive or release.
+- [ ] Deferred: backing-scale transitions, projector/external-display physical acceptance, Intel and older macOS runtime checks.
+
+All seven planned steps are complete for local Test Mode. Earlier entries describe historical checkpoints. Evidence: [V1.04.5_VERIFICATION.md](V1.04.5_VERIFICATION.md). Next: v1.05 First Surface.

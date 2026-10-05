@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — v1.04.5 Performance and Acceptance — October 5, 2026
+
+- Add optional bounded renderer diagnostics (off by default) and three opt-in performance/lifecycle benchmarks; preserve asynchronous on-demand drawing.
+- All 54 correctness tests pass in Debug and Release. Measure 9,000 exact-resolution single/pair samples, native drawable sizes, idle behavior, ownership stress and synthetic redraw completion.
+- Exact 4K rectangle GPU p95: 0.1527 ms; two-view GPU sum p95: 0.4089 ms on Apple M4. No measured issue required tuning; these are workload timings, not visible FPS.
+- Complete authorized local visual lifecycle, layout, navigation, discard and quit checks; v1.04 Test Mode accepted. Physical projector/backing transitions remain deferred.
+- Signed Release app copied to builds/v1.04.5/ and app/ProjectionMapper.app; source saved on GitHub. Bundle stays 1.04.2/build 4; no new release/tag/archive.
+
 ## v1.04.4 onscreen verification follow-up — October 5, 2026
 
 - Both deferred onscreen tests pass: native minimize/restore/zoom/frame persistence and drawable resizing/presets/reopen.

@@ -134,7 +134,7 @@ class MetalSceneView: NSView {
         if let metalView {
             metalView.isPaused = true // No display link or repeating render loop for this static scene.
             metalView.enableSetNeedsDisplay = active
-            if active { metalView.needsDisplay = true }
+            if active { renderer?.requestDraw(in: metalView) }
         }
     }
 
