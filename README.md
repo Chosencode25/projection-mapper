@@ -12,6 +12,7 @@ The app will let you map images, videos, and built-in animations onto physical s
 - [v1.02 plan](docs/V1.02_PLAN.md): output selection and display discovery; implemented, physical acceptance pending.
 - [v1.03.1 plan](docs/V1.03.1_PLAN.md): basic Test Window, controls, and lifecycle.
 - [v1.03.2 plan](docs/V1.03.2_PLAN.md): saved resolution presets and aspect-preserving scaling.
+- [v1.03.3 plan](docs/V1.03.3_PLAN.md): saved window frame, recovery, and navigation.
 - [Progress tracker](docs/PROGRESS.md): current status, completed work, and next steps.
 
 ## Folder organization
@@ -23,9 +24,9 @@ The app will let you map images, videos, and built-in animations onto physical s
 
 Required toolchain: **Xcode 27.0 beta 5 (27A5237l)**.
 
-Created October 5, 2026. v1.03.2 adds saved resolution presets and aspect-preserving scaling to the Test Window; all 31 tests and local runtime checks pass. Projector output and physical checks are deferred. Earlier milestone tags and releases remain preserved.
+Created October 5, 2026. v1.03.3 adds saved window position/size, offscreen recovery, and navigation shortcuts to the Test Window. Projector output and physical checks are deferred. Earlier milestone tags and releases remain preserved.
 
-Open `app/ProjectionMapper/ProjectionMapper.xcodeproj` in Xcode-beta and press Command–R. The current preview build is in `builds/v1.03.2/ProjectionMapper.app`; the earlier v1.01 build is preserved. See [Build and run](docs/BUILD_AND_RUN.md) and [Current verification](docs/PROGRESS.md#v1032-implementation).
+Open `app/ProjectionMapper/ProjectionMapper.xcodeproj` in Xcode-beta and press Command–R. The current preview build is in `builds/v1.03.3/ProjectionMapper.app`; the earlier v1.01 build is preserved. See [Build and run](docs/BUILD_AND_RUN.md) and [Current verification](docs/PROGRESS.md#v1033-implementation).
 
 The original ChatGPT project mirror at `/Users/keith/.codex/.chatgpt-projects/g-p-6ac32a4ca5b08191bfcf6bd28eb66008` remains a reference location. Do not edit its synced files.
 

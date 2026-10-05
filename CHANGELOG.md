@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — v1.03.3 window behavior/polish — October 5, 2026
+
+- Remember Test Output's normal size/position independently of project data and simulated resolution; output still starts closed.
+- Recover saved or open windows into a current screen's visible area, enforcing minimum size and fitting oversized frames.
+- Consistent Show Output controls; Control–Command–O shows/restores output and Control–Command–E shows the editor.
+- Preserve the normal frame through minimize, zoom, and fullscreen transitions.
+- Source update only; no new release, tag, or bundle version bump.
+
 ## Unreleased — v1.03.2 resolution/scaling — October 5, 2026
 
 - Five saved Test Window resolution presets: HD, Full HD, 4:3, Portrait, and 4K.

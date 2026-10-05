@@ -11,13 +11,13 @@ struct OutputWindowControls: View {
                 if compact {
                     Image(systemName: "macwindow.badge.plus")
                 } else {
-                    Text("Open Output")
+                    Text("Show Output")
                 }
             }
             .disabled(session.output.destination != .testWindow)
-            .accessibilityLabel("Open Output")
+            .accessibilityLabel("Show Output")
             .help(session.output.destination == .testWindow
-                  ? "Open the Test Window, or bring it forward if already open"
+                  ? "Show the Test Window (Control–Command–O), restoring it if minimized"
                   : "Select Test Window to open output. Projector output is deferred.")
             Button(action: { session.testOutput.close() }) {
                 if compact {

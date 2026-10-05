@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.03.2 resolution/scaling is implemented and locally verified with Xcode 27.0 beta 5 (27A5237l). All 31 tests pass. The tested Apple Silicon Debug app is in builds/v1.03.2/ProjectionMapper.app. The last published Release app remains v1.03.1. The user has deferred projector output implementation and physical hardware checks; they do not block this Test Mode milestone.
+v1.03.3 window behavior/polish is implemented and locally verified with Xcode 27.0 beta 5 (27A5237l). All 35 tests pass. The tested Apple Silicon Debug app is in builds/v1.03.3/ProjectionMapper.app. The last published Release app remains v1.03.1. The user has deferred projector output implementation and physical hardware checks; they do not block this Test Mode milestone.
 
 ## Completed
 
@@ -24,13 +24,13 @@ v1.03.2 resolution/scaling is implemented and locally verified with Xcode 27.0 b
 
 ## Current acceptance and next milestone
 
-v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. v1.03.2 adds verified simulated resolution presets and aspect-preserving scaling as a source update without a new release or tag. Next: v1.03.3 window persistence/navigation polish. See V1_ROADMAP.md for the approved split.
+v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. v1.03.2 adds verified simulated resolution presets and aspect-preserving scaling as a source update without a new release or tag. v1.03.3 completes Test Window persistence/navigation. Next: v1.04 shared Metal renderer in Test Mode; projector implementation remains deferred. See V1_ROADMAP.md for the approved split.
 
 ## Scope and limitations
 
 Projects stay in memory. Output selection and preferences are implemented; the basic Test Window is implemented. Projector output is deferred; media import, surfaces, rendering, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
 
-See the v1.03.2 implementation record below for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
+See the v1.03.3 implementation record below for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
 
 ## GitHub version history
 
@@ -78,3 +78,16 @@ Small changes are preserved by commits pushed to the private repository. Full re
 - [x] Tested Debug app copied to builds/v1.03.2/ProjectionMapper.app and its signature verified.
 
 Plan: [V1.03.2_PLAN.md](V1.03.2_PLAN.md). Test evidence: builds/v1.03.2/test.log and Tests.xcresult (local, excluded from Git). This is a source-history update; no version bump, tag, archive, or release. Bundle version remains the last published v1.03.1/build 3. Rendering remains scheduled for v1.04; window geometry persistence/navigation for v1.03.3.
+
+## v1.03.3 implementation
+
+- [x] Normal Test Output frame saved on move/resize/close, separately from project state and simulated resolution.
+- [x] Reopen and new-coordinator restoration; launch remains closed.
+- [x] Invalid stored values fall back to the default window; offscreen and oversized frames fit a current screen's visible area. Multi-screen selection, removed-screen recovery, and minimum dimensions verified with synthetic screen frames.
+- [x] Show Output naming throughout toolbar/inspector/menu; Control–Command–O shows/restores output and Control–Command–E raises the editor.
+- [x] Minimize and zoom preserve the normal saved frame. Zoom transition event ordering is guarded; fullscreen transitions use the same guard.
+- [x] All 35 tests passed with Xcode 27.0 beta 5 (27A5237l), including native AppKit move/resize callbacks, close/reopen, new-coordinator restoration, minimize/show, zoom/close restoration, preference validation, and existing regressions.
+- [x] Native running-app checks confirmed both new shortcuts, minimized-output restoration, consistent controls, panel shortcuts, and closed startup with the existing 4K preference preserved.
+- [x] Refreshed builds/v1.03.3/ProjectionMapper.app from the tested Debug build and verified its signature.
+
+Plan: [V1.03.3_PLAN.md](V1.03.3_PLAN.md). Final evidence: builds/v1.03.3/test.log and Tests-zoom-fix.xcresult (local, excluded from Git). Native pointer-driven move/resize checks were inconclusive in the automation surface; actual NSWindow frame changes and restoration passed the AppKit tests. Fullscreen animation and physical display removal have not been runtime-tested. Earlier minimum-layout checks remain applicable; no editor layout structure changed. The fitted output surface needs no further restructuring before v1.04. No version bump, tag, archive, or release; the bundle remains v1.03.1/build 3.

@@ -14,8 +14,10 @@ struct AppCommands: Commands {
         }
         CommandGroup(after: .windowArrangement) {
             Button("Show Editor") { coordinator.showEditor() }
+                .keyboardShortcut("e", modifiers: [.command, .control])
             Divider()
-            Button("Open Output") { coordinator.openOutput() }
+            Button("Show Output") { coordinator.openOutput() }
+                .keyboardShortcut("o", modifiers: [.command, .control])
                 .disabled(coordinator.session.output.destination != .testWindow)
             Button("Close Output") { coordinator.session.testOutput.close() }
                 .disabled(!coordinator.session.testOutput.isOpen)

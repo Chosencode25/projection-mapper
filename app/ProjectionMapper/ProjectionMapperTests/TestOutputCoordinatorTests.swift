@@ -152,4 +152,90 @@ struct TestOutputCoordinatorTests {
         #expect(!restarted.testOutput.isOpen)
     }
 
+    @Test func framePreferencesRejectMalformedValues() {
+        let suite = "ProjectionMapper.FrameTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = OutputPreferences(defaults: defaults)
+        #expect(preferences.loadTestWindowFrame() == nil)
+        for values in [[1.0, 2], [1, 2, -3, 4], [1, 2, 3, 0]] {
+            defaults.set(values, forKey: "output.testWindowFrame.v1")
+            #expect(preferences.loadTestWindowFrame() == nil)
+        }
+        let frame = CGRect(x: -900, y: 40, width: 700, height: 500)
+        preferences.saveTestWindowFrame(frame)
+        #expect(preferences.loadTestWindowFrame() == frame)
+        preferences.saveTestWindowFrame(CGRect(x: CGFloat.infinity, y: 0, width: 1, height: 1))
+        #expect(preferences.loadTestWindowFrame() == frame)
+    }
+
+    @Test func frameRecoveryHandlesChangedScreensAndMinimumSize() {
+        let main = CGRect(x: 0, y: 25, width: 1200, height: 775)
+        let second = CGRect(x: -1000, y: 25, width: 1000, height: 775)
+        let minimum = CGSize(width: 320, height: 202)
+        let saved = CGRect(x: -900, y: 80, width: 640, height: 382)
+        #expect(TestOutputCoordinator.recoveredFrame(saved, screens: [main, second], minimum: minimum) == saved)
+        #expect(main.contains(TestOutputCoordinator.recoveredFrame(saved, screens: [main], minimum: minimum)))
+        for frame in [CGRect(x: 10000, y: -10000, width: 3000, height: 2000),
+                      CGRect(x: 1190, y: 790, width: 20, height: 20)] {
+            let recovered = TestOutputCoordinator.recoveredFrame(frame, screens: [main], minimum: minimum)
+            #expect(main.contains(recovered))
+            #expect(recovered.width >= minimum.width && recovered.height >= minimum.height)
+        }
+        #expect(TestOutputCoordinator.recoveredFrame(saved, screens: [], minimum: minimum) == saved)
+    }
+
+    @Test func normalFrameRestoresAcrossCloseAndNewCoordinator() {
+        _ = NSApplication.shared
+        let suite = "ProjectionMapper.WindowFrameTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = OutputPreferences(defaults: defaults)
+        let screen = NSScreen.main!.visibleFrame
+        let output = TestOutputCoordinator(preferences: preferences, visibleFrames: { [screen] })
+        output.open(for: .testWindow, resolution: .portrait)
+        let window = output.window!
+        let frame = CGRect(x: screen.minX + 40, y: screen.minY + 40, width: 500, height: 450)
+        window.setFrame(frame, display: true)
+        output.windowDidMove(Notification(name: NSWindow.didMoveNotification, object: window))
+        output.windowDidResize(Notification(name: NSWindow.didResizeNotification, object: window))
+        #expect(preferences.loadTestWindowFrame() == frame)
+        window.miniaturize(nil)
+        output.windowDidMove(Notification(name: NSWindow.didMoveNotification, object: window))
+        #expect(preferences.loadTestWindowFrame() == frame)
+        output.open(for: .testWindow, resolution: .portrait)
+        #expect(output.window === window && !window.isMiniaturized)
+        #expect(window.frame == frame)
+        window.zoom(nil)
+        #expect(window.isZoomed)
+        output.windowDidResize(Notification(name: NSWindow.didResizeNotification, object: window))
+        #expect(preferences.loadTestWindowFrame() == frame)
+        output.close()
+        #expect(preferences.loadTestWindowFrame() == frame)
+        let restarted = TestOutputCoordinator(preferences: preferences, visibleFrames: { [screen] })
+        #expect(!restarted.isOpen)
+        restarted.open(for: .testWindow)
+        #expect(restarted.window!.frame == frame)
+        restarted.close()
+    }
+
+    @Test func showRecoversExistingOffscreenWindowWithoutDuplicatingIt() {
+        _ = NSApplication.shared
+        let suite = "ProjectionMapper.RecoveryTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let screen = NSScreen.main!.visibleFrame
+        let preferences = OutputPreferences(defaults: defaults)
+        preferences.saveTestWindowFrame(CGRect(x: 30000, y: 30000, width: 3000, height: 2000))
+        let output = TestOutputCoordinator(preferences: preferences, visibleFrames: { [screen] })
+        defer { output.close() }
+        output.open(for: .testWindow)
+        let window = output.window!
+        #expect(screen.contains(window.frame))
+        window.setFrame(CGRect(x: -30000, y: -30000, width: 500, height: 450), display: false)
+        output.open(for: .testWindow)
+        #expect(output.window === window)
+        #expect(screen.contains(window.frame))
+    }
+
 }

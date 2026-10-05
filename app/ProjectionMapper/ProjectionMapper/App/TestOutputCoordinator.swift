@@ -5,6 +5,71 @@ import Observation
 @Observable
 final class TestOutputCoordinator: NSObject, NSWindowDelegate {
     private(set) var window: NSWindow?
+    private var isChangingPresentation = false
+    private let preferences: OutputPreferences
+    private let visibleFrames: () -> [CGRect]
+
+    init(preferences: OutputPreferences = OutputPreferences(),
+         visibleFrames: @escaping () -> [CGRect] = { NSScreen.screens.map(\.visibleFrame) }) {
+        self.preferences = preferences
+        self.visibleFrames = visibleFrames
+        super.init()
+    }
+
+    /// Keeps the complete window, including its title bar, reachable on one current screen.
+    static func recoveredFrame(_ frame: CGRect, screens: [CGRect], minimum: CGSize) -> CGRect {
+        let screens = screens.filter { $0.width > 0 && $0.height > 0 }
+        guard let screen = screens.max(by: {
+            let a = frame.intersection($0), b = frame.intersection($1)
+            return (a.isNull ? 0 : a.width * a.height) < (b.isNull ? 0 : b.width * b.height)
+        }) else { return frame }
+        let size = CGSize(width: min(max(frame.width, minimum.width), screen.width),
+                          height: min(max(frame.height, minimum.height), screen.height))
+        return CGRect(x: min(max(frame.minX, screen.minX), screen.maxX - size.width),
+                      y: min(max(frame.minY, screen.minY), screen.maxY - size.height),
+                      width: size.width, height: size.height)
+    }
+
+    private func recover(_ output: NSWindow, frame: CGRect) {
+        let minimum = output.frameRect(forContentRect: CGRect(origin: .zero, size: output.contentMinSize)).size
+        output.setFrame(Self.recoveredFrame(frame, screens: visibleFrames(), minimum: minimum), display: true)
+    }
+
+    private func saveNormalFrame() {
+        guard !isChangingPresentation, let window, !window.isMiniaturized, !window.isZoomed,
+              !window.styleMask.contains(.fullScreen) else { return }
+        preferences.saveTestWindowFrame(window.frame)
+    }
+
+    func windowShouldZoom(_ window: NSWindow, toFrame newFrame: NSRect) -> Bool {
+        saveNormalFrame()
+        isChangingPresentation = true
+        DispatchQueue.main.async { [weak self] in
+            self?.isChangingPresentation = false
+            self?.saveNormalFrame()
+        }
+        return true
+    }
+    func windowWillEnterFullScreen(_ notification: Notification) {
+        saveNormalFrame()
+        isChangingPresentation = true
+    }
+    func windowDidEnterFullScreen(_ notification: Notification) { isChangingPresentation = false }
+    func windowWillExitFullScreen(_ notification: Notification) { isChangingPresentation = true }
+    func windowDidExitFullScreen(_ notification: Notification) {
+        isChangingPresentation = false
+        saveNormalFrame()
+    }
+
+    func windowDidMove(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }
+        saveNormalFrame()
+    }
+    func windowDidResize(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }
+        saveNormalFrame()
+    }
+
     var isOpen: Bool { window != nil }
     var statusText: String { isOpen ? "Test Window open" : "Test Window closed" }
 
@@ -21,12 +86,16 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
             output.appearance = NSAppearance(named: .darkAqua)
             output.backgroundColor = .black
             output.contentView = TestOutputView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))
-            output.delegate = self
             output.center()
+            if let saved = preferences.loadTestWindowFrame() { recover(output, frame: saved) }
             window = output
+            output.delegate = self
         }
         setResolution(resolution)
         if window?.isMiniaturized == true { window?.deminiaturize(nil) }
+        if let window, !window.isZoomed, !window.styleMask.contains(.fullScreen) {
+            recover(window, frame: window.frame)
+        }
         window?.makeKeyAndOrderFront(nil)
         return true
     }
@@ -44,6 +113,7 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow, closing === window else { return }
+        saveNormalFrame()
         window = nil
     }
 }
