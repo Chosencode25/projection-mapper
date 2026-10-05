@@ -13,7 +13,7 @@ struct EditorWindowView: View {
             Divider()
             HStack(spacing: 0) {
                 if session.isSidebarVisible {
-                    SurfaceSidebarView().frame(width: 220)
+                    SurfaceSidebarView(session: session).frame(width: 220)
                     Divider()
                 }
                 EditorCanvasView(output: session.output, scene: session.scene).frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -6,6 +6,33 @@ struct ProjectInspectorView: View {
     let openOutput: () -> Void
     @FocusState private var nameIsFocused: Bool
 
+    @ViewBuilder private var surfaceDetails: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("SURFACE").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            if let surface = session.selectedSurface {
+                Text(surface.name).font(.subheadline.weight(.medium)).textSelection(.enabled)
+                Text("Normalized corners").font(.caption).foregroundStyle(.secondary)
+                corner("Top left", surface.corners.topLeft)
+                corner("Top right", surface.corners.topRight)
+                corner("Bottom right", surface.corners.bottomRight)
+                corner("Bottom left", surface.corners.bottomLeft)
+                Text("Coordinates run from 0 to 1, with the origin at the top left.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("No surface selected").font(.subheadline)
+                Text("Select Surface 1 in the sidebar to inspect its corners.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func corner(_ name: String, _ point: SIMD2<Float>) -> some View {
+        LabeledContent(name, value: String(format: "%.2f, %.2f", point.x, point.y))
+            .font(.caption).monospacedDigit()
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -25,7 +52,9 @@ struct ProjectInspectorView: View {
                     }
                 }
                 Divider()
-                LabeledContent("Surfaces", value: "0")
+                LabeledContent("Surfaces", value: "1")
+                Divider()
+                surfaceDetails
                 Divider()
                 OutputDetailsView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput)
                 Spacer()

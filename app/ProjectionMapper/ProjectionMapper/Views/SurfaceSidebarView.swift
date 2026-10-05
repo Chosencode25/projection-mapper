@@ -1,18 +1,24 @@
 import SwiftUI
 
 struct SurfaceSidebarView: View {
+    let session: EditorSession
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("SURFACES").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 .padding(20)
-            VStack(spacing: 12) {
-                Image(systemName: "square.stack.3d.up").font(.system(size: 28)).foregroundStyle(.tertiary)
-                Text("No surfaces yet").font(.subheadline.weight(.medium))
-                Text("Your mapped surfaces will appear here.")
-                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            List(selection: Binding<UUID?>(
+                get: { session.selectedSurfaceID },
+                set: { session.selectSurface($0) }
+            )) {
+                Label(session.project.surface.name, systemImage: "rectangle")
+                    .tag(session.project.surface.id)
+                    .accessibilityLabel(session.project.surface.name)
             }
-            .frame(maxWidth: .infinity).padding(.horizontal, 22).padding(.top, 36)
-            Spacer()
+            .listStyle(.sidebar)
+            Button("Deselect Surface") { session.selectSurface(nil) }
+                .disabled(session.selectedSurface == nil)
+                .font(.caption)
+                .padding(20)
         }
         .frame(maxHeight: .infinity)
         .background(Color(nsColor: .controlBackgroundColor).opacity(0.45))

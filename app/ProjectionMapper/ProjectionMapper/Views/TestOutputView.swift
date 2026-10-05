@@ -138,6 +138,12 @@ class MetalSceneView: NSView {
         }
     }
 
+    func setScene(_ scene: RenderScene) {
+        guard let renderer, renderer.scene != scene else { return }
+        renderer.setScene(scene)
+        if let metalView { renderer.requestDraw(in: metalView) }
+    }
+
     func stopRendering() {
         setRenderingActive(false)
         metalView?.releaseDrawables()

@@ -1,4 +1,4 @@
-# Projection Mapper — v1.04.5 source
+# Projection Mapper — v1.05 source
 
 A native, entirely code-based Mac editor skeleton. Built for **Xcode 27.0 beta 5 (27A5237l)**. Minimum deployment target: **macOS 15.0**.
 
@@ -19,9 +19,10 @@ Local builds use ad-hoc signing (“Sign to Run Locally”); an Apple Developer 
 - Sidebar/inspector toggles, keyboard shortcuts, and About information.
 - Test Window/display output menus, display information, safe recovery, and remembered preferences.
 - Open/Close Output actions, one normal resizable test window with shared scene rendering, and shared status.
-- 54 correctness tests (52 run without presenting windows) plus three opt-in benchmarks, runnable with Command–U; see ../../docs/BUILD_AND_RUN.md.
+- One project-owned Surface 1, selected initially, with sidebar selection/deselection and read-only normalized corner inspector.
+- 60 correctness tests (58 run without presenting windows) plus three opt-in benchmarks, runnable with Command–U; see ../../docs/BUILD_AND_RUN.md.
 
-Projects remain in memory. Basic test output is available. Shared editor/Test Output rendering is implemented. Media import, mapping, and saving are later milestones.
+Projects remain in memory. Basic test output is available. Shared editor/Test Output rendering is implemented. Four-corner surface storage is implemented; corner editing, perspective mapping, media import and saving are later milestones.
 
 ## Source organization
 
@@ -43,4 +44,4 @@ For tests, replace `build` with `test`. Before building, verify the toolchain us
 
 The minimum deployment target is a build setting; runtime verification on the development Mac does not establish testing on every supported macOS release.
 
-Projector output implementation and physical checks are deferred. See ../../docs/V1.03.1_VERIFICATION.md. Test Output draws an orange Metal rectangle on black with normalized geometry and aspect fitting in v1.04.2. See ../../docs/V1.04.2_VERIFICATION.md. Shared editor preview is implemented in v1.04.3; see ../../docs/V1.04.3_VERIFICATION.md. Bundle remains 1.04.2/build 4. Lifecycle handling and local v1.04 acceptance are complete; see ../../docs/V1.04.5_VERIFICATION.md for Debug/Release tests, measured performance and remaining physical hardware limits. The local built app is ../ProjectionMapper.app.
+Projector output implementation and physical checks are deferred. See ../../docs/V1.03.1_VERIFICATION.md. Test Output draws an orange Metal rectangle on black with normalized geometry and aspect fitting in v1.04.2. See ../../docs/V1.04.2_VERIFICATION.md. Shared editor preview is implemented in v1.04.3; see ../../docs/V1.04.3_VERIFICATION.md. Bundle remains 1.04.2/build 4. Lifecycle handling and local v1.04 acceptance are complete; see ../../docs/V1.04.5_VERIFICATION.md for Debug/Release tests, measured performance and remaining physical hardware limits. First Surface is implemented and locally accepted in v1.05; see ../../docs/V1.05_VERIFICATION.md. The local built app is ../ProjectionMapper.app.

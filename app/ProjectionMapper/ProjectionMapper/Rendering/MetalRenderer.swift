@@ -29,7 +29,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     let diagnostics: RenderDiagnostics?
     private var requestedAt: TimeInterval?
     var isDrawingEnabled = true { didSet { if !isDrawingEnabled { requestedAt = nil } } }
-    let scene: RenderScene
+    private(set) var scene: RenderScene
     var geometry: NormalizedRectangle { scene.geometry }
 
     init(scene: RenderScene = .diagnostic, diagnostics: RenderDiagnostics? = nil,
@@ -104,6 +104,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
         return command
     }
+
+    func setScene(_ scene: RenderScene) { self.scene = scene }
 
     func requestDraw(in view: MTKView) {
         guard isDrawingEnabled else { return }

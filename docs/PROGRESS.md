@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.04.5 Performance and Acceptance is implemented and locally accepted, completing v1.04 for Test Mode. All 54 correctness tests passed in Debug and Release with Xcode 27.0 beta 5 (27A5237l), plus three opt-in performance/lifecycle benchmarks. Exact-resolution 4K GPU p95 is 0.1527 ms for the diagnostic rectangle; no renderer tuning was needed. Remaining local visual lifecycle acceptance passed. Signed Release app: builds/v1.04.5/ProjectionMapper.app, also copied to app/ProjectionMapper.app. Bundle remains 1.04.2/build 4; latest published release remains [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next: v1.05 First Surface. Physical projector/backing-scale transitions remain deferred.
+v1.05 First Surface is implemented and locally accepted. Projects own one named surface with four normalized corners, selected initially, with sidebar selection and read-only inspector details. Both renderer snapshots derive from the project surface and refresh after reset. All 60 correctness tests passed in Debug and Release with Xcode 27.0 beta 5 (27A5237l); vital running-app checks passed. Signed Release app: builds/v1.05/ProjectionMapper.app and app/ProjectionMapper.app. Source is preserved on GitHub main. Bundle remains 1.04.2/build 4; latest published release remains [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next: v1.06 Corner Nodes. Physical projector/display transitions remain deferred.
 
 ## Completed
 
@@ -24,13 +24,13 @@ v1.04.5 Performance and Acceptance is implemented and locally accepted, completi
 
 ## Current acceptance and next milestone
 
-All five v1.04 slices are implemented and locally accepted for Test Mode. Tested source is preserved on GitHub main without a new tag/release. See [performance and acceptance](V1.04.5_VERIFICATION.md), [v1.04 plan](V1.04_PLAN.md), and [roadmap](V1_ROADMAP.md). Next planned development milestone is v1.05 First Surface; no v1.05 implementation has started.
+v1.04 is complete for Test Mode and v1.05 First Surface is now locally accepted and saved to tested main. See [v1.05 verification](V1.05_VERIFICATION.md), [plan](V1.05_PLAN.md), and [roadmap](V1_ROADMAP.md). Next planned development milestone is v1.06 Corner Nodes; no v1.06 implementation has started.
 
 ## Scope and limitations
 
-Projects stay in memory. Output selection and preferences are implemented; the Test Window, Metal rectangle rendering, and shared editor preview are implemented. Projector output is deferred; media import, surfaces, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
+Projects stay in memory. Output selection and preferences are implemented; the Test Window, Metal rectangle rendering, and shared editor preview are implemented. Projector output is deferred; One project surface is implemented; corner editing, media import, multiple surfaces and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
 
-See V1.04.5_VERIFICATION.md for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
+See V1.05_VERIFICATION.md for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
 
 ## GitHub version history
 
@@ -221,3 +221,17 @@ Expanded [V1.04.5_PLAN.md](V1.04.5_PLAN.md) into seven implementation/delivery s
 - [ ] Deferred: backing-scale transitions, projector/external-display physical acceptance, Intel and older macOS runtime checks.
 
 All seven planned steps are complete for local Test Mode. Earlier entries describe historical checkpoints. Evidence: [V1.04.5_VERIFICATION.md](V1.04.5_VERIFICATION.md). Next: v1.05 First Surface.
+
+
+## v1.05 implementation and acceptance
+
+- [x] Read requirements and record [V1.05_PLAN.md](V1.05_PLAN.md); verify pinned Xcode and create feature branch from tested main.
+- [x] Add project-owned MappingSurface with identity/name/four normalized corners/fill.
+- [x] Derive and refresh shared render snapshots, including reset of existing preview/output.
+- [x] One sidebar row with selection/deselection; inspector shows selected surface and corners.
+- [x] Six new focused tests; headless and complete Debug regressions pass.
+- [x] Complete Debug/Release runs: all 60 correctness tests passed (63 declarations including three skipped optional benchmarks).
+- [x] Final actual-app selection/corners/portrait/output/reopen/New Project Cancel and Discard checks passed.
+- [x] Signed Release app copied to builds/v1.05/ and app/ProjectionMapper.app; tested source preserved on GitHub without release/tag/bundle bump.
+
+Evidence: [V1.05_VERIFICATION.md](V1.05_VERIFICATION.md). All seven steps are complete. Next: v1.06 Corner Nodes.

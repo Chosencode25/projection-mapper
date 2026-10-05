@@ -6,19 +6,24 @@ import Observation
 final class EditorSession {
     private(set) var project: MappingProject
     let output: OutputSelectionState
-    let scene: RenderScene
+    var scene: RenderScene { project.surface.renderScene }
+    private(set) var selectedSurfaceID: UUID?
+    var selectedSurface: MappingSurface? {
+        selectedSurfaceID == project.surface.id ? project.surface : nil
+    }
     let testOutput: TestOutputCoordinator
     var isSidebarVisible = true
     var isInspectorVisible = true
-    var hasUserChanges: Bool { project.name != MappingProject.defaultName }
+    var hasUserChanges: Bool {
+        project.name != MappingProject.defaultName || !project.surface.hasDefaultContent
+    }
 
     init(presentOutput: @escaping (NSWindow) -> Void = { $0.makeKeyAndOrderFront(nil) },
-         project: MappingProject = MappingProject(), output: OutputSelectionState = OutputSelectionState(),
-         scene: RenderScene = .diagnostic) {
+         project: MappingProject = MappingProject(), output: OutputSelectionState = OutputSelectionState()) {
         self.project = project
         self.output = output
-        self.scene = scene
-        testOutput = TestOutputCoordinator(presentWindow: presentOutput, scene: scene)
+        selectedSurfaceID = project.surface.id
+        testOutput = TestOutputCoordinator(presentWindow: presentOutput, scene: project.surface.renderScene)
     }
 
     func setTestResolution(_ resolution: TestResolution) {
@@ -37,5 +42,14 @@ final class EditorSession {
         renameProject(trimmed.isEmpty ? MappingProject.defaultName : trimmed, now: now)
     }
 
-    func resetProject(now: Date = .now) { project = MappingProject(now: now) }
+    func selectSurface(_ id: UUID?) {
+        guard id == nil || id == project.surface.id else { return }
+        selectedSurfaceID = id
+    }
+
+    func resetProject(now: Date = .now) {
+        project = MappingProject(now: now)
+        selectedSurfaceID = project.surface.id
+        testOutput.setScene(scene)
+    }
 }

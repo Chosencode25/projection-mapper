@@ -12,6 +12,7 @@ struct MetalScenePreview: NSViewRepresentable {
     }
 
     func updateNSView(_ view: MetalSceneView, context: Context) {
+        view.setScene(scene)
         view.outputAspectRatio = aspectRatio
         view.setAccessibilityValue(outputDescription)
     }

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — v1.05 First Surface — October 5, 2026
+
+- Replace the diagnostic scene as project data with one project-owned Surface 1: identity, name, four normalized corners and orange fill.
+- Add sidebar selection/deselection and selected-surface corner details in the scrollable inspector; selection does not change clean output or dirty state.
+- Derive both render scenes from the project and refresh existing/future output and preview after reset; preserve suspended/on-demand drawing.
+- Six new focused tests; all 60 correctness tests pass in Debug and Release. Actual-app selection, portrait/output/reopen and reset protection checks passed.
+- Signed Release app copied to builds/v1.05/ and app/ProjectionMapper.app, source preserved on GitHub. Bundle stays 1.04.2/build 4; no new release/tag/archive.
+
 ## Unreleased — v1.04.5 Performance and Acceptance — October 5, 2026
 
 - Add optional bounded renderer diagnostics (off by default) and three opt-in performance/lifecycle benchmarks; preserve asynchronous on-demand drawing.

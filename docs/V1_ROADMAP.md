@@ -8,7 +8,7 @@ V1 is a native Mac app for projecting images, videos, and built-in animations on
 | 1.02 — Output Selection | Choose Test Window or a connected display; detect displays; show display properties; default to Test Window without a projector. |
 | 1.03 — Test Output Window | Delivered in three slices below. Fullscreen projector implementation and physical checks are deferred. |
 | 1.04 — Metal Renderer | Five slices below: Metal foundation, rectangle, shared preview, lifecycle, performance. Renderer reusable for both output modes; projector implementation/physical reconnect checks deferred. |
-| 1.05 — First Surface | One surface with four stored normalized corners, initial rectangle, selection state. |
+| [1.05 — First Surface](V1.05_PLAN.md) | Implemented and locally accepted: one project-owned surface, four normalized corners, initial rectangle, sidebar selection and inspector. |
 | 1.06 — Corner Nodes | Draggable handles, live output updates, arrow-key nudging, larger Shift nudges. |
 | 1.07 — Perspective Warp | Correct perspective mapping, texture coordinates, trapezoids, and extreme-position handling. |
 | 1.08 — Images | PNG/JPEG import and drag/drop; fit/fill/stretch; aspect ratio; replace/remove. |
@@ -36,7 +36,7 @@ The user will not have a projector for a while. Projector-window implementation 
 
 ## v1.04 slices — approved October 5, 2026
 
-See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. Next development milestone: v1.05 First Surface.
+See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). Next development milestone: v1.06 Corner Nodes.
 
 | Slice | Scope | Finished when |
 |---|---|---|
@@ -71,3 +71,7 @@ These are subjective implementation/testing-complexity estimates relative to thi
 | 1.13 — Mapping Tools | 4/10 | Patterns and output controls on established rendering. |
 | 1.14 — Save & Load | 8/10 | Reliable files, media references, autosave, migrations, recovery. |
 | 1.15 — Polish & Release | 9/10 | Undo/redo, error handling, profiling, packaging, release verification. |
+
+## v1.05 acceptance — October 5, 2026
+
+All seven steps complete. 60 correctness tests passed in Debug and Release plus authorized actual-app checks; source and local app updated. See [verification](V1.05_VERIFICATION.md). v1.06 introduces corner dragging and keyboard nudging; v1.07 perspective mapping.

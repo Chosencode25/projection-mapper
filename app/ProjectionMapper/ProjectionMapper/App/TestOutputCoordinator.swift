@@ -8,7 +8,7 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
     private var isChangingPresentation = false
     private let preferences: OutputPreferences
     private let visibleFrames: () -> [CGRect]
-    private let scene: RenderScene
+    private(set) var scene: RenderScene
     private let presentWindow: (NSWindow) -> Void
 
     init(presentWindow: @escaping (NSWindow) -> Void = { $0.makeKeyAndOrderFront(nil) },
@@ -104,6 +104,11 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
         if let window { presentWindow(window) }
         (window?.contentView as? TestOutputView)?.updateRenderingAvailability()
         return true
+    }
+
+    func setScene(_ scene: RenderScene) {
+        self.scene = scene
+        (window?.contentView as? TestOutputView)?.setScene(scene)
     }
 
     func setResolution(_ resolution: TestResolution) {

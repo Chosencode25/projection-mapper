@@ -1,4 +1,4 @@
-/// One immutable scene value is supplied to both editor and clean-output renderers.
+/// Immutable drawing snapshot derived from the project surface for both renderers.
 struct RenderScene: Equatable, Sendable {
     let geometry: NormalizedRectangle
     let color: SIMD4<Float>

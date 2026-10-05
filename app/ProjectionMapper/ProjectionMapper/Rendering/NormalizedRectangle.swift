@@ -1,4 +1,4 @@
-/// Temporary scene geometry: origin at top-left, x rightward, y downward.
+/// Four-corner surface geometry: origin at top-left, x rightward, y downward.
 /// Coordinates describe fractions of the fitted output, excluding black margins.
 struct NormalizedRectangle: Equatable, Sendable {
     let topLeft: SIMD2<Float>
