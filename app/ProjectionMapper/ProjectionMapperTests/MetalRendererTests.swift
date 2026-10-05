@@ -83,6 +83,28 @@ struct MetalRendererTests {
 
     @Test func gpuSceneDrawsRectangleAndBlackBackground() throws {
         let renderer = try MetalRenderer()
+        try verifyScenePixels(renderer, xRange: 4..<12, yRange: 4..<12)
+    }
+
+    @Test func normalizedCoordinatesHaveTopLeftOriginAndCorrectAxes() {
+        #expect(NormalizedRectangle.clipPosition(SIMD2(0, 0)) == SIMD2(-1, 1))
+        #expect(NormalizedRectangle.clipPosition(SIMD2(1, 0)) == SIMD2(1, 1))
+        #expect(NormalizedRectangle.clipPosition(SIMD2(1, 1)) == SIMD2(1, -1))
+        #expect(NormalizedRectangle.clipPosition(SIMD2(0, 1)) == SIMD2(-1, -1))
+        #expect(NormalizedRectangle.clipPosition(SIMD2(0.5, 0.5)) == .zero)
+    }
+
+    @Test func offCenterNormalizedGeometryRendersAtExpectedPixels() throws {
+        let geometry = NormalizedRectangle(
+            topLeft: SIMD2(0.125, 0.0625), topRight: SIMD2(0.375, 0.0625),
+            bottomRight: SIMD2(0.375, 0.3125), bottomLeft: SIMD2(0.125, 0.3125)
+        )
+        let renderer = try MetalRenderer(geometry: geometry)
+        try verifyScenePixels(renderer, xRange: 2..<6, yRange: 1..<5)
+        #expect(renderer.geometry == geometry)
+    }
+
+    private func verifyScenePixels(_ renderer: MetalRenderer, xRange: Range<Int>, yRange: Range<Int>) throws {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
                                                                   width: 16, height: 16, mipmapped: false)
         descriptor.storageMode = .shared
@@ -100,11 +122,11 @@ struct MetalRendererTests {
             texture.getBytes($0.baseAddress!, bytesPerRow: 16 * 4,
                              from: MTLRegionMake2D(0, 0, 16, 16), mipmapLevel: 0)
         }
-        // Verify every pixel: both triangles fill the middle half without seams or spills.
+        // Verify every pixel, including the seam and the black exterior.
         for y in 0..<16 {
             for x in 0..<16 {
                 let offset = (y * 16 + x) * 4
-                let inside = (4..<12).contains(x) && (4..<12).contains(y)
+                let inside = xRange.contains(x) && yRange.contains(y)
                 #expect(pixels[offset] == 0)
                 #expect(abs(Int(pixels[offset + 1]) - (inside ? 64 : 0)) <= 1)
                 #expect(pixels[offset + 2] == (inside ? 255 : 0))
@@ -125,6 +147,8 @@ struct MetalRendererTests {
             let window = try #require(output.window)
             let content = try #require(window.contentView as? TestOutputView)
             let metal = try #require(content.metalView)
+            let renderer = try #require(metal.delegate as? MetalRenderer)
+            let originalGeometry = renderer.geometry
             #expect(content.renderingError == nil)
             #expect(metal.device != nil && metal.delegate != nil)
             #expect(metal.isPaused && metal.enableSetNeedsDisplay)
@@ -133,6 +157,7 @@ struct MetalRendererTests {
                 content.layoutSubtreeIfNeeded()
                 #expect(content.outputFrame == resolution.fittedRect(in: content.bounds))
                 #expect(content.resolution == resolution)
+                #expect(renderer.geometry == originalGeometry && originalGeometry == .diagnostic)
                 metal.draw()
                 #expect(metal.currentDrawable != nil)
             }

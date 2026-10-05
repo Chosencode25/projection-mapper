@@ -133,3 +133,12 @@ The running output remains the v1.04.1 blue diagnostic clear; shader/pipeline cr
 - [ ] Steps 4–7 and full v1.04.2 acceptance remain pending; main remains v1.04.1. Work preserved on the feature branch without release/tag/bundle bump.
 
 Latest feature-branch output is now the rectangle rather than the step-2 diagnostic clear. See [V1.04.2_VERIFICATION.md](V1.04.2_VERIFICATION.md).
+
+## v1.04.2 development — step 4
+
+- [x] Four immutable normalized scene corners with top-left origin, converted to Metal clip positions and two triangles at render time.
+- [x] All 42 tests pass with pinned Xcode, including off-center GPU pixel checks, coordinate extents/center, and stored geometry unchanged through preset/window changes.
+- [x] Running app confirms the centered rectangle retains its appearance. Local signed/tested app: `builds/v1.04.2/step4/ProjectionMapper.app`.
+- [ ] Steps 5–7 remain pending; full v1.04.2 acceptance and advancement of main have not occurred.
+
+Latest feature-branch geometry now uses normalized corners; the step-3 appearance is preserved. See [V1.04.2_VERIFICATION.md](V1.04.2_VERIFICATION.md). Intermediate work is saved on the feature branch without release/tag/version bump.

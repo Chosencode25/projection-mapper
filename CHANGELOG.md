@@ -1,5 +1,11 @@
 # Changelog
 
+## In development — v1.04.2 step 4 — October 5, 2026
+
+- Store four normalized rectangle corners independently of output dimensions; convert top-left scene coordinates to Metal clip positions.
+- Preserve the centered orange rectangle appearance. All 42 tests pass, including off-center GPU pixels, coordinate conversion, and geometry stability during window/preset changes.
+- Feature-branch checkpoint; full acceptance and main advancement remain pending. No release/tag/bundle bump.
+
 ## In development — v1.04.2 step 3 — October 5, 2026
 
 - Test Output draws a centered orange rectangle on black using the compiled pipeline and temporary clip-space geometry.

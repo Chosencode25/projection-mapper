@@ -27,13 +27,10 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     static let pixelFormat: MTLPixelFormat = .bgra8Unorm
     static let backgroundColor = MTLClearColorMake(0, 0, 0, 1)
     static let rectangleColor = SIMD4<Float>(1, 0.25, 0, 1)
-    // Temporary clip-space geometry. Normalized scene geometry follows in step 4.
-    private let rectanglePositions: [SIMD2<Float>] = [
-        SIMD2(-0.5, -0.5), SIMD2(0.5, -0.5), SIMD2(-0.5, 0.5),
-        SIMD2(0.5, -0.5), SIMD2(0.5, 0.5), SIMD2(-0.5, 0.5)
-    ]
+    let geometry: NormalizedRectangle
 
-    init(deviceProvider: () -> (any MTLDevice)? = { MTLCreateSystemDefaultDevice() },
+    init(geometry: NormalizedRectangle = .diagnostic,
+         deviceProvider: () -> (any MTLDevice)? = { MTLCreateSystemDefaultDevice() },
          queueProvider: (any MTLDevice) -> (any MTLCommandQueue)? = { $0.makeCommandQueue() },
          libraryProvider: (any MTLDevice) throws -> any MTLLibrary = {
              try $0.makeDefaultLibrary(bundle: Bundle(for: MetalRenderer.self))
@@ -44,6 +41,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         guard let device = deviceProvider() else { throw MetalInitializationError.deviceUnavailable }
         guard let queue = queueProvider(device) else { throw MetalInitializationError.commandQueueUnavailable }
         self.device = device
+        self.geometry = geometry
         commandQueue = queue
         let library: any MTLLibrary
         do { library = try libraryProvider(device) }
@@ -73,6 +71,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
               let encoder = command.makeRenderCommandEncoder(descriptor: descriptor) else { return nil }
         command.label = "Temporary rectangle output"
         encoder.setRenderPipelineState(rectanglePipeline)
+        let rectanglePositions = geometry.trianglePositions
         rectanglePositions.withUnsafeBytes {
             encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 0)
         }
