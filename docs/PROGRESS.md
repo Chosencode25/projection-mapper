@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.03.3 window behavior/polish is implemented and locally verified with Xcode 27.0 beta 5 (27A5237l). All 35 tests pass. The tested Apple Silicon Debug app is in builds/v1.03.3/ProjectionMapper.app. The last published Release app remains v1.03.1. The user has deferred projector output implementation and physical hardware checks; they do not block this Test Mode milestone.
+v1.04.1 Metal Foundation is implemented and locally verified with Xcode 27.0 beta 5 (27A5237l). All 38 tests pass. The tested Apple Silicon Debug app is in builds/v1.04.1/ProjectionMapper.app. The last published Release remains v1.03.1. Test Output now draws a blue diagnostic color through Metal; the editor preview remains empty until v1.04.3. Projector implementation and physical checks remain deferred.
 
 ## Completed
 
@@ -24,13 +24,13 @@ v1.03.3 window behavior/polish is implemented and locally verified with Xcode 27
 
 ## Current acceptance and next milestone
 
-v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. v1.03.2 adds verified simulated resolution presets and aspect-preserving scaling as a source update without a new release or tag. v1.03.3 completes Test Window persistence/navigation. Next: v1.04.1 Metal Foundation, the first of five planned renderer slices. Projector implementation remains deferred. See [v1.04 plan](V1.04_PLAN.md) and [roadmap](V1_ROADMAP.md) for the approved split.
+v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. v1.03.2 adds verified simulated resolution presets and aspect-preserving scaling as a source update without a new release or tag. v1.03.3 completes Test Window persistence/navigation. v1.04.1 Metal Foundation is now verified. Next: v1.04.2 First Rectangle. Projector implementation remains deferred. See [v1.04 plan](V1.04_PLAN.md) and [roadmap](V1_ROADMAP.md) for the approved split.
 
 ## Scope and limitations
 
-Projects stay in memory. Output selection and preferences are implemented; the basic Test Window is implemented. Projector output is deferred; media import, surfaces, rendering, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
+Projects stay in memory. Output selection and preferences are implemented; the Test Window and Metal diagnostic clear are implemented. Projector output is deferred; shared editor rendering, media import, surfaces, and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The included standalone build is for Apple Silicon; the Xcode project can be used to build for the selected Mac destination.
 
-See the v1.03.3 implementation record below for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
+See V1.04.1_VERIFICATION.md and the v1.04.1 implementation record below for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
 
 ## GitHub version history
 
@@ -96,10 +96,21 @@ Plan: [V1.03.3_PLAN.md](V1.03.3_PLAN.md). Final evidence: builds/v1.03.3/test.lo
 
 The five-slice renderer breakdown and completion criteria are saved in [V1.04_PLAN.md](V1.04_PLAN.md), individual slice plans, and the roadmap. Relative milestone difficulty estimates are recorded in the roadmap as subjective estimates. This documentation update changes no app behavior; the latest verified app remains v1.03.3 with 35 passing tests.
 
-- [ ] v1.04.1 — Metal Foundation.
+- [x] v1.04.1 — Metal Foundation (implemented and locally verified).
 - [ ] v1.04.2 — First Rectangle.
 - [ ] v1.04.3 — Shared Editor Preview.
 - [ ] v1.04.4 — Rendering Lifecycle.
 - [ ] v1.04.5 — Performance and Acceptance.
 
-All five are planned, not implemented or verified. Test and push each completed slice; no automatic release/tag/version bump. Physical projector implementation/reconnect checks remain deferred.
+v1.04.1 is implemented and locally verified; the other four remain planned. Test and push each completed slice; no automatic release/tag/version bump. Physical projector implementation/reconnect checks remain deferred.
+
+## v1.04.1 implementation
+
+- [x] Independent Metal renderer initializes the device/command queue and clears the fitted Test Output surface to a fixed blue diagnostic color.
+- [x] On-demand MTKView drawing; simulated resolution remains independent of native drawable size. Existing black margins, preferences, window ownership, and navigation are preserved.
+- [x] App-visible initialization error text with injected device/queue failure verification.
+- [x] All 38 tests pass with the exact pinned toolchain, including actual GPU texture readback and native Metal window preset/resize/close/reopen checks.
+- [x] Running-app checks confirmed visible output and margins at 4K and Portrait, live resolution changes, close/reopen, minimize/restore, and both navigation shortcuts. Original 4K preference restored.
+- [x] Tested Debug app copied to builds/v1.04.1/ProjectionMapper.app; ad-hoc signature verified.
+
+Plan: [V1.04.1_PLAN.md](V1.04.1_PLAN.md). Verification: [V1.04.1_VERIFICATION.md](V1.04.1_VERIFICATION.md). No frame-rate/4K-performance claim; actual performance measurement is v1.04.5. The rectangle and shared editor preview remain planned. No bundle version bump, tag, archive, or release.

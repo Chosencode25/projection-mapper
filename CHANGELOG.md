@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — v1.04.1 Metal Foundation — October 5, 2026
+
+- Metal device/command queue and on-demand drawing in the fitted Test Output area, showing a fixed blue diagnostic color with black margins.
+- Visible initialization errors; preserve resolution presets, window preferences, close/reopen, and navigation behavior.
+- All 38 tests pass with pinned Xcode, including GPU pixel readback and native Metal output checks; running-app visual/navigation checks passed.
+- Source update only; no release, tag, or bundle version bump. Rectangle/shared preview and projector output remain later work.
+
 ## Unreleased — v1.03.3 window behavior/polish — October 5, 2026
 
 - Remember Test Output's normal size/position independently of project data and simulated resolution; output still starts closed.
