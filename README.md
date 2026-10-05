@@ -13,6 +13,7 @@ The app will let you map images, videos, and built-in animations onto physical s
 - [v1.03.1 plan](docs/V1.03.1_PLAN.md): basic Test Window, controls, and lifecycle.
 - [v1.03.2 plan](docs/V1.03.2_PLAN.md): saved resolution presets and aspect-preserving scaling.
 - [v1.03.3 plan](docs/V1.03.3_PLAN.md): saved window frame, recovery, and navigation.
+- [v1.04 plan](docs/V1.04_PLAN.md): five renderer slices, from Metal foundation through performance acceptance.
 - [Progress tracker](docs/PROGRESS.md): current status, completed work, and next steps.
 
 ## Folder organization

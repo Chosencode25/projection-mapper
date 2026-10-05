@@ -24,7 +24,7 @@ v1.03.3 window behavior/polish is implemented and locally verified with Xcode 27
 
 ## Current acceptance and next milestone
 
-v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. v1.03.2 adds verified simulated resolution presets and aspect-preserving scaling as a source update without a new release or tag. v1.03.3 completes Test Window persistence/navigation. Next: v1.04 shared Metal renderer in Test Mode; projector implementation remains deferred. See V1_ROADMAP.md for the approved split.
+v1.03.1 is merged into main and published as a [private development prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.03.1), including the app and checksum. v1.03.2 adds verified simulated resolution presets and aspect-preserving scaling as a source update without a new release or tag. v1.03.3 completes Test Window persistence/navigation. Next: v1.04.1 Metal Foundation, the first of five planned renderer slices. Projector implementation remains deferred. See [v1.04 plan](V1.04_PLAN.md) and [roadmap](V1_ROADMAP.md) for the approved split.
 
 ## Scope and limitations
 
@@ -91,3 +91,15 @@ Plan: [V1.03.2_PLAN.md](V1.03.2_PLAN.md). Test evidence: builds/v1.03.2/test.log
 - [x] Refreshed builds/v1.03.3/ProjectionMapper.app from the tested Debug build and verified its signature.
 
 Plan: [V1.03.3_PLAN.md](V1.03.3_PLAN.md). Final evidence: builds/v1.03.3/test.log and Tests-zoom-fix.xcresult (local, excluded from Git). Native pointer-driven move/resize checks were inconclusive in the automation surface; actual NSWindow frame changes and restoration passed the AppKit tests. Fullscreen animation and physical display removal have not been runtime-tested. Earlier minimum-layout checks remain applicable; no editor layout structure changed. The fitted output surface needs no further restructuring before v1.04. No version bump, tag, archive, or release; the bundle remains v1.03.1/build 3.
+
+## v1.04 planning — October 5, 2026
+
+The five-slice renderer breakdown and completion criteria are saved in [V1.04_PLAN.md](V1.04_PLAN.md), individual slice plans, and the roadmap. Relative milestone difficulty estimates are recorded in the roadmap as subjective estimates. This documentation update changes no app behavior; the latest verified app remains v1.03.3 with 35 passing tests.
+
+- [ ] v1.04.1 — Metal Foundation.
+- [ ] v1.04.2 — First Rectangle.
+- [ ] v1.04.3 — Shared Editor Preview.
+- [ ] v1.04.4 — Rendering Lifecycle.
+- [ ] v1.04.5 — Performance and Acceptance.
+
+All five are planned, not implemented or verified. Test and push each completed slice; no automatic release/tag/version bump. Physical projector implementation/reconnect checks remain deferred.
