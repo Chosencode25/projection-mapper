@@ -8,10 +8,14 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     private var editorWindow: NSWindow?
     private var isPrompting = false
     private var isTerminationPending = false
+    private let recovery = ProjectRecoveryStore(directory: ProjectRecoveryStore.defaultDirectory)
+    var recentProjects: [URL] { session.recentProjectURLs }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        session.configureRecovery(recovery)
         showEditor()
+        DispatchQueue.main.async { [weak self] in self?.recoverProject() }
     }
 
     func showEditor() {
@@ -69,7 +73,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     func newProject() {
         guard !isPrompting else { return }
         showEditor()
-        confirmDiscard(action: "start a new project") { [weak self] shouldDiscard in
+        confirmSaveChanges(action: "start a new project") { [weak self] shouldDiscard in
             guard let self, shouldDiscard else { return }
             self.session.resetProject()
             self.updateWindowTitle()
@@ -79,9 +83,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !isPrompting else { return false }
         guard session.hasUserChanges else { return true }
-        confirmDiscard(action: "close this project") { [weak self] shouldDiscard in
+        confirmSaveChanges(action: "close this project") { [weak self] shouldDiscard in
             guard let self, shouldDiscard else { return }
-            self.session.resetProject()
+            if self.session.hasUserChanges { self.session.resetProject() }
             self.updateWindowTitle()
             // Finish dismissing the sheet before closing its parent window.
             DispatchQueue.main.async { sender.close() }
@@ -95,8 +99,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         guard !isTerminationPending else { return .terminateCancel }
         isTerminationPending = true
         showEditor()
-        confirmDiscard(action: "quit Projection Mapper") { [weak self] shouldDiscard in
+        confirmSaveChanges(action: "quit Projection Mapper") { [weak self] shouldDiscard in
             self?.isTerminationPending = false
+            if shouldDiscard, self?.session.hasUserChanges == true { self?.session.clearRecovery() }
             sender.reply(toApplicationShouldTerminate: shouldDiscard)
         }
         return .terminateLater
@@ -121,21 +126,117 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     private func updateWindowTitle() {
         editorWindow?.title = session.project.name
         editorWindow?.isDocumentEdited = session.hasUserChanges
+        editorWindow?.representedURL = session.documentURL
     }
 
-    private func confirmDiscard(action: String, completion: @escaping @MainActor (Bool) -> Void) {
+    func saveProject(asNew: Bool = false, completion: @escaping @MainActor (Bool) -> Void = { _ in }) {
+        guard !isPrompting else { completion(false); return }
+        showEditor()
+        if !asNew, let url = session.documentURL { writeProject(to: url, completion: completion); return }
+        guard let window = editorWindow else { completion(false); return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [ProjectPackageStore.contentType]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = session.project.name.replacingOccurrences(of: "/", with: "-") + ".projectionmap"
+        panel.directoryURL = session.documentURL?.deletingLastPathComponent()
+        isPrompting = true
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { completion(false); return }
+            self.isPrompting = false
+            guard response == .OK, let url = panel.url else { completion(false); return }
+            self.writeProject(to: url, completion: completion)
+        }
+    }
+    private func writeProject(to url: URL, completion: @escaping @MainActor (Bool) -> Void) {
+        do { try session.save(to: url); remember(url); updateWindowTitle(); completion(true) }
+        catch { showFileError(error); completion(false) }
+    }
+    private func remember(_ url: URL) {
+        let paths = [url.path] + recentProjects.map(\.path).filter { $0 != url.path }
+        session.recentProjectURLs = Array(paths.prefix(10)).map { URL(fileURLWithPath: $0) }
+        UserDefaults.standard.set(Array(paths.prefix(10)), forKey: "recentProjects")
+    }
+    func openProject(_ url: URL? = nil) {
+        guard !isPrompting else { return }
+        showEditor()
+        if let url { readProject(url); return }
+        guard let window = editorWindow else { return }
+        let panel = NSOpenPanel(); panel.allowedContentTypes = [ProjectPackageStore.contentType]
+        panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
+        isPrompting = true
+        panel.beginSheetModal(for: window) { [weak self] response in
+            self?.isPrompting = false
+            if response == .OK, let url = panel.url { self?.readProject(url) }
+        }
+    }
+    private func readProject(_ url: URL) {
+        do {
+            _ = try ProjectPackageStore().read(url)
+            confirmSaveChanges(action: "open another project") { [weak self] proceed in
+                guard let self, proceed else { return }
+                do {
+                    // A Save in the prompt may have written this very URL; reread its final contents.
+                    let document = try ProjectPackageStore().read(url)
+                    try self.session.load(document, from: url); self.remember(url); self.updateWindowTitle()
+                }
+                catch { self.showFileError(error) }
+            }
+        } catch { showFileError(error) }
+    }
+    func application(_ application: NSApplication, open urls: [URL]) { if let url = urls.first { openProject(url) } }
+    func recoverProject() {
+        guard !isPrompting, let window = editorWindow else { return }
+        let entries = recovery.entries(); guard !entries.isEmpty else { return }
+        let picker = NSPopUpButton(frame: NSRect(x: 0,y: 0,width: 360,height: 28))
+        picker.addItems(withTitles: entries.map { $0.document.project.name + " · " + ($0.document.recovery?.savedAt.formatted() ?? "") })
+        let alert = NSAlert(); alert.messageText = "Recover unsaved work?"
+        alert.informativeText = "Restore a recovery copy, keep it for later, or delete the selected copy. Restored projects start paused and need Save."
+        alert.accessoryView = picker
+        alert.addButton(withTitle: "Restore"); alert.addButton(withTitle: "Later"); alert.addButton(withTitle: "Delete Copy")
+        isPrompting = true
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }; self.isPrompting = false
+            let entry = entries[max(0,picker.indexOfSelectedItem)]
+            if response == .alertThirdButtonReturn { self.recovery.remove(projectID: entry.document.project.id); return }
+            guard response == .alertFirstButtonReturn else { return }
+            // Save/Discard may remove the current project's recovery. Preserve the chosen copy first.
+            let snapshot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".projectionmap")
+            do { try self.recovery.packages.write(entry.document,to: snapshot,assetsFrom: entry.url) }
+            catch { self.showFileError(error); return }
+            self.confirmSaveChanges(action: "restore this recovery copy") { proceed in
+                defer { try? FileManager.default.removeItem(at: snapshot) }
+                guard proceed else { return }
+                do {
+                    try self.recovery.packages.write(entry.document,to: entry.url,assetsFrom: snapshot)
+                    try self.session.load(entry.document,from: entry.url,recovering: true)
+                    self.updateWindowTitle()
+                } catch { self.showFileError(error) }
+            }
+        }
+    }
+    private func showFileError(_ error: Error) {
+        session.fileMessage = error.localizedDescription
+        guard let window = editorWindow else { return }
+        let alert = NSAlert(); alert.messageText = "Project could not be saved or opened"
+        alert.informativeText = error.localizedDescription; alert.alertStyle = .warning
+        isPrompting = true
+        alert.beginSheetModal(for: window) { [weak self] _ in self?.isPrompting = false }
+    }
+    private func confirmSaveChanges(action: String, completion: @escaping @MainActor (Bool) -> Void) {
         guard session.hasUserChanges else { completion(true); return }
         guard let window = editorWindow else { completion(false); return }
         isPrompting = true
-        let alert = NSAlert()
-        alert.messageText = "Discard changes?"
-        alert.informativeText = "To \(action), discard your current changes. Projects stay in memory and cannot be saved yet."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Discard Changes")
+        let alert = NSAlert(); alert.messageText = "Save changes to \(session.project.name)?"
+        alert.informativeText = "Save your work before you \(action)."
+        alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Discard Changes"); alert.addButton(withTitle: "Cancel")
         alert.beginSheetModal(for: window) { [weak self] response in
-            self?.isPrompting = false
-            completion(response == .alertSecondButtonReturn)
+            guard let self else { completion(false); return }; self.isPrompting = false
+            let choice: ProjectCloseChoice = response == .alertFirstButtonReturn ? .save : response == .alertSecondButtonReturn ? .discard : .cancel
+            if choice == .save { self.saveProject { completion(choice.canProceed(saveSucceeded: $0)) } }
+            else {
+                // The requested action owns the replacement, so a failed Open retains current content.
+                completion(choice.canProceed(saveSucceeded: false))
+            }
         }
     }
 }

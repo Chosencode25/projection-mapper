@@ -412,6 +412,24 @@ struct MultipleSurfaceGPUTests {
     private func rect(_ x: Float, _ width: Float) -> NormalizedRectangle {
         NormalizedRectangle(topLeft: SIMD2(x,0),topRight: SIMD2(x+width,0),bottomRight: SIMD2(x+width,1),bottomLeft: SIMD2(x,1))
     }
+    @Test func savedJoinedAnimationsReproduceGPUFramesAfterPausedReload() throws {
+        let defaults = UserDefaults(suiteName: "v110.gpu." + UUID().uuidString)!
+        let session = EditorSession(presentOutput: { _ in },output: OutputSelectionState(preferences: OutputPreferences(defaults: defaults)))
+        session.addSurface(); session.createObject(faceIDs: Set(session.project.surfaces.map(\.id)))
+        let faces = session.project.surfaces
+        session.selectSurface(faces[0].id); for corner in SurfaceCorner.allCases { session.selectCorner(corner); session.moveSelectedCorner(to: rect(0,0.5)[corner],surfaceID: faces[0].id) }
+        session.selectSurface(faces[1].id); for corner in SurfaceCorner.allCases { session.selectCorner(corner); session.moveSelectedCorner(to: rect(0.5,1)[corner],surfaceID: faces[1].id) }
+        for content in [SurfaceContent.particles,.movingLines,.noise] {
+            session.setSurfaceContent(content); session.seekPlayback(to: 0.37,at: 100)
+            let before = try pixels(MetalRenderer(scene: session.scene))
+            let doc = try ProjectCodec.decode(ProjectCodec.encode(session.document))
+            try session.load(doc,from: URL(fileURLWithPath: "/tmp/replay.projectionmap"))
+            #expect(!session.transport.isPlaying)
+            session.seekPlayback(to: 0.37,at: 100)
+            #expect(try pixels(MetalRenderer(scene: session.scene)) == before)
+            #expect(try pixels(MetalRenderer(scene: session.testOutput.scene)) == before)
+        }
+    }
     private func pixels(_ renderer: MetalRenderer, size: Int = 128, time: Double? = nil) throws -> [UInt8] {
         let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: MetalRenderer.pixelFormat,width: size,height: size,mipmapped: false)
         desc.storageMode = .shared; desc.usage = .renderTarget

@@ -1,6 +1,6 @@
 /// Four-corner surface geometry: origin at top-left, x rightward, y downward.
 /// Coordinates describe fractions of the fitted output, excluding black margins.
-struct NormalizedRectangle: Equatable, Sendable {
+struct NormalizedRectangle: Equatable, Sendable, Codable {
     let topLeft: SIMD2<Float>
     let topRight: SIMD2<Float>
     let bottomRight: SIMD2<Float>

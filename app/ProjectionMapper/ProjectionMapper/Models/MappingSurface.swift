@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-struct SurfaceSource: Equatable, Sendable {
+struct SurfaceSource: Equatable, Sendable, Codable {
     var id = UUID()
     var content: SurfaceContent = .diagnosticGrid
     var generator: GeneratorSettings = .defaults
@@ -9,14 +9,14 @@ struct SurfaceSource: Equatable, Sendable {
     func independentCopy() -> Self { var copy = self; copy.id = UUID(); return copy }
 }
 
-enum ObjectContentMode: String, CaseIterable, Identifiable, Sendable {
+enum ObjectContentMode: String, CaseIterable, Identifiable, Sendable, Codable {
     case continuous, repeatContent
     var id: Self { self }
     var title: String { self == .continuous ? "Continuous canvas" : "Repeat on every face" }
 }
 
 /// Input coordinates are separate from projector/output corners.
-struct FaceInputMap: Equatable, Sendable {
+struct FaceInputMap: Equatable, Sendable, Codable {
     var origin = SIMD2<Float>(0, 0)
     var size = SIMD2<Float>(1, 1)
     var quarterTurns = 0
@@ -39,7 +39,7 @@ struct FaceInputMap: Equatable, Sendable {
     }
 }
 
-enum FaceEdge: String, CaseIterable, Identifiable, Sendable {
+enum FaceEdge: String, CaseIterable, Identifiable, Sendable, Codable {
     case top, right, bottom, left
     var id: Self { self }
     var title: String { rawValue.capitalized }
@@ -53,7 +53,7 @@ enum FaceEdge: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-struct FaceEdgeLink: Identifiable, Equatable, Sendable {
+struct FaceEdgeLink: Identifiable, Equatable, Sendable, Codable {
     var id = UUID()
     var firstFace: UUID
     var firstEdge: FaceEdge
@@ -63,7 +63,7 @@ struct FaceEdgeLink: Identifiable, Equatable, Sendable {
     var isSeam = false
 }
 
-struct MappingObject: Identifiable, Equatable, Sendable {
+struct MappingObject: Identifiable, Equatable, Sendable, Codable {
     var id = UUID()
     var name: String
     var source: SurfaceSource
@@ -73,14 +73,14 @@ struct MappingObject: Identifiable, Equatable, Sendable {
     var links: [FaceEdgeLink] = []
 }
 
-struct SurfaceLayout: Equatable, Sendable {
+struct SurfaceLayout: Equatable, Sendable, Codable {
     var corners: NormalizedRectangle = .diagnostic
     var inputMap: FaceInputMap = .full
     var objectID: UUID?
     var isVisible = true
 }
 
-struct MappingSurface: Identifiable, Equatable, Sendable {
+struct MappingSurface: Identifiable, Equatable, Sendable, Codable {
     static let defaultName = "Surface 1"
     let id: UUID
     var name: String

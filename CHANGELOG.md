@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.10 — Save & Load source milestone — October 5, 2026
+
+- Add native Save/Save As/Open/Recent commands and portable validated .projectionmap packages preserving grouped/standalone layouts, content, presets and stable identities.
+- Add atomic replacement, saved baselines and Save/Discard/Cancel lifecycle protection; failed saves retain the last good project.
+- Add debounced untitled/saved recovery with restore/later/delete and ten-copy retention. Reload paused with fresh clocks and safe output fallback.
+- Bundle 1.10/build 7. All 128 Debug/Release correctness tests passed; native visual acceptance belongs to the user. GitHub source backup authorized before v1.11.1; no release/tag/assets requested.
+
 ## v1.09 — Source milestone — October 5, 2026
 
 - Preserve accumulated multiple-surface and six-effect animation implementation, presets, seeking and scoped playback on GitHub at the user’s explicit request.

@@ -28,7 +28,7 @@ struct ProjectInspectorView: View {
                 if let message = session.editMessage { Text(message).font(.caption).foregroundStyle(.orange) }
                 Divider()
                 OutputDetailsView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput)
-                Label("Projects stay in memory. Saving arrives in v1.10.", systemImage: "info.circle")
+                Label("Save and open projects from the File menu.", systemImage: "info.circle")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }.font(.subheadline).padding(16)
         }.frame(maxHeight: .infinity).background(Color(nsColor: .controlBackgroundColor).opacity(0.45))
@@ -100,7 +100,7 @@ private struct GeneratorPresetControls: View {
             }
             Button("Reset effect settings") { session.resetGeneratorSettings() }
                 .disabled(session.selectedSource?.content.isAnimated != true)
-            Text("Presets copy effect/colors only. They stay in this project until it is closed; saving arrives in v1.10.")
+            Text("Presets copy effect/colors only and are included when you save this project.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

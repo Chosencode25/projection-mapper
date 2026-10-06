@@ -87,6 +87,10 @@ final class OutputSelectionState {
         }
     }
 
+    func restoreProjectPreference(_ value: SavedOutputPreference, resolution: TestResolution) {
+        savedPreference = value; preferences.save(value); setTestResolution(resolution)
+        destination = .testWindow; didRestore = true; recoveryMessage = nil; restore()
+    }
     private func restore() {
         guard !savedPreference.requiresManualSelection else {
             recoveryMessage = "Select \(savedPreference.displayName ?? "your display") manually; its saved identity is unavailable or ambiguous. Test Window selected."

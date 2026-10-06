@@ -2,7 +2,7 @@
 
 V1 targets a native Mac mapping workspace for images, videos and built-in animations on multiple surfaces. Faces can form objects with shared content coordinates so content continues across joined faces. Reusable looks/palettes, masks, time-based playback, an editor-only house photo and portable projects prepare it for musical shows. V1 acceptance remains Test Mode; fullscreen projector implementation and physical acceptance are scheduled for v2.01.
 
-See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). v1.08 is implemented and locally accepted; v1.09 is implemented and automatically verified with user visual acceptance pending; v1.10 onward remains planned. See [V2 music/show roadmap](V2_ROADMAP.md) and [detailed V2 implementation steps](V2_IMPLEMENTATION_PLAN.md) for the next major version.
+See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). v1.08 is implemented and locally accepted; v1.09 is implemented and automatically verified with user visual acceptance pending; v1.10 Save & Load is implemented locally and automatically verified; v1.11 onward remains planned. See [V2 music/show roadmap](V2_ROADMAP.md) and [detailed V2 implementation steps](V2_IMPLEMENTATION_PLAN.md) for the next major version.
 
 | Stage | Scope |
 |---|---|
@@ -38,7 +38,7 @@ The user will not have a projector for a while. Projector-window implementation 
 
 ## v1.04 slices — approved October 5, 2026
 
-See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). v1.07 is also [implemented and locally accepted](V1.07_VERIFICATION.md). v1.08 is also [implemented and locally accepted](V1.08_VERIFICATION.md). Next active development milestone: v1.09 Built-In Animations. See the reordered remaining roadmap below.
+See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). v1.07 is also [implemented and locally accepted](V1.07_VERIFICATION.md). v1.08 is also [implemented and locally accepted](V1.08_VERIFICATION.md). Next active development milestone after v1.10 delivery: v1.11 Surface Controls. See the reordered remaining roadmap below.
 
 | Slice | Scope | Finished when |
 |---|---|---|
@@ -118,3 +118,7 @@ The first animation slice v1.09.1 is implemented and accepted with user-confirme
 v1.09.1 visual acceptance was confirmed by the user. v1.09.2 is implemented and automatically verified with user visual feedback pending; v1.09.3 remains planned. Routine screen checks now belong to the user. See [current slice evidence](V1.09.2_VERIFICATION.md).
 
 All three v1.09 slices are now implemented and automatically verified; full visual acceptance belongs to the user. See [final animation evidence](V1.09.3_VERIFICATION.md). Next build milestone is v1.10 Save & Load. Full milestone version/Git delivery remains pending acceptance.
+
+## Current delivery — October 5, 2026
+
+v1.09 source is backed up on GitHub main at 9e64c0a. v1.10 Save & Load is implemented locally and automatically verified; it remains off GitHub as requested. See [verification](V1.10_VERIFICATION.md). Native visual checks belong to the user. Next: v1.11 Surface Controls. Earlier chronological entries above remain historical.

@@ -1,6 +1,6 @@
 import Foundation
 
-enum SurfaceContent: String, CaseIterable, Identifiable, Sendable {
+enum SurfaceContent: String, CaseIterable, Identifiable, Sendable, Codable {
     case diagnosticGrid, solid, gradient, movingLines, movingCheckers, plasma, noise, particles
     var id: String { rawValue }
     var title: String {
@@ -62,7 +62,7 @@ struct SourcePlayback: Equatable, Sendable {
     }
 }
 
-struct GeneratorSettings: Equatable, Sendable {
+struct GeneratorSettings: Equatable, Sendable, Codable {
     var secondaryColor = SIMD4<Float>(0.15, 0.05, 1, 1)
     var rate: Float = 1
     var scale: Float = 1

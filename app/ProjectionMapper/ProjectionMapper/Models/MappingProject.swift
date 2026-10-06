@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-struct GeneratorPreset: Identifiable, Equatable {
+struct GeneratorPreset: Identifiable, Equatable, Codable {
     var id = UUID()
     var name: String
     var content: SurfaceContent
@@ -9,7 +9,7 @@ struct GeneratorPreset: Identifiable, Equatable {
     var settings: GeneratorSettings
 }
 
-struct MappingProject: Equatable {
+struct MappingProject: Equatable, Codable {
     static let defaultName = "Untitled Project"
     let id: UUID
     var name: String

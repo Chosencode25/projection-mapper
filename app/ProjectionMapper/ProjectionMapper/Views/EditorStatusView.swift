@@ -11,6 +11,7 @@ struct EditorStatusView: View {
                 .foregroundStyle(.secondary).lineLimit(1)
                 .help(session.output.statusText + " · " + session.testOutput.statusText)
             if session.hasUserChanges { Text("· Unsaved changes").foregroundStyle(.secondary) }
+            if let message = session.fileMessage { Text("· " + message).foregroundStyle(.secondary).lineLimit(1).help(message) }
             Spacer()
             Text("Test Mode").foregroundStyle(.tertiary)
             Text("v\(AppVersion.version)").foregroundStyle(.secondary)

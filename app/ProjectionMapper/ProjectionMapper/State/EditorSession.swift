@@ -65,19 +65,74 @@ final class EditorSession {
     let testOutput: TestOutputCoordinator
     var isSidebarVisible = true
     var isInspectorVisible = true
-    var hasUserChanges: Bool { !project.hasDefaultContent }
+    private var savedBaseline: MappingProject
+    private(set) var documentURL: URL?
+    private var assetSourceURL: URL?
+    private var isRecovered = false
+    private var recoveryStore: ProjectRecoveryStore?
+    private var autosaveTask: Task<Void,Never>?
+    var recentProjectURLs: [URL] = (UserDefaults.standard.stringArray(forKey: "recentProjects") ?? []).map { URL(fileURLWithPath: $0) }
+    var fileMessage: String?
+    var hasUserChanges: Bool {
+        var current = project; current.modifiedAt = savedBaseline.modifiedAt
+        return isRecovered || current != savedBaseline
+    }
+    var document: ProjectDocument {
+        ProjectDocument(project: project,output: ProjectOutputSettings(destination: output.savedPreference,resolution: output.testResolution))
+    }
+    func configureRecovery(_ store: ProjectRecoveryStore) { recoveryStore = store; scheduleRecovery() }
+    private func scheduleRecovery() {
+        autosaveTask?.cancel()
+        guard recoveryStore != nil else { return }
+        guard hasUserChanges else { recoveryStore?.remove(projectID: project.id); return }
+        autosaveTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            guard let self, !Task.isCancelled else { return }
+            do { try self.flushRecovery(); self.fileMessage = "Recovery copy updated" }
+            catch { self.fileMessage = "Recovery could not be updated: \(error.localizedDescription)" }
+        }
+    }
+    func flushRecovery() throws {
+        guard hasUserChanges, let recoveryStore else { return }
+        try recoveryStore.save(document,original: documentURL,assetsFrom: assetSourceURL)
+    }
+    func clearRecovery() {
+        autosaveTask?.cancel(); autosaveTask = nil; recoveryStore?.remove(projectID: project.id)
+    }
+    func save(to url: URL, store: ProjectPackageStore = ProjectPackageStore()) throws {
+        try store.write(document,to: url,assetsFrom: assetSourceURL)
+        documentURL = url; assetSourceURL = url; savedBaseline = project; isRecovered = false
+        clearRecovery(); fileMessage = "Saved \(url.lastPathComponent)"
+    }
+    func load(_ document: ProjectDocument, from url: URL, recovering: Bool = false, store: ProjectPackageStore = ProjectPackageStore()) throws {
+        try ProjectCodec.validate(document)
+        if !recovering || project.id != document.project.id { clearRecovery() }
+        project = document.project; savedBaseline = project; isRecovered = recovering || document.recovery != nil
+        documentURL = isRecovered ? nil : url; assetSourceURL = url
+        if isRecovered, let path = document.recovery?.originalPath {
+            let original = URL(fileURLWithPath: path)
+            if let saved = try? store.read(original), saved.project.id == project.id { documentURL = original; savedBaseline = saved.project }
+        }
+        output.restoreProjectPreference(document.output.destination,resolution: document.output.resolution)
+        sourcePlayback.removeAll(); transport = AnimationTransport(); selectedSurfaceID = project.surfaces.first?.id
+        selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil
+        testOutput.setResolution(output.testResolution); testOutput.destinationDidChange(output.destination); testOutput.setScene(scene)
+        fileMessage = isRecovered ? "Recovered unsaved project — Save to keep it" : "Opened \(url.lastPathComponent)"
+        scheduleRecovery()
+    }
     var editMessage: String?
 
     init(presentOutput: @escaping (NSWindow) -> Void = { $0.makeKeyAndOrderFront(nil) },
          project: MappingProject = MappingProject(), output: OutputSelectionState = OutputSelectionState()) {
-        self.project = project; self.output = output
+        self.project = project; self.savedBaseline = project; self.output = output
+        isRecovered = !project.hasDefaultContent
         selectedSurfaceID = project.surfaces.first?.id
         testOutput = TestOutputCoordinator(presentWindow: presentOutput, scene: project.renderScene)
     }
     private func changed(now: Date = .now) {
         let active = Set(project.surfaces.map { project.source(for: $0).id })
         sourcePlayback = sourcePlayback.filter { active.contains($0.key) }
-        project.modifiedAt = now; editMessage = nil; testOutput.setScene(scene)
+        project.modifiedAt = now; editMessage = nil; testOutput.setScene(scene); scheduleRecovery()
     }
     private func cleanName(_ name: String, fallback: String) -> String {
         let trimmed = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
@@ -162,8 +217,8 @@ final class EditorSession {
         project.surfaces.insert(face, at: i); selectSurface(face.id); changed()
     }
     private func uniqueCopyName(_ name: String, names: [String]) -> String {
-        var result = "\(name) copy", index = 2
-        while names.contains(result) { result = "\(name) copy \(index)"; index += 1 }
+        var result = String(name.prefix(75)) + " copy", index = 2
+        while names.contains(result) { result = String(name.prefix(70)) + " copy \(index)"; index += 1 }
         return result
     }
     func deleteSurface(_ id: UUID) {
@@ -374,7 +429,8 @@ final class EditorSession {
         project.objects[i].links.removeAll { $0.id == linkID }; changed()
     }
     func resetProject(now: Date = .now) {
-        sourcePlayback.removeAll(); transport = AnimationTransport(); project = MappingProject(now: now); selectedSurfaceID = project.surfaces.first?.id
+        clearRecovery(); documentURL = nil; assetSourceURL = nil; isRecovered = false; fileMessage = nil
+        sourcePlayback.removeAll(); transport = AnimationTransport(); project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil; testOutput.setScene(scene)
     }
 }

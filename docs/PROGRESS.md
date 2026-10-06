@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.09.3 Presets, Seeking and Final Animation Checks is implemented and automatically verified; full v1.09 implementation is ready for user visual acceptance. The installed app is app/ProjectionMapper.app with a preserved product in builds/v1.09.3/. All 111 correctness tests passed in Debug/Release using required Xcode 27.0 beta 5 (27A5237l). Presets/reset, bounded seek, owner-scoped pause/restart and deterministic effect replay are implemented. Mixed and heavy-overlap GPU workloads were measured. User visuals: v1.09.1 explicitly accepted; v1.09.2/.3 feedback pending. No routine screen control was used. Bundle remains 1.08/build 5 while full v1.09 acceptance/version/history delivery is pending; no commit/push/tag/archive/GitHub release. Last known remote main is prior v1.07; latest published release remains v1.04.2. Next build milestone after acceptance: v1.10 Save & Load.
+v1.09 source is saved on GitHub main at **9e64c0a**, bundle 1.09/build 6, with 111 Release correctness tests passed. No release/tag/assets were created. v1.10 Save & Load is implemented on local branch codex/v1.10-save-load and is automatically verified. The user now authorized its GitHub source backup before v1.11.1. Native visual acceptance remains user-owned. Native visual checks belong to the user; no screen control was used. Latest published release remains v1.04.2.
 
 ## Completed
 
@@ -24,11 +24,11 @@ v1.09.3 Presets, Seeking and Final Animation Checks is implemented and automatic
 
 ## Current acceptance and next milestone
 
-v1.09 implementation is complete and automatically verified; final visuals belong to the user. See [current verification](V1.09.3_VERIFICATION.md) and [slice plan](V1.09_PLAN.md). Full acceptance and milestone Git/version delivery remain pending visual feedback. Next: v1.10 Save & Load.
+v1.10 implementation includes native project file commands, atomic versioned packages, saved baselines, Save/Discard/Cancel protection, recents and debounced recovery. See [plan](V1.10_PLAN.md) and [verification](V1.10_VERIFICATION.md). Native panel/round-trip visual acceptance belongs to the user. Next development milestone: v1.11 Surface Controls, including reusable looks/palettes and master visual controls.
 
 ## Scope and limitations
 
-Projects stay in memory. Output selection/preferences, a separate resizable Test Window, editable perspective surfaces and static connected-object mapping are implemented. Six built-in effects and shared playback are implemented; generator presets/seeking and scoped runtime playback are implemented; saving, controls/masks and media imports remain later work. Physical projector output remains deferred. Runtime verification used Apple Silicon on the development Mac running macOS 27.0; Intel and older macOS runtime compatibility are unverified. Release includes arm64 and x86_64 slices.
+Projects can be saved/opened as portable .projectionmap packages. Output selection/preferences, a separate resizable Test Window, editable perspective surfaces and static connected-object mapping are implemented. Six built-in effects and shared playback are implemented; generator presets/seeking and scoped runtime playback are implemented; saving/recovery are implemented; controls/masks and media imports remain later work. Physical projector output remains deferred. Runtime verification used Apple Silicon on the development Mac running macOS 27.0; Intel and older macOS runtime compatibility are unverified. Release includes arm64 and x86_64 slices.
 
 See [V1.08_VERIFICATION.md](V1.08_VERIFICATION.md) for current evidence and [BUILD_AND_RUN.md](BUILD_AND_RUN.md) for instructions.
 
@@ -349,3 +349,14 @@ The user confirmed v1.09.1 visual playback checks worked. v1.09.1 is now accepte
 ## v1.09 GitHub delivery — authorized
 
 The user explicitly requested saving v1.09 to GitHub before implementing v1.10 locally. The version is now 1.09/build 6. Final 111-test source and accumulated multiple-surface/animation work will be preserved on tested main; no release/tag/asset publication requested. v1.10 must remain off GitHub. Routine visuals continue to belong to the user.
+
+## v1.10 local delivery
+
+- [x] Versioned validated project packages and stable declarative data/IDs.
+- [x] Atomic Save/Save As, asset-copy preservation, Open and bounded recents.
+- [x] Saved baselines and Save/Discard/Cancel for New/Open/Close/Quit.
+- [x] Debounced untitled/saved recovery, ten-copy retention and restore/later/delete.
+- [x] Full Debug/Release suite: 128 correctness tests, four skipped opt-in benchmarks.
+- [x] Universal ad-hoc signed 1.10/build 7 product in builds/v1.10/ and app/ProjectionMapper.app; prior installed app preserved.
+- [ ] User native panel/lifecycle/recovery and visual round-trip acceptance.
+- v1.10 GitHub source backup is now authorized before v1.11.1; no release/tag/assets requested. Next: v1.11.1 appearance/crop/flip.

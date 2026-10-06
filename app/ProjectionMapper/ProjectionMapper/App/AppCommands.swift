@@ -8,6 +8,19 @@ struct AppCommands: Commands {
             Button("New Project") { coordinator.newProject() }
                 .keyboardShortcut("n", modifiers: .command)
         }
+        CommandGroup(replacing: .saveItem) {
+            Button("Save Project") { coordinator.saveProject() }.keyboardShortcut("s", modifiers: .command)
+            Button("Save Project As…") { coordinator.saveProject(asNew: true) }.keyboardShortcut("s", modifiers: [.command,.shift])
+        }
+        CommandGroup(after: .newItem) {
+            Button("Open Project…") { coordinator.openProject() }.keyboardShortcut("o", modifiers: .command)
+            Menu("Open Recent") {
+                ForEach(coordinator.recentProjects, id: \.self) { url in
+                    Button(url.deletingPathExtension().lastPathComponent) { coordinator.openProject(url) }
+                }
+            }
+            Button("Recover Unsaved Project…") { coordinator.recoverProject() }
+        }
         CommandGroup(replacing: .appSettings) { }
         CommandGroup(replacing: .appInfo) {
             Button("About Projection Mapper") { coordinator.showAbout() }

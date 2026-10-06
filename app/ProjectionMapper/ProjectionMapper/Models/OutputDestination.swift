@@ -14,7 +14,7 @@ struct SavedOutputPreference: Codable, Equatable {
     static let testWindow = SavedOutputPreference()
 }
 
-enum TestResolution: String, CaseIterable, Identifiable {
+enum TestResolution: String, CaseIterable, Identifiable, Codable {
     case hd, fullHD, standard, portrait, ultraHD
     var id: String { rawValue }
     var name: String {

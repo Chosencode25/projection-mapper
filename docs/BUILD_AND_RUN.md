@@ -99,7 +99,7 @@ xcodebuild -downloadComponent MetalToolchain
 
 ## Editing corners
 
-Select Surface 1 in the sidebar, then click one of its four preview handles. Drag to move that corner within the fitted canvas. Arrow keys move the active corner by 0.001 normalized units; Shift uses 0.01. Escape clears the active corner. Click the project-name field to type or move its caret without nudging geometry. Deselect Surface hides editing controls while leaving rendered content unchanged. Geometry edits activate New Project/Close/Quit protection. Both views update live; clean output excludes handles and outline. Projects still stay in memory.
+Select Surface 1 in the sidebar, then click one of its four preview handles. Drag to move that corner within the fitted canvas. Arrow keys move the active corner by 0.001 normalized units; Shift uses 0.01. Escape clears the active corner. Click the project-name field to type or move its caret without nudging geometry. Deselect Surface hides editing controls while leaving rendered content unchanged. Geometry edits activate New Project/Close/Quit protection. Both views update live; clean output excludes handles and outline. Save projects with Command-S; reopen with Command-O.
 
 ## Multiple surfaces and objects
 
@@ -118,3 +118,7 @@ To reproduce the bounded mixed-effects workload, create builds/v1.09.2/performan
 ## v1.09.3 final animation implementation
 
 Installed app/product/evidence are under app/ProjectionMapper.app and builds/v1.09.3/. Use builds/v1.09.3/DerivedData for current commands. Final Debug/Release correctness runs pass 111 tests; four opt-in benchmarks are skipped normally. The effect matrix now includes six mixed faces and eight fully overlapping particle faces per view, with two serial views. Its opt-in command/environment remain the same using a fresh v1.09.3/performance directory. See [verification](V1.09.3_VERIFICATION.md) for bounds, runtime semantics and measured limits. User visual feedback is pending; no screen control or GitHub delivery performed.
+
+## v1.10 Save & Load
+
+Current local source/build is v1.10/build 7. Use builds/v1.10/DerivedData for build/test commands; products are copied to builds/v1.10/ProjectionMapper.app and app/ProjectionMapper.app after verification. File commands: Command-S Save, Shift-Command-S Save As, Command-O Open, Open Recent, Recover Unsaved Project. Projects use .projectionmap packages and reopen paused. Recovery is separate from manual save and updates after two seconds of editing inactivity. See [verification](V1.10_VERIFICATION.md) for automated evidence and user visual checks. v1.09 source is backed up on GitHub; v1.10 is explicitly local/uncommitted. Historical slice descriptions above describe their deliveries at the time.

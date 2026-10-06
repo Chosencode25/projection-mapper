@@ -1,4 +1,4 @@
-# Projection Mapper — v1.09.3 preview source
+# Projection Mapper — v1.10 local source
 
 A native, entirely code-based Mac editor skeleton. Built for **Xcode 27.0 beta 5 (27A5237l)**. Minimum deployment target: **macOS 15.0**.
 
@@ -14,7 +14,7 @@ Local builds use ad-hoc signing (“Sign to Run Locally”); an Apple Developer 
 
 - One editor window with a toolbar, surface sidebar, aspect-aware Metal scene preview, project inspector, and status bar.
 - Live project naming and title updates.
-- New Project with safe Cancel/Discard behavior for changes.
+- New/Open/Close/Quit with Save/Discard/Cancel protection for changes.
 - Close and Quit protection for changes; Show Editor and Dock reopening.
 - Sidebar/inspector toggles, keyboard shortcuts, and About information.
 - Test Window/display output menus, display information, safe recovery, and remembered preferences.
@@ -23,13 +23,13 @@ Local builds use ad-hoc signing (“Sign to Run Locally”); an Apple Developer 
 - Editor-only corner handles/outline, normalized dragging and focused arrow/Shift nudging; active-corner inspector and geometry discard protection.
 - Projective diagnostic grid with mipmaps, Solid fill option, safe invalid geometry and overlapping-handle recovery.
 - Named object grouping/ungrouping, shared content, Continuous/Repeat input maps, quarter-turn/mirror controls, manual edge alignment and join/seam diagnostics.
-- 96 correctness tests (94 run without presenting windows) plus three opt-in benchmarks, runnable with Command–U; see ../../docs/BUILD_AND_RUN.md.
+- Persistence, mapping and GPU correctness tests plus four opt-in benchmarks, runnable with Command–U; see ../../docs/BUILD_AND_RUN.md.
 
-Projects remain in memory. Basic test output is available. Shared editor/Test Output rendering is implemented. Four-corner surface storage is implemented; corner editing is implemented; perspective mapping is implemented; multiple surfaces and static connected objects (v1.08) are implemented, followed by planned built-in animations (v1.09) and saving (v1.10). Image/video import now follows core tools at v1.13/v1.14.
+Projects save/open as .projectionmap packages through the File menu. Save As, recent files and debounced recovery are available. Loads start paused. Multiple surfaces, connected objects, six effects, presets and seeking are implemented. v1.10 remains local and uncommitted; v1.09 source is backed up on GitHub main. See [verification](../../docs/V1.10_VERIFICATION.md). Image/video imports remain v1.13/v1.14.
 
 ## Planned direction
 
-The [remaining V1 plan](../../docs/V1_REMAINING_PLAN.md) builds on implemented connected object faces and layout/content separation with deterministic effect time/seek, generator presets, reusable looks/palettes, master brightness/fades, polygon masks, editor-only house photos, explicit video-audio controls and readiness checks. These features are planned, not included in the v1.08 source/app.
+The [remaining V1 plan](../../docs/V1_REMAINING_PLAN.md) builds on implemented connected object faces and layout/content separation with deterministic effect time/seek, generator presets, reusable looks/palettes, master brightness/fades, polygon masks, editor-only house photos, explicit video-audio controls and readiness checks. Looks/palettes and subsequent controls/media remain planned; animations and persistence are now implemented.
 
 The [V2 roadmap](../../docs/V2_ROADMAP.md) and [detailed steps](../../docs/V2_IMPLEMENTATION_PLAN.md) cover music timelines, holiday choreography and show operation. Fullscreen projector implementation/physical checks are scheduled for v2.01 with the hardware deferral preserved.
 
