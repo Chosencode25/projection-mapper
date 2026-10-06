@@ -1,10 +1,10 @@
 # Project Progress
 
-Last updated: October 5, 2026.
+Last updated: October 6, 2026.
 
 ## Current state
 
-v1.09 source is saved on GitHub main at **9e64c0a**, bundle 1.09/build 6, with 111 Release correctness tests passed. No release/tag/assets were created. v1.10 Save & Load is implemented on local branch codex/v1.10-save-load and is automatically verified. The user now authorized its GitHub source backup before v1.11.1. Native visual acceptance remains user-owned. Native visual checks belong to the user; no screen control was used. Latest published release remains v1.04.2.
+v1.11 Surface Controls is implemented and automatically verified: all **184 correctness tests passed in Debug and Release**, with four optional benchmarks skipped. Bundle **1.11/build 8** is installed at app/ProjectionMapper.app; tested universal product is under builds/v1.11/, evidence under builds/v1.11.3/. The previous preview is preserved. Looks, palettes and master brightness/fade/blackout complete all three slices. Source backup is ready for milestone Git delivery; last confirmed remote main remains v1.10 at 55d242c until successful push. Routine visuals belong to the user and remain pending; no screen control was used. Latest published release remains v1.04.2. Next development milestone: v1.12 Mapping Tools.
 
 ## Completed
 
@@ -24,13 +24,13 @@ v1.09 source is saved on GitHub main at **9e64c0a**, bundle 1.09/build 6, with 1
 
 ## Current acceptance and next milestone
 
-v1.10 implementation includes native project file commands, atomic versioned packages, saved baselines, Save/Discard/Cancel protection, recents and debounced recovery. See [plan](V1.10_PLAN.md) and [verification](V1.10_VERIFICATION.md). Native panel/round-trip visual acceptance belongs to the user. Next development milestone: v1.11 Surface Controls, including reusable looks/palettes and master visual controls.
+v1.11.2 adds output-geometry locks, bounded whole-object translation and explicit reset scopes while preserving content/layout identities and clocks. See [slice verification](V1.11.2_VERIFICATION.md) and [three-slice plan](V1.11_PLAN.md). User save/recovery/appearance and locking/movement/reset visuals remain pending. v1.11.3 is now implemented; see [final slice verification](V1.11.3_VERIFICATION.md). Next: v1.12 Mapping Tools.
 
 ## Scope and limitations
 
-Projects can be saved/opened as portable .projectionmap packages. Output selection/preferences, a separate resizable Test Window, editable perspective surfaces and static connected-object mapping are implemented. Six built-in effects and shared playback are implemented; generator presets/seeking and scoped runtime playback are implemented; saving/recovery are implemented; controls/masks and media imports remain later work. Physical projector output remains deferred. Runtime verification used Apple Silicon on the development Mac running macOS 27.0; Intel and older macOS runtime compatibility are unverified. Release includes arm64 and x86_64 slices.
+Projects can be saved/opened as portable .projectionmap packages. Output selection/preferences, a separate resizable Test Window, editable perspective surfaces and static connected-object mapping are implemented. Six built-in effects and shared playback are implemented; generator presets/seeking and scoped runtime playback are implemented; saving/recovery are implemented; appearance/crop/flip are implemented; locks/group movement/scoped resets are implemented; looks/palettes, master controls, masks and imports remain later work. Physical projector output remains deferred. Runtime verification used Apple Silicon on the development Mac running macOS 27.0; Intel and older macOS runtime compatibility are unverified. Release includes arm64 and x86_64 slices.
 
-See [V1.08_VERIFICATION.md](V1.08_VERIFICATION.md) for current evidence and [BUILD_AND_RUN.md](BUILD_AND_RUN.md) for instructions.
+See [V1.11.2_VERIFICATION.md](V1.11.2_VERIFICATION.md) for current evidence and [BUILD_AND_RUN.md](BUILD_AND_RUN.md) for instructions.
 
 ## GitHub version history
 
@@ -359,4 +359,49 @@ The user explicitly requested saving v1.09 to GitHub before implementing v1.10 l
 - [x] Full Debug/Release suite: 128 correctness tests, four skipped opt-in benchmarks.
 - [x] Universal ad-hoc signed 1.10/build 7 product in builds/v1.10/ and app/ProjectionMapper.app; prior installed app preserved.
 - [ ] User native panel/lifecycle/recovery and visual round-trip acceptance.
-- v1.10 GitHub source backup is now authorized before v1.11.1; no release/tag/assets requested. Next: v1.11.1 appearance/crop/flip.
+- v1.10 source backup successfully pushed to main at 55d242c; no release/tag/assets. Next: v1.11.1 appearance/crop/flip.
+
+## v1.11.1 local preview delivery
+
+- [x] Bounded opacity, brightness, crop and flips, shared preview/output calculations.
+- [x] Object inheritance and explicit face overrides; grouping/copy/detach policies and join diagnostics.
+- [x] Schema 3, schema 1/2 default migration, saved baselines and recovery support.
+- [x] 138 Debug/Release correctness tests; four optional benchmarks skipped.
+- [x] Universal signed local app in builds/v1.11.1/ and app/; previous installed app preserved. Bundle stays 1.10/build 7.
+- [ ] User appearance/override/save-reopen visual checks.
+- Preview remains unstaged/uncommitted/off GitHub. Next: v1.11.2 locks, group movement and scoped resets.
+
+## v1.11.2 local preview delivery
+
+- [x] Persistent face/object output-geometry locks; preserved individual locks, protected manipulation/deletion and reachable unlock.
+- [x] Bounded group translation through native center dragging, focused arrows and inspector controls; any member lock blocks the whole move.
+- [x] Scoped face/object resets, explicit full-face/input-layout confirmations, identity/layout/link/clock preservation.
+- [x] Schema 4 lock persistence with schema 1–3 migration; dirty baselines/save/recovery verification.
+- [x] 150 Debug/Release correctness tests; four optional benchmarks skipped. Native event and GPU movement/reset regressions pass.
+- [x] Universal signed local app in builds/v1.11.2/ and app/; previous preview preserved. Bundle stays 1.10/build 7.
+- [ ] User visual locks/movement/reset/save-reopen checks.
+- Intermediate slices remain unstaged/uncommitted/off GitHub. Next: v1.11.3 looks, palettes and master brightness/fade/blackout.
+
+## v1.11.3 detailed planning — October 6, 2026
+
+- [x] Defined the [seven-step implementation plan](V1.11.3_PLAN.md): schema/models, palettes, looks, runtime master controls, renderer/UI integration, full verification and milestone delivery.
+- [x] Specified target compatibility, palette-reference materialization, mapping/lock preservation, independent fade timing and blackout/restore semantics.
+- [ ] Implement and verify v1.11.3; user visual acceptance remains pending.
+- Planning only: no app/source changes, builds, version bump, commits, pushes or GitHub uploads. Installed app remains the automatically verified v1.11.2 preview.
+
+## v1.11.3 implementation in progress — October 6, 2026
+
+- [x] Implemented looks, palettes, schema 5 migrations, saved master settings, playback-independent fades and immediate blackout/restore.
+- [x] Initial integrated Debug run passed 178 correctness tests; four optional benchmarks skipped.
+- [ ] Complete final v1.11/build 8 Debug/Release checks, deliver the tested app and perform eligible milestone source backup.
+- Routine visuals remain user-performed and pending. No screen control or release publication. Current installed preview remains v1.11.2 until final delivery.
+
+## v1.11 completed local milestone — October 6, 2026
+
+- [x] Implemented all three Surface Controls slices, including reusable looks/palettes and persistent master output configuration with temporary fades/blackout.
+- [x] Reverified Xcode 27.0 beta 5 (27A5237l); all 184 correctness tests passed in final Debug/Release runs. Four optional benchmarks skipped.
+- [x] Delivered 1.11/build 8 universal locally signed app to app/ and builds/v1.11/; previous installed preview preserved; all tested-product file hashes match.
+- [x] Updated schema 5 migration/save/recovery, documentation and [verification evidence](V1.11.3_VERIFICATION.md).
+- [ ] Complete eligible milestone Git source delivery (remote confirmation follows push). No release/tag/assets requested.
+- [ ] User visual acceptance: look recall, palettes, fade/blackout and prior appearance/locks/movement/reset checks. No new acceptance has been reported; no screen control used.
+- Next: v1.12 calibration tools and basic face-local polygon masks, extending the existing global output controls.

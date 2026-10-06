@@ -28,9 +28,9 @@ The planned app maps images, videos and built-in animations onto independent sur
 
 Required toolchain: **Xcode 27.0 beta 5 (27A5237l)**.
 
-Created October 5, 2026. v1.09 animations are backed up on GitHub main at 9e64c0a. v1.10 Save & Load is implemented locally and automatically verified; it is explicitly off GitHub. Routine visual acceptance belongs to the user. Projector output and physical checks remain deferred.
+Created October 5, 2026. The v1.11 Surface Controls milestone is implemented and automatically verified: appearance/crop/flips, locks/object movement/scoped resets, reusable looks/palettes and master brightness/fade/blackout. All 184 correctness tests passed in Debug/Release. Routine visual acceptance belongs to the user and remains pending. Projector output and physical checks remain deferred.
 
-Open `app/ProjectionMapper/ProjectionMapper.xcodeproj` in required Xcode-beta and press Command–R. The local app is delivered at `app/ProjectionMapper.app`, with v1.10 product/evidence under `builds/v1.10/`. Use File > Save/Open to keep .projectionmap projects; loads start paused. See [v1.10 verification](docs/V1.10_VERIFICATION.md) and [progress](docs/PROGRESS.md).
+Open app/ProjectionMapper/ProjectionMapper.xcodeproj in required Xcode-beta and press Command–R. The tested 1.11/build 8 app is delivered at app/ProjectionMapper.app, with product under builds/v1.11/ and evidence under builds/v1.11.3/. File > Save/Open keeps schema 5 .projectionmap projects; older schemas migrate and loads start paused. See [current verification](docs/V1.11.3_VERIFICATION.md) and [progress](docs/PROGRESS.md). Quit/reopen an already running app to pick up the new binary.
 
 The original ChatGPT project mirror at `/Users/keith/.codex/.chatgpt-projects/g-p-6ac32a4ca5b08191bfcf6bd28eb66008` remains a reference location. Do not edit its synced files.
 
@@ -40,4 +40,4 @@ Private repository: [Chosencode25/projection-mapper](https://github.com/Chosenco
 
 The first milestone is `v1.01`. Follow [GitHub workflow](docs/GITHUB_WORKFLOW.md) for branches, commits, milestone tags, and release downloads. See [Changelog](CHANGELOG.md) for completed version changes.
 
-v1.09 source backup includes the accumulated multiple-surface and animation work, presets and seeking. No new release/tag/assets were published. v1.10 source and app remain local, without commits or uploads. Next: v1.11 Surface Controls.
+v1.10 source is backed up at 55d242c. v1.11 is ready for source backup at the completed milestone boundary; its intermediate slices remained local. No new release/tag/assets are requested. Next: v1.12 Mapping Tools.

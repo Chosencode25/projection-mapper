@@ -58,6 +58,9 @@ class MetalSceneView: NSView {
         surface.wantsLayer = true
         surface.layer?.backgroundColor = NSColor.black.cgColor
         addSubview(surface)
+        renderer?.renderDemandDidChange = { [weak self] continuous in
+            self?.configureDrawingMode(continuous: continuous)
+        }
         updateRenderingAvailability()
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
@@ -128,16 +131,22 @@ class MetalSceneView: NSView {
                                           hidden: isHiddenOrHasHiddenAncestor, size: surface.bounds.size))
     }
 
-    private func setRenderingActive(_ active: Bool) {
+    /// Availability and clock are explicit so native scheduling can be checked without a shown window.
+    func setRenderingActive(_ active: Bool, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         isRenderingActive = active
         renderer?.isDrawingEnabled = active
+        configureDrawingMode(continuous: renderer?.scene.needsContinuousRendering(at: uptime) == true)
         if let metalView {
-            let animate = active && renderer?.scene.needsContinuousRendering == true
-            metalView.preferredFramesPerSecond = 60
-            metalView.isPaused = !animate
-            metalView.enableSetNeedsDisplay = active && !animate
             if active { renderer?.requestDraw(in: metalView) }
         }
+    }
+
+    private func configureDrawingMode(continuous: Bool) {
+        guard let metalView else { return }
+        let animate = isRenderingActive && continuous
+        metalView.preferredFramesPerSecond = 60
+        metalView.isPaused = !animate
+        metalView.enableSetNeedsDisplay = isRenderingActive && !animate
     }
 
     func setScene(_ scene: RenderScene) {

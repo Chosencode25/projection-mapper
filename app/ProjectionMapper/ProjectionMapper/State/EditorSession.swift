@@ -10,11 +10,15 @@ final class EditorSession {
     private(set) var transport = AnimationTransport()
     private(set) var sourcePlayback: [UUID:SourcePlayback] = [:]
     var selectedPlayback: SourcePlayback { selectedSource.flatMap { sourcePlayback[$0.id] } ?? SourcePlayback() }
+    private(set) var showOutput = ShowOutputState()
+    private(set) var lastLookReport: String?
     var scene: RenderScene {
         let faces = project.renderScene.surfaces.map { face in
             var face = face; face.playback = face.sourceID.flatMap { sourcePlayback[$0] } ?? SourcePlayback(); return face
         }
-        return RenderScene(surfaces: faces, transport: transport)
+        var result = RenderScene(surfaces: faces, transport: transport)
+        result.masterBrightness = project.masterOutput.brightness; result.showOutput = showOutput
+        return result
     }
     func seekPlayback(to seconds: Double, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard seconds.isFinite, (0...3600).contains(seconds), uptime.isFinite else { return }
@@ -114,7 +118,7 @@ final class EditorSession {
             if let saved = try? store.read(original), saved.project.id == project.id { documentURL = original; savedBaseline = saved.project }
         }
         output.restoreProjectPreference(document.output.destination,resolution: document.output.resolution)
-        sourcePlayback.removeAll(); transport = AnimationTransport(); selectedSurfaceID = project.surfaces.first?.id
+        sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil
         testOutput.setResolution(output.testResolution); testOutput.destinationDidChange(output.destination); testOutput.setScene(scene)
         fileMessage = isRecovered ? "Recovered unsaved project — Save to keep it" : "Opened \(url.lastPathComponent)"
@@ -213,6 +217,7 @@ final class EditorSession {
         let original = project.surfaces[i]
         var face = MappingSurface(name: uniqueCopyName(original.name, names: project.surfaces.map(\.name)))
         face.layout = original.layout; face.tags = original.tags; face.source = original.source.independentCopy()
+        face.appearance = original.appearance; face.appearanceOverride = original.appearanceOverride
         copyPlayback(from: original.source.id, to: face.source.id)
         project.surfaces.insert(face, at: i); selectSurface(face.id); changed()
     }
@@ -223,6 +228,7 @@ final class EditorSession {
     }
     func deleteSurface(_ id: UUID) {
         guard let i = project.surfaces.firstIndex(where: { $0.id == id }) else { return }
+        guard !project.isGeometryLocked(project.surfaces[i]) else { editMessage = "Unlock this face before deleting it."; return }
         project.surfaces.remove(at: i); groupingSelection.remove(id)
         for n in project.objects.indices { project.objects[n].links.removeAll { $0.firstFace == id || $0.secondFace == id } }
         removeEmptyObjects()
@@ -246,17 +252,107 @@ final class EditorSession {
             project.objects[i].isVisible = visible; changed()
         }
     }
+    func setGeometryLocked(_ locked: Bool, faceID: UUID? = nil, objectID: UUID? = nil) {
+        if let i = project.objects.firstIndex(where: { $0.id == objectID }), project.objects[i].isGeometryLocked != locked {
+            project.objects[i].isGeometryLocked = locked; changed()
+        } else if let i = project.surfaces.firstIndex(where: { $0.id == faceID }), project.surfaces[i].layout.isGeometryLocked != locked {
+            project.surfaces[i].layout.isGeometryLocked = locked; changed()
+        }
+    }
+    func moveObject(_ id: UUID, by requested: SIMD2<Float>, now: Date = .now) {
+        guard requested.x.isFinite, requested.y.isFinite, project.objects.contains(where: { $0.id == id }) else { return }
+        guard project.canMoveObject(id) else { editMessage = "Unlock the object and all member faces before moving it."; return }
+        guard let bounds = project.outputBounds(forObject: id) else { return }
+        let delta = SIMD2(max(-bounds.topLeft.x,min(1-bounds.bottomRight.x,requested.x)),max(-bounds.topLeft.y,min(1-bounds.bottomRight.y,requested.y)))
+        guard delta != .zero else { return }
+        // One shared offset, one published scene and one modification timestamp for the whole object.
+        for i in project.surfaces.indices where project.surfaces[i].layout.objectID == id {
+            project.surfaces[i].corners = project.surfaces[i].corners.translated(by: delta)
+        }
+        changed(now: now)
+    }
+    func nudgeSelectedObject(direction: SIMD2<Float>, larger: Bool) {
+        guard let id = selectedObjectID else { return }; moveObject(id,by: direction * (larger ? 0.01 : 0.001))
+    }
+    private func defaultContent(_ source: SurfaceSource) -> SurfaceSource {
+        var result = SurfaceSource(); result.id = source.id; return result
+    }
+    func resetFace(_ id: UUID, scope: FaceResetScope) {
+        guard let i = project.surfaces.firstIndex(where: { $0.id == id }) else { return }
+        let old = project.surfaces[i], grouped = old.layout.objectID != nil
+        if scope == .outputGeometry || scope == .fullFace {
+            guard !project.isGeometryLocked(old) else { editMessage = "Unlock this face's output geometry before resetting it."; return }
+        }
+        var face = old
+        switch scope {
+        case .outputGeometry: face.corners = .diagnostic
+        case .appearance, .cropAndFlip:
+            guard !grouped || face.appearanceOverride != nil else { editMessage = "Enable this face's override or reset the object controls."; return }
+            var value = project.appearance(for: face)
+            if scope == .appearance { value.opacity = 1; value.brightness = 1 }
+            else { value.crop = ContentCrop(); value.flipHorizontal = false; value.flipVertical = false }
+            if grouped { face.appearanceOverride = value } else { face.appearance = value }
+        case .generatorParameters, .content:
+            guard !grouped else { editMessage = "Reset shared content from the object inspector."; return }
+            if scope == .content { face.source = defaultContent(face.source) }
+            else { face.source.generator = .defaults; face.source.color = SurfaceSource().color; face.source.primaryBinding = nil; face.source.secondaryBinding = nil }
+        case .fullFace:
+            face.corners = .diagnostic; face.layout.isVisible = true; face.appearance = .defaults; face.appearanceOverride = nil
+            if !grouped { face.source = defaultContent(face.source) }
+        }
+        guard face != old else { return }; project.surfaces[i] = face; changed()
+    }
+    func resetObject(_ id: UUID, scope: ObjectResetScope) {
+        guard let i = project.objects.firstIndex(where: { $0.id == id }) else { return }
+        let old = project
+        switch scope {
+        case .appearance: project.objects[i].appearance.opacity = 1; project.objects[i].appearance.brightness = 1
+        case .cropAndFlip: project.objects[i].appearance.crop = ContentCrop(); project.objects[i].appearance.flipHorizontal = false; project.objects[i].appearance.flipVertical = false
+        case .generatorParameters: project.objects[i].source.generator = .defaults; project.objects[i].source.color = SurfaceSource().color; project.objects[i].source.primaryBinding = nil; project.objects[i].source.secondaryBinding = nil
+        case .content: project.objects[i].source = defaultContent(project.objects[i].source)
+        case .inputLayout:
+            let indices = project.surfaces.indices.filter { project.surfaces[$0].layout.objectID == id }
+            guard !indices.isEmpty else { return }
+            for (n,index) in indices.enumerated() { project.surfaces[index].layout.inputMap = FaceInputMap(origin: SIMD2(Float(n)/Float(indices.count),0),size: SIMD2(1/Float(indices.count),1)) }
+        }
+        if project != old { changed() }
+    }
     func moveSelectedCorner(to point: SIMD2<Float>, surfaceID: UUID, now: Date = .now) {
         guard let corner = selectedCorner, selectedSurfaceID == surfaceID,
               let i = project.surfaces.firstIndex(where: { $0.id == surfaceID }), point.x.isFinite, point.y.isFinite else { return }
+        guard !project.isGeometryLocked(project.surfaces[i]) else { editMessage = "Output geometry is locked. Unlock it in the inspector."; return }
         let clamped = SIMD2(min(1, max(0, point.x)), min(1, max(0, point.y)))
         guard project.surfaces[i].corners[corner] != clamped else { return }
         project.surfaces[i].corners = project.surfaces[i].corners.replacing(corner, with: clamped); changed(now: now)
     }
+    /// Face edits are independent only when an explicit object-member override is enabled.
+    func setAppearance(_ value: SurfaceAppearance, faceID: UUID? = nil, objectID: UUID? = nil) {
+        guard value.isValid else { editMessage = "Appearance must use bounded finite values and a valid crop."; return }
+        if let i = project.objects.firstIndex(where: { $0.id == objectID }) {
+            guard project.objects[i].appearance != value else { return }
+            project.objects[i].appearance = value; changed()
+        } else if let i = project.surfaces.firstIndex(where: { $0.id == faceID }) {
+            if project.surfaces[i].layout.objectID != nil {
+                guard project.surfaces[i].appearanceOverride != nil else { editMessage = "Inspect the object or enable this face's override."; return }
+                guard project.surfaces[i].appearanceOverride != value else { return }
+                project.surfaces[i].appearanceOverride = value
+            } else {
+                guard project.surfaces[i].appearance != value else { return }
+                project.surfaces[i].appearance = value
+            }
+            changed()
+        }
+    }
+    func setAppearanceOverride(_ enabled: Bool, faceID: UUID) {
+        guard let i = project.surfaces.firstIndex(where: { $0.id == faceID }), project.object(for: project.surfaces[i]) != nil,
+              (project.surfaces[i].appearanceOverride != nil) != enabled else { return }
+        let effective = project.appearance(for: project.surfaces[i])
+        project.surfaces[i].appearanceOverride = enabled ? effective : nil; changed()
+    }
     func setSurfaceContent(_ content: SurfaceContent, now: Date = .now) { updateSource(now: now) { $0.content = content } }
     func setSourceColor(_ color: SIMD4<Float>) {
         guard (0..<4).allSatisfy({ color[$0].isFinite && (0...1).contains(color[$0]) }) else { return }
-        updateSource { $0.color = color }
+        updateSource { $0.color = color; $0.primaryBinding = nil }
     }
     @discardableResult
     func saveGeneratorPreset(name: String) -> UUID? {
@@ -267,19 +363,21 @@ final class EditorSession {
         while project.generatorPresets.contains(where: { $0.name == name }) {
             let suffix = " \(n)"; name = String(base.prefix(80 - suffix.count)) + suffix; n += 1
         }
-        let preset = GeneratorPreset(name: name, content: source.content, color: source.color, settings: source.generator)
+        let resolved = project.resolvedSource(source)
+        let preset = GeneratorPreset(name: name, content: resolved.content, color: resolved.color, settings: resolved.generator)
         project.generatorPresets.append(preset); changed(); return preset.id
     }
     func applyGeneratorPreset(_ id: UUID) {
         guard let preset = project.generatorPresets.first(where: { $0.id == id }) else { return }
-        updateSource { $0.content = preset.content; $0.color = preset.color; $0.generator = preset.settings }
+        updateSource { $0.content = preset.content; $0.color = preset.color; $0.generator = preset.settings; $0.primaryBinding = nil; $0.secondaryBinding = nil }
     }
     func updateGeneratorPreset(_ id: UUID) {
         guard let source = selectedSource, source.content.isAnimated,
               let i = project.generatorPresets.firstIndex(where: { $0.id == id }) else { return }
         let old = project.generatorPresets[i]
-        project.generatorPresets[i].content = source.content; project.generatorPresets[i].color = source.color
-        project.generatorPresets[i].settings = source.generator
+        let resolved = project.resolvedSource(source)
+        project.generatorPresets[i].content = resolved.content; project.generatorPresets[i].color = resolved.color
+        project.generatorPresets[i].settings = resolved.generator
         if old != project.generatorPresets[i] { changed() }
     }
     func deleteGeneratorPreset(_ id: UUID) {
@@ -288,7 +386,7 @@ final class EditorSession {
     }
     func resetGeneratorSettings() {
         guard selectedSource?.content.isAnimated == true else { return }
-        updateSource { $0.generator = .defaults; $0.color = SIMD4(1,0.25,0,1) }
+        updateSource { $0.generator = .defaults; $0.color = SIMD4(1,0.25,0,1); $0.primaryBinding = nil; $0.secondaryBinding = nil }
     }
     func setGeneratorSettings(_ settings: GeneratorSettings) {
         guard settings.isValid else { return }
@@ -296,7 +394,7 @@ final class EditorSession {
     }
     func setSecondaryColor(_ color: SIMD4<Float>) {
         guard (0..<4).allSatisfy({ color[$0].isFinite && (0...1).contains(color[$0]) }) else { return }
-        updateSource { $0.generator.secondaryColor = color }
+        updateSource { $0.generator.secondaryColor = color; $0.secondaryBinding = nil }
     }
     private func updateSource(now: Date = .now, _ edit: (inout SurfaceSource) -> Void) {
         let objectID = selectedObjectID ?? selectedSurface?.layout.objectID
@@ -317,6 +415,7 @@ final class EditorSession {
         let faces = project.surfaces.filter { ids.contains($0.id) }
         guard !faces.isEmpty else { editMessage = "Check faces in the sidebar first."; return }
         var object = MappingObject(name: "Object \(project.objects.count + 1)", source: project.source(for: faces[0]).independentCopy())
+        object.appearance = project.appearance(for: faces[0])
         copyPlayback(from: project.source(for: faces[0]).id, to: object.source.id)
         var number = 1
         while project.objects.contains(where: { $0.name == object.name }) { number += 1; object.name = "Object \(number)" }
@@ -324,6 +423,7 @@ final class EditorSession {
             detachSurface(face.id, notify: false)
             let i = project.surfaces.firstIndex { $0.id == face.id }!
             project.surfaces[i].layout.objectID = object.id
+            project.surfaces[i].appearanceOverride = nil
             project.surfaces[i].layout.inputMap = FaceInputMap(origin: SIMD2(Float(n)/Float(faces.count),0), size: SIMD2(1/Float(faces.count),1))
             if n > 0 { object.links.append(FaceEdgeLink(firstFace: faces[n-1].id, firstEdge: .right, secondFace: face.id, secondEdge: .left)) }
         }
@@ -334,10 +434,13 @@ final class EditorSession {
               let face = project.surfaces.first(where: { $0.id == faceID }), face.layout.objectID != objectID else { return }
         detachSurface(faceID, notify: false)
         let i = project.surfaces.firstIndex { $0.id == faceID }!
-        project.surfaces[i].layout.objectID = objectID; changed()
+        project.surfaces[i].layout.objectID = objectID; project.surfaces[i].appearanceOverride = nil; changed()
     }
     func detachSurface(_ id: UUID, notify: Bool = true) {
         guard let i = project.surfaces.firstIndex(where: { $0.id == id }), let object = project.object(for: project.surfaces[i]) else { return }
+        project.surfaces[i].layout.isGeometryLocked = project.isGeometryLocked(project.surfaces[i])
+        project.surfaces[i].appearance = project.appearance(for: project.surfaces[i])
+        project.surfaces[i].appearanceOverride = nil
         project.surfaces[i].source = object.source.independentCopy()
         copyPlayback(from: object.source.id, to: project.surfaces[i].source.id)
         // Bake effective group visibility; preserve the input region for appearance continuity.
@@ -354,6 +457,7 @@ final class EditorSession {
         selectSurface(members.first); changed()
     }
     func deleteObject(_ id: UUID) {
+        guard project.canMoveObject(id) else { editMessage = "Unlock the object and its faces before deleting it."; return }
         let members = Set(project.surfaces.filter { $0.layout.objectID == id }.map(\.id))
         guard !members.isEmpty else { return }
         project.surfaces.removeAll { members.contains($0.id) }; groupingSelection.subtract(members)
@@ -369,6 +473,7 @@ final class EditorSession {
         for original in originals {
             var copy = MappingSurface(name: uniqueCopyName(original.name, names: project.surfaces.map(\.name) + copies.map(\.name)))
             copy.layout = original.layout; copy.layout.objectID = object.id; copy.source = original.source.independentCopy(); copy.tags = original.tags
+            copy.appearance = original.appearance; copy.appearanceOverride = original.appearanceOverride
             ids[original.id] = copy.id; copies.append(copy)
         }
         object.links = object.links.compactMap { link in
@@ -430,7 +535,186 @@ final class EditorSession {
     }
     func resetProject(now: Date = .now) {
         clearRecovery(); documentURL = nil; assetSourceURL = nil; isRecovered = false; fileMessage = nil
-        sourcePlayback.removeAll(); transport = AnimationTransport(); project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
+        sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil; testOutput.setScene(scene)
     }
+}
+
+extension EditorSession {
+    /// Publish one validated edit so failed library actions cannot leave partial state.
+    private func commitShowEdit(_ candidate: MappingProject) -> Bool {
+        do {
+            try ProjectCodec.validate(ProjectDocument(project: candidate, output: document.output))
+        } catch {
+            editMessage = "Show controls could not be changed: \(error.localizedDescription)"; return false
+        }
+        editMessage = nil
+        guard candidate != project else { return true }
+        project = candidate; changed(); return true
+    }
+    @discardableResult
+    func createPalette(name: String) -> UUID? {
+        guard project.palettes.count < 100 else { editMessage = "Maximum of 100 palettes reached."; return nil }
+        let palette = ColorPalette(name: cleanName(name, fallback: "Palette \(project.palettes.count + 1)"), slots: [])
+        var candidate = project; candidate.palettes.append(palette)
+        return commitShowEdit(candidate) ? palette.id : nil
+    }
+    func renamePalette(_ id: UUID, name: String) {
+        guard let i = project.palettes.firstIndex(where: { $0.id == id }) else { return }
+        var candidate = project; candidate.palettes[i].name = cleanName(name, fallback: candidate.palettes[i].name)
+        _ = commitShowEdit(candidate)
+    }
+    @discardableResult
+    func addPaletteSlot(_ id: UUID, name: String, color: SIMD4<Float>) -> UUID? {
+        guard let i = project.palettes.firstIndex(where: { $0.id == id }) else { return nil }
+        guard project.palettes[i].slots.count < 32 else { editMessage = "Maximum of 32 colors per palette reached."; return nil }
+        let slot = PaletteSlot(name: cleanName(name, fallback: "Color \(project.palettes[i].slots.count + 1)"), color: color)
+        var candidate = project; candidate.palettes[i].slots.append(slot)
+        return commitShowEdit(candidate) ? slot.id : nil
+    }
+    func renamePaletteSlot(_ id: UUID, slotID: UUID, name: String) {
+        guard let i = project.palettes.firstIndex(where: { $0.id == id }),
+              let j = project.palettes[i].slots.firstIndex(where: { $0.id == slotID }) else { return }
+        var candidate = project; candidate.palettes[i].slots[j].name = cleanName(name, fallback: candidate.palettes[i].slots[j].name)
+        _ = commitShowEdit(candidate)
+    }
+    func setPaletteColor(_ id: UUID, slotID: UUID, color: SIMD4<Float>) {
+        guard let i = project.palettes.firstIndex(where: { $0.id == id }),
+              let j = project.palettes[i].slots.firstIndex(where: { $0.id == slotID }) else { return }
+        var candidate = project; candidate.palettes[i].slots[j].color = color
+        _ = commitShowEdit(candidate)
+    }
+    func movePaletteSlot(_ id: UUID, slotID: UUID, offset: Int) {
+        guard offset == -1 || offset == 1, let i = project.palettes.firstIndex(where: { $0.id == id }),
+              let j = project.palettes[i].slots.firstIndex(where: { $0.id == slotID }),
+              project.palettes[i].slots.indices.contains(j + offset) else { return }
+        var candidate = project; candidate.palettes[i].slots.swapAt(j,j + offset); _ = commitShowEdit(candidate)
+    }
+    func paletteReferenceCount(_ id: UUID, slotID: UUID? = nil) -> Int {
+        func count(_ primary: ColorBinding?, _ secondary: ColorBinding?) -> Int {
+            [primary,secondary].compactMap { $0 }.filter { $0.paletteID == id && (slotID == nil || $0.slotID == slotID) }.count
+        }
+        let live = project.surfaces.map(\.source) + project.objects.map(\.source)
+        return live.reduce(0) { $0 + count($1.primaryBinding,$1.secondaryBinding) } +
+            project.looks.flatMap(\.entries).compactMap(\.source).reduce(0) { $0 + count($1.primaryBinding,$1.secondaryBinding) }
+    }
+    private func materializePalette(_ id: UUID, slotID: UUID?, in candidate: inout MappingProject) {
+        func removed(_ binding: ColorBinding?) -> Bool { binding?.paletteID == id && (slotID == nil || binding?.slotID == slotID) }
+        func materialize(_ source: inout SurfaceSource) {
+            let resolved = project.resolvedSource(source)
+            if removed(source.primaryBinding) { source.color = resolved.color; source.primaryBinding = nil }
+            if removed(source.secondaryBinding) { source.generator.secondaryColor = resolved.generator.secondaryColor; source.secondaryBinding = nil }
+        }
+        // Include dormant face sources retained under objects and all stored look entries.
+        for i in candidate.surfaces.indices { materialize(&candidate.surfaces[i].source) }
+        for i in candidate.objects.indices { materialize(&candidate.objects[i].source) }
+        for i in candidate.looks.indices {
+            for j in candidate.looks[i].entries.indices {
+                guard let lookSource = candidate.looks[i].entries[j].source else { continue }
+                var source = lookSource.applying(to: SurfaceSource()); materialize(&source)
+                candidate.looks[i].entries[j].source = SourceLook(source: source)
+            }
+        }
+    }
+    func deletePalette(_ id: UUID) {
+        guard project.palettes.contains(where: { $0.id == id }) else { return }
+        var candidate = project; materializePalette(id, slotID: nil, in: &candidate)
+        candidate.palettes.removeAll { $0.id == id }; _ = commitShowEdit(candidate)
+    }
+    func deletePaletteSlot(_ id: UUID, slotID: UUID) {
+        guard let i = project.palettes.firstIndex(where: { $0.id == id }), project.palettes[i].slots.contains(where: { $0.id == slotID }) else { return }
+        var candidate = project; materializePalette(id, slotID: slotID, in: &candidate)
+        candidate.palettes[i].slots.removeAll { $0.id == slotID }; _ = commitShowEdit(candidate)
+    }
+    func bindColor(faceID: UUID, channel: ColorChannel, binding: ColorBinding?) {
+        guard let faceIndex = project.surfaces.firstIndex(where: { $0.id == faceID }) else { return }
+        if let binding {
+            guard project.palettes.contains(where: { $0.id == binding.paletteID && $0.slots.contains(where: { $0.id == binding.slotID }) }) else {
+                editMessage = "That palette color no longer exists."; return
+            }
+        }
+        var candidate = project
+        func bind(_ source: inout SurfaceSource) {
+            let resolved = project.resolvedSource(source)
+            if channel == .primary { source.color = resolved.color; source.primaryBinding = binding }
+            else { source.generator.secondaryColor = resolved.generator.secondaryColor; source.secondaryBinding = binding }
+            let updated = project.resolvedSource(source)
+            if channel == .primary { source.color = updated.color } else { source.generator.secondaryColor = updated.generator.secondaryColor }
+        }
+        if let objectID = candidate.surfaces[faceIndex].layout.objectID,
+           let i = candidate.objects.firstIndex(where: { $0.id == objectID }) { bind(&candidate.objects[i].source) }
+        else { bind(&candidate.surfaces[faceIndex].source) }
+        _ = commitShowEdit(candidate)
+    }
+    private func captureLookEntries() -> [LookEntry] {
+        var entries = project.objects.map { object in
+            LookEntry(targetID: object.id, kind: .object, source: SourceLook(source: project.resolvedSource(object.source)), appearance: object.appearance)
+        }
+        entries += project.surfaces.map { face in
+            if let objectID = face.layout.objectID {
+                return LookEntry(targetID: face.id, kind: .memberFace, expectedObjectID: objectID, appearance: face.appearanceOverride)
+            }
+            return LookEntry(targetID: face.id, kind: .standaloneFace, source: SourceLook(source: project.resolvedSource(face.source)), appearance: face.appearance)
+        }
+        return entries
+    }
+    @discardableResult
+    func saveLook(name: String) -> UUID? {
+        guard project.looks.count < 100 else { editMessage = "Maximum of 100 looks reached."; return nil }
+        let look = ProjectLook(name: cleanName(name, fallback: "Look \(project.looks.count + 1)"), entries: captureLookEntries())
+        var candidate = project; candidate.looks.append(look)
+        return commitShowEdit(candidate) ? look.id : nil
+    }
+    func renameLook(_ id: UUID, name: String) {
+        guard let i = project.looks.firstIndex(where: { $0.id == id }) else { return }
+        var candidate = project; candidate.looks[i].name = cleanName(name, fallback: candidate.looks[i].name); _ = commitShowEdit(candidate)
+    }
+    func updateLook(_ id: UUID) {
+        guard let i = project.looks.firstIndex(where: { $0.id == id }) else { return }
+        var candidate = project; candidate.looks[i].entries = captureLookEntries(); _ = commitShowEdit(candidate)
+    }
+    func deleteLook(_ id: UUID) {
+        guard project.looks.contains(where: { $0.id == id }) else { return }
+        var candidate = project; candidate.looks.removeAll { $0.id == id }; _ = commitShowEdit(candidate)
+    }
+    func applyLook(_ id: UUID) {
+        guard let look = project.looks.first(where: { $0.id == id }) else { lastLookReport = "That look no longer exists."; return }
+        var candidate = project, applied = 0, skipped: [String] = []
+        for entry in look.entries {
+            var didApply = false
+            switch entry.kind {
+            case .object:
+                if let i = candidate.objects.firstIndex(where: { $0.id == entry.targetID }), let source = entry.source, let appearance = entry.appearance {
+                    candidate.objects[i].source = source.applying(to: candidate.objects[i].source)
+                    candidate.objects[i].appearance = appearance; didApply = true
+                }
+            case .standaloneFace:
+                if let i = candidate.surfaces.firstIndex(where: { $0.id == entry.targetID && $0.layout.objectID == nil }), let source = entry.source, let appearance = entry.appearance {
+                    candidate.surfaces[i].source = source.applying(to: candidate.surfaces[i].source)
+                    candidate.surfaces[i].appearance = appearance; didApply = true
+                }
+            case .memberFace:
+                if let i = candidate.surfaces.firstIndex(where: { $0.id == entry.targetID && $0.layout.objectID == entry.expectedObjectID }), entry.expectedObjectID != nil {
+                    candidate.surfaces[i].appearanceOverride = entry.appearance; didApply = true
+                }
+            }
+            if didApply { applied += 1 }
+            else { skipped.append("\(entry.kind.rawValue) \(entry.targetID.uuidString.prefix(8)): missing target or changed membership") }
+        }
+        guard commitShowEdit(candidate) else { lastLookReport = "Look could not be applied; no targets changed."; return }
+        lastLookReport = "Applied \(applied) target(s); skipped \(skipped.count)." + (skipped.isEmpty ? "" : "\n" + skipped.joined(separator: "\n"))
+    }
+    func setMasterBrightness(_ value: Float) {
+        var candidate = project; candidate.masterOutput.brightness = value; _ = commitShowEdit(candidate)
+    }
+    func setFadeDuration(_ value: Double) {
+        var candidate = project; candidate.masterOutput.fadeDuration = value; _ = commitShowEdit(candidate)
+    }
+    func fadeToBlack(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        showOutput.fade(to: 0, duration: project.masterOutput.fadeDuration, at: uptime); testOutput.setScene(scene)
+    }
+    func restoreOutput(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        showOutput.restore(duration: project.masterOutput.fadeDuration, at: uptime); testOutput.setScene(scene)
+    }
+    func blackoutOutput() { showOutput.blackout(); testOutput.setScene(scene) }
 }

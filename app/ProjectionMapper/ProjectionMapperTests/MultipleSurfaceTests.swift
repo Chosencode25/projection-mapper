@@ -408,6 +408,251 @@ struct MultipleSurfaceTests {
 }
 
 @MainActor
+struct AppearanceControlsTests {
+    func session() -> EditorSession {
+        let defaults = UserDefaults(suiteName: "v111.tests." + UUID().uuidString)!
+        return EditorSession(output: OutputSelectionState(preferences: OutputPreferences(defaults: defaults)))
+    }
+    func altered() -> SurfaceAppearance {
+        SurfaceAppearance(opacity: 0.4,brightness: 1.5,crop: ContentCrop(origin: SIMD2(0.1,0.2),size: SIMD2(0.7,0.6)),flipHorizontal: true,flipVertical: true)
+    }
+    @Test func controlsValidateBoundsAndLeaveGeometryContentAndClocksUntouched() throws {
+        let s = session(), id = s.project.surfaces[0].id, before = s.project
+        s.setPlaying(true,at: 10); s.seekPlayback(to: 4,at: 10); let clock = s.transport
+        let value = altered(); s.setAppearance(value,faceID: id)
+        #expect(s.hasUserChanges && s.project.surfaces[0].appearance == value)
+        #expect(s.project.surfaces[0].layout == before.surfaces[0].layout && s.selectedSource == before.surfaces[0].source && s.transport == clock)
+        let changed = s.project
+        for invalid in [Float.nan,Float.infinity,-0.1,1.1] { var bad = value; bad.opacity = invalid; s.setAppearance(bad,faceID: id); #expect(s.project == changed) }
+        for invalid in [Float.nan,-0.1,2.1] { var bad = value; bad.brightness = invalid; s.setAppearance(bad,faceID: id); #expect(s.project == changed) }
+        for invalid in [Float.nan,0,-1,2] { var bad = value; bad.crop.size.x = invalid; s.setAppearance(bad,faceID: id); #expect(s.project == changed) }
+        s.setAppearance(.defaults,faceID: id); #expect(!s.hasUserChanges)
+    }
+    @Test func objectInheritanceOverridesAndReturningToInheritanceAreExplicit() throws {
+        let s = session(); s.addSurface(); s.createObject(faceIDs: Set(s.project.surfaces.map(\.id)))
+        let object = try #require(s.selectedObject), face = s.project.surfaces[0], value = altered()
+        s.setAppearance(value,objectID: object.id)
+        #expect(s.scene.surfaces.allSatisfy { $0.appearance == value })
+        let original = s.project
+        s.setAppearance(.defaults,faceID: face.id); #expect(s.project == original)
+        s.setAppearanceOverride(true,faceID: face.id)
+        #expect(s.project.surfaces[0].appearanceOverride == value && s.scene == original.renderScene)
+        var override = value; override.brightness = 0.2; s.setAppearance(override,faceID: face.id)
+        var shared = value; shared.opacity = 0.8; s.setAppearance(shared,objectID: object.id)
+        #expect(s.project.appearance(for: s.project.surfaces[0]) == override)
+        #expect(s.project.appearance(for: s.project.surfaces[1]) == shared)
+        #expect(!s.project.joinWarnings.isEmpty)
+        s.setAppearanceOverride(false,faceID: face.id)
+        #expect(s.scene.surfaces.allSatisfy { $0.appearance == shared } && s.project.joinWarnings.isEmpty)
+    }
+    @Test func detachDuplicateUngroupAndAttachPreserveDefinedAppearanceScope() throws {
+        let s = session(); s.addSurface(); let value = altered()
+        s.setAppearance(value,faceID: s.selectedSurfaceID); s.createObject(faceIDs: Set(s.project.surfaces.map(\.id)))
+        let object = try #require(s.selectedObject)
+        #expect(object.appearance == value && s.project.surfaces.allSatisfy { $0.appearanceOverride == nil })
+        let face = s.project.surfaces[0]; s.setAppearanceOverride(true,faceID: face.id)
+        var custom = value; custom.flipHorizontal = false; s.setAppearance(custom,faceID: face.id)
+        s.duplicateObject(object.id); let duplicate = try #require(s.selectedObject)
+        #expect(duplicate.appearance == value)
+        #expect(s.project.surfaces.contains { $0.layout.objectID == duplicate.id && $0.appearanceOverride == custom })
+        s.detachSurface(face.id); let detached = try #require(s.project.surfaces.first { $0.id == face.id })
+        #expect(detached.appearance == custom && detached.appearanceOverride == nil && detached.layout.inputMap == face.layout.inputMap)
+        s.attachSurface(face.id,to: duplicate.id)
+        #expect(s.project.appearance(for: s.project.surfaces.first { $0.id == face.id }!) == value)
+        s.ungroupObject(duplicate.id)
+        #expect(s.project.surfaces.filter { $0.layout.objectID == nil }.allSatisfy { $0.appearanceOverride == nil })
+    }
+    @Test func cropFlipMatrixSamplesSelectedRegionAndPreservesSharedBoundaries() {
+        let value = altered(), p0 = value.matrix * SIMD3<Float>(0,0,1), p1 = value.matrix * SIMD3<Float>(1,1,1)
+        #expect(abs(p0.x - 0.8) < 0.00001 && abs(p0.y - 0.8) < 0.00001)
+        #expect(abs(p1.x - 0.1) < 0.00001 && abs(p1.y - 0.2) < 0.00001)
+        let left = FaceInputMap(size: SIMD2(0.5,1)), right = FaceInputMap(origin: SIMD2(0.5,0),size: SIMD2(0.5,1))
+        let a = value.matrix * left.matrix * SIMD3<Float>(1,0.3,1), b = value.matrix * right.matrix * SIMD3<Float>(0,0.3,1)
+        #expect(simd_length(a-b) < 0.00001)
+    }
+    @Test func legacySchemaTwoMigratesDefaultsAndSchemaThreeRejectsBadAppearance() throws {
+        let s = session(); s.addSurface(); s.createObject(faceIDs: Set(s.project.surfaces.map(\.id)))
+        let original = s.document
+        var json = try #require(JSONSerialization.jsonObject(with: ProjectCodec.encode(original)) as? [String:Any])
+        json["formatVersion"] = 2
+        var project = try #require(json["project"] as? [String:Any])
+        for key in ["surfaces","objects"] {
+            project[key] = (project[key] as! [[String:Any]]).map { item in var item = item; item.removeValue(forKey: "appearance"); item.removeValue(forKey: "appearanceOverride"); return item }
+        }
+        json["project"] = project
+        let restored = try ProjectCodec.decode(JSONSerialization.data(withJSONObject: json))
+        #expect(restored.project == original.project && restored.formatVersion == ProjectDocument.currentVersion)
+        var bad = original; bad.project.objects[0].appearance.brightness = 3
+        #expect(throws: ProjectFileError.self) { try ProjectCodec.encode(bad) }
+        bad = original; bad.project.surfaces[0].appearance.crop.size.y = 0
+        #expect(throws: ProjectFileError.self) { try ProjectCodec.encode(bad) }
+    }
+    @Test func appearanceRoundTripsThroughSaveBaselineAndRecoveryWithoutLosingPresets() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir,withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let s = session(); s.addSurface(); s.createObject(faceIDs: Set(s.project.surfaces.map(\.id))); s.setSurfaceContent(.particles)
+        _ = s.saveGeneratorPreset(name: "Snow"); s.setAppearance(altered(),objectID: s.selectedObjectID)
+        s.setAppearanceOverride(true,faceID: s.project.surfaces[0].id)
+        let url = dir.appendingPathComponent("House.projectionmap"); try s.save(to: url)
+        #expect(!s.hasUserChanges)
+        let loaded = session(); try loaded.load(ProjectPackageStore().read(url),from: url)
+        #expect(loaded.project == s.project && !loaded.hasUserChanges && !loaded.transport.isPlaying)
+        let recovery = ProjectRecoveryStore(directory: dir.appendingPathComponent("recovery")); s.configureRecovery(recovery)
+        var edited = altered(); edited.opacity = 0.9; s.setAppearance(edited,objectID: s.project.objects[0].id); try s.flushRecovery()
+        let entry = try #require(recovery.entries().first)
+        #expect(entry.document.project.objects[0].appearance == edited && entry.document.project.generatorPresets == loaded.project.generatorPresets)
+        s.clearRecovery()
+    }
+}
+
+@MainActor
+struct EditingProtectionTests {
+    func session() -> EditorSession {
+        EditorSession(presentOutput: { _ in },output: OutputSelectionState(preferences: OutputPreferences(defaults: UserDefaults(suiteName: "v1112.tests." + UUID().uuidString)!)))
+    }
+    func grouped() -> EditorSession {
+        let s = session(); let first = s.project.surfaces[0].id
+        s.selectCorner(.topLeft); s.moveSelectedCorner(to: SIMD2(0.1,0.15),surfaceID: first)
+        s.addSurface(); s.createObject(faceIDs: Set(s.project.surfaces.map(\.id)))
+        s.setSurfaceContent(.particles); var generator = GeneratorSettings.defaults; generator.seed = 97; s.setGeneratorSettings(generator)
+        s.setPlaying(true,at: 10); s.seekPlayback(to: 3,at: 10); s.setSelectedPaused(true,at: 10)
+        return s
+    }
+    @Test func locksBlockGeometryResetAndDeletionButAllowSelectionAndContent() {
+        let s = session(), id = s.project.surfaces[0].id
+        s.selectCorner(.topLeft); s.moveSelectedCorner(to: SIMD2(0.1,0.1),surfaceID: id)
+        s.setGeometryLocked(true,faceID: id); let locked = s.project
+        s.moveSelectedCorner(to: SIMD2(0.4,0.4),surfaceID: id); s.nudgeSelectedCorner(direction: SIMD2(1,0),larger: true)
+        s.resetFace(id,scope: .outputGeometry); s.resetFace(id,scope: .fullFace); s.deleteSurface(id)
+        #expect(s.project == locked)
+        s.selectSurface(at: SIMD2(0.5,0.5)); #expect(s.selectedSurfaceID == id)
+        s.setSurfaceContent(.noise); var appearance = SurfaceAppearance.defaults; appearance.brightness = 0.5
+        s.setAppearance(appearance,faceID: id)
+        #expect(s.project.surfaces[0].corners == locked.surfaces[0].corners && s.selectedSource?.content == .noise)
+        s.setGeometryLocked(false,faceID: id); s.resetFace(id,scope: .outputGeometry)
+        #expect(s.project.surfaces[0].corners == .diagnostic)
+    }
+    @Test func objectLocksPreserveIndividualLocksAndBlockWholeTransactions() throws {
+        let s = grouped(), id = try #require(s.selectedObjectID), face = s.project.surfaces[0].id
+        s.setGeometryLocked(true,faceID: face); s.setGeometryLocked(true,objectID: id)
+        let locked = s.project; s.moveObject(id,by: SIMD2(0.05,0.05)); s.deleteObject(id)
+        #expect(s.project == locked && !s.project.canMoveObject(id))
+        s.setGeometryLocked(false,objectID: id)
+        #expect(s.project.surfaces[0].layout.isGeometryLocked && !s.project.surfaces[1].layout.isGeometryLocked)
+        let stillLocked = s.project; s.moveObject(id,by: SIMD2(0.05,0)); #expect(s.project == stillLocked)
+        s.setGeometryLocked(false,faceID: face); #expect(s.project.canMoveObject(id))
+        s.moveObject(id,by: SIMD2(0.05,0)); #expect(s.project != stillLocked)
+    }
+    @Test func boundedMovementAppliesOneOffsetAndPreservesOwnershipInputAndPlayback() throws {
+        let s = grouped(), id = try #require(s.selectedObjectID), before = s.project, clock = s.transport, phases = s.sourcePlayback
+        let changed = Date(timeIntervalSince1970: 700)
+        s.moveObject(id,by: SIMD2(100,-100),now: changed)
+        let bounds = try #require(s.project.outputBounds(forObject: id))
+        #expect(abs(bounds.bottomRight.x-1) < 0.000001 && abs(bounds.topLeft.y) < 0.000001)
+        let delta = s.project.surfaces[0].corners.topLeft - before.surfaces[0].corners.topLeft
+        for (old,new) in zip(before.surfaces,s.project.surfaces) {
+            for corner in SurfaceCorner.allCases { #expect(simd_length((new.corners[corner]-old.corners[corner])-delta) < 0.000001) }
+            #expect(new.layout.inputMap == old.layout.inputMap && new.layout.objectID == old.layout.objectID && new.source == old.source)
+        }
+        #expect(s.project.objects == before.objects && s.project.modifiedAt == changed && s.transport == clock && s.sourcePlayback == phases)
+        #expect(s.testOutput.scene == s.scene)
+        let stopped = s.project; s.moveObject(id,by: SIMD2(100,-100),now: .distantFuture); s.moveObject(id,by: SIMD2(.nan,0)); s.moveObject(UUID(),by: SIMD2(0.1,0.1))
+        #expect(s.project == stopped)
+    }
+    @Test func resetScopesPreserveUnrelatedFaceValuesAndClocks() {
+        let s = session(), id = s.project.surfaces[0].id
+        s.setSurfaceContent(.particles); var generator = GeneratorSettings.defaults; generator.seed = 77; s.setGeneratorSettings(generator)
+        s.setSelectedPaused(true,at: 10); let clock = s.selectedPlayback
+        var appearance = SurfaceAppearance.defaults; appearance.opacity = 0.4; appearance.brightness = 1.5; appearance.crop.size = SIMD2(0.5,0.5); appearance.flipHorizontal = true
+        s.setAppearance(appearance,faceID: id); s.selectCorner(.topLeft); s.moveSelectedCorner(to: SIMD2(0.1,0.1),surfaceID: id)
+        let layout = s.project.surfaces[0].layout, owner = s.selectedSource!.id
+        s.resetFace(id,scope: .appearance)
+        #expect(s.project.surfaces[0].appearance.opacity == 1 && s.project.surfaces[0].appearance.crop == appearance.crop)
+        #expect(s.selectedSource?.generator == generator && s.project.surfaces[0].layout == layout)
+        s.resetFace(id,scope: .cropAndFlip); #expect(s.project.surfaces[0].appearance == .defaults)
+        s.resetFace(id,scope: .generatorParameters)
+        #expect(s.selectedSource?.content == .particles && s.selectedSource?.id == owner && s.selectedPlayback == clock)
+        s.resetFace(id,scope: .content)
+        #expect(s.selectedSource?.content == .diagnosticGrid && s.selectedSource?.id == owner && s.project.surfaces[0].layout == layout && s.selectedPlayback == clock)
+    }
+    @Test func groupedFaceFullResetPreservesSharedContentMapsLinksAndOtherFaces() throws {
+        let s = grouped(), id = s.project.surfaces[0].id
+        s.setAppearanceOverride(true,faceID: id); var custom = SurfaceAppearance.defaults; custom.opacity = 0.5; s.setAppearance(custom,faceID: id)
+        s.setVisible(false,faceID: id); s.selectSurface(id); s.selectCorner(.topLeft); s.moveSelectedCorner(to: SIMD2(0.2,0.3),surfaceID: id)
+        let before = s.project, phases = s.sourcePlayback
+        s.resetFace(id,scope: .content); #expect(s.project == before)
+        s.resetFace(id,scope: .fullFace)
+        let face = try #require(s.project.surfaces.first { $0.id == id }), original = before.surfaces[0]
+        #expect(face.corners == .diagnostic && face.layout.isVisible && face.appearanceOverride == nil)
+        #expect(face.id == original.id && face.name == original.name && face.tags == original.tags && face.source == original.source)
+        #expect(face.layout.inputMap == original.layout.inputMap && face.layout.objectID == original.layout.objectID)
+        #expect(s.project.objects == before.objects && s.project.surfaces[1] == before.surfaces[1] && s.sourcePlayback == phases)
+    }
+    @Test func sharedResetsKeepOverridesAndOnlyExplicitInputLayoutResetChangesMaps() throws {
+        let s = grouped(), id = try #require(s.selectedObjectID), member = s.project.surfaces[0].id
+        var shared = SurfaceAppearance.defaults; shared.brightness = 0.4; shared.crop.size = SIMD2(0.5,0.5); s.setAppearance(shared,objectID: id)
+        s.setAppearanceOverride(true,faceID: member)
+        var map = s.project.surfaces[0].layout.inputMap; map.quarterTurns = 2; s.setInputMap(map,faceID: member)
+        let before = s.project, phases = s.sourcePlayback
+        s.resetObject(id,scope: .appearance); s.resetObject(id,scope: .generatorParameters)
+        #expect(s.project.surfaces == before.surfaces && s.project.objects[0].links == before.objects[0].links)
+        #expect(s.project.objects[0].appearance.crop == shared.crop && s.project.objects[0].source.content == .particles)
+        s.resetObject(id,scope: .inputLayout)
+        #expect(s.project.surfaces[0].layout.inputMap.quarterTurns == 0 && s.project.objects[0].links == before.objects[0].links)
+        #expect(s.project.surfaces.map(\.corners) == before.surfaces.map(\.corners) && s.sourcePlayback == phases)
+        let sourceID = s.project.objects[0].source.id; s.resetObject(id,scope: .content)
+        #expect(s.project.objects[0].source.id == sourceID && s.project.objects[0].source.content == .diagnosticGrid)
+    }
+    @Test func duplicatesAndDetachRetainEffectiveLocks() throws {
+        let s = grouped(), id = try #require(s.selectedObjectID)
+        s.setGeometryLocked(true,objectID: id); s.duplicateObject(id)
+        let copy = try #require(s.selectedObject); #expect(copy.isGeometryLocked)
+        let member = try #require(s.project.surfaces.first { $0.layout.objectID == id })
+        s.detachSurface(member.id)
+        let detached = try #require(s.project.surfaces.first { $0.id == member.id })
+        #expect(detached.layout.isGeometryLocked && detached.layout.objectID == nil)
+        s.duplicateSurface(detached.id); #expect(s.selectedSurface?.layout.isGeometryLocked == true)
+    }
+    @Test func standaloneFullResetPreservesIdentityTagsInputMapsOtherFacesAndPhase() {
+        let s = session(), id = s.project.surfaces[0].id
+        s.renameSurface(id,"Roof"); s.setTags("house, upper",faceID: id)
+        s.setSurfaceContent(.noise); s.setSelectedPaused(true,at: 10)
+        s.setInputMap(FaceInputMap(origin: SIMD2(0.1,0.2),size: SIMD2(0.7,0.6),quarterTurns: 2),faceID: id)
+        var appearance = SurfaceAppearance.defaults; appearance.opacity = 0.3; appearance.flipVertical = true; s.setAppearance(appearance,faceID: id)
+        s.selectCorner(.topLeft); s.moveSelectedCorner(to: SIMD2(0.1,0.1),surfaceID: id); s.setVisible(false,faceID: id)
+        let original = s.project.surfaces[0], phase = s.sourcePlayback
+        s.addSurface(); let other = s.project.surfaces[0]
+        s.resetFace(id,scope: .fullFace)
+        let reset = s.project.surfaces[1]
+        #expect(reset.id == id && reset.name == original.name && reset.tags == original.tags && reset.source.id == original.source.id)
+        #expect(reset.corners == .diagnostic && reset.content == .diagnosticGrid && reset.appearance == .defaults && reset.layout.isVisible)
+        #expect(reset.layout.inputMap == original.layout.inputMap && reset.layout.objectID == original.layout.objectID && s.project.surfaces[0] == other)
+        #expect(s.sourcePlayback == phase)
+        let cleanReset = s.project; s.resetFace(id,scope: .fullFace); s.resetFace(UUID(),scope: .content); s.resetObject(UUID(),scope: .content)
+        #expect(s.project == cleanReset)
+    }
+    @Test func legacyLocksMigrationSaveRecoveryAndBaselineAreConsistent() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir,withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: dir) }
+        let s = grouped(), id = try #require(s.selectedObjectID)
+        var json = try #require(JSONSerialization.jsonObject(with: ProjectCodec.encode(s.document)) as? [String:Any]); json["formatVersion"] = 3
+        var project = json["project"] as! [String:Any]
+        project["objects"] = (project["objects"] as! [[String:Any]]).map { item in var item = item; item.removeValue(forKey: "isGeometryLocked"); return item }
+        project["surfaces"] = (project["surfaces"] as! [[String:Any]]).map { item in var item = item; var layout = item["layout"] as! [String:Any]; layout.removeValue(forKey: "isGeometryLocked"); item["layout"] = layout; return item }; json["project"] = project
+        #expect(try ProjectCodec.decode(JSONSerialization.data(withJSONObject: json)).project == s.project)
+        let url = dir.appendingPathComponent("House.projectionmap"); try s.save(to: url)
+        s.setGeometryLocked(true,objectID: id); #expect(s.hasUserChanges)
+        let recovery = ProjectRecoveryStore(directory: dir.appendingPathComponent("recovery")); s.configureRecovery(recovery); try s.flushRecovery()
+        #expect(recovery.entries().first?.document.project.objects[0].isGeometryLocked == true)
+        s.setGeometryLocked(false,objectID: id); #expect(!s.hasUserChanges)
+        s.setGeometryLocked(true,objectID: id); try s.save(to: url)
+        let loaded = session(); try loaded.load(ProjectPackageStore().read(url),from: url)
+        #expect(!loaded.hasUserChanges && !loaded.project.canMoveObject(id) && recovery.entries().isEmpty)
+    }
+}
+
+@MainActor
 struct MultipleSurfaceGPUTests {
     private func rect(_ x: Float, _ width: Float) -> NormalizedRectangle {
         NormalizedRectangle(topLeft: SIMD2(x,0),topRight: SIMD2(x+width,0),bottomRight: SIMD2(x+width,1),bottomLeft: SIMD2(x,1))
@@ -429,6 +674,79 @@ struct MultipleSurfaceGPUTests {
             #expect(try pixels(MetalRenderer(scene: session.scene)) == before)
             #expect(try pixels(MetalRenderer(scene: session.testOutput.scene)) == before)
         }
+    }
+    @Test func opacityCompositesLayersAndZeroOpacityHasNoPixelsOrAnimationDemand() throws {
+        let back = RenderSurface(geometry: rect(0,1),color: SIMD4(0,0,1,1))
+        var front = RenderSurface(geometry: rect(0,1),color: SIMD4(1,0,0,0.5))
+        front.appearance.opacity = 0.5
+        let renderer = try MetalRenderer(scene: RenderScene(surfaces: [back,front]))
+        var data = try pixels(renderer); let center = (64*128+64)*4
+        #expect(abs(Int(data[center])-191) <= 1 && data[center+1] == 0 && abs(Int(data[center+2])-64) <= 1 && data[center+3] == 255)
+        front.appearance.opacity = 0; renderer.setScene(RenderScene(surfaces: [back,front]))
+        #expect(try pixels(renderer) == pixels(MetalRenderer(scene: RenderScene(surfaces: [back]))))
+        var transport = AnimationTransport(); transport.setPlaying(true,at: 10); front.content = .particles
+        #expect(!RenderScene(surfaces: [front],transport: transport).needsContinuousRendering)
+        front.appearance.opacity = 0.5; front.content = .solid
+        renderer.setScene(RenderScene(surfaces: [front,back])); data = try pixels(renderer)
+        #expect(data[center] == 255 && data[center+2] == 0)
+    }
+    @Test func brightnessMultipliesEvaluatedContentAndClipsWithoutChangingAlpha() throws {
+        var face = RenderSurface(geometry: rect(0,1),color: SIMD4(0.8,0.4,0.1,1))
+        face.appearance.brightness = 2
+        let renderer = try MetalRenderer(scene: RenderScene(surfaces: [face]))
+        var data = try pixels(renderer); let center = (64*128+64)*4
+        #expect(abs(Int(data[center])-51) <= 1 && abs(Int(data[center+1])-204) <= 1 && data[center+2] == 255 && data[center+3] == 255)
+        face.appearance.brightness = 0; renderer.setScene(RenderScene(surfaces: [face])); data = try pixels(renderer)
+        #expect(data[center] == 0 && data[center+1] == 0 && data[center+2] == 0 && data[center+3] == 255)
+        for content in SurfaceContent.allCases {
+            face.content = content; face.appearance.brightness = 1; renderer.setScene(RenderScene(surfaces: [face]))
+            let original = try pixels(renderer,time: 0.37)
+            face.appearance.brightness = 0.5; renderer.setScene(RenderScene(surfaces: [face])); let dimmed = try pixels(renderer,time: 0.37)
+            #expect(original.indices.allSatisfy { i in i % 4 == 3 || abs(Int(dimmed[i])*2-Int(original[i])) <= 2 })
+            #expect(stride(from: 3,to: original.count,by: 4).allSatisfy { dimmed[$0] == original[$0] })
+        }
+    }
+    @Test func croppedFlippedGridAndGeneratorsMatchIndependentInputMapReference() throws {
+        let crop = ContentCrop(origin: SIMD2(0.1,0.2),size: SIMD2(0.6,0.7))
+        for content in [SurfaceContent.diagnosticGrid,.gradient,.particles] {
+            for horizontal in [false,true] { for vertical in [false,true] {
+                var face = RenderSurface(geometry: rect(0,1),color: SIMD4(1,0.2,0,1),content: content)
+                face.appearance = SurfaceAppearance(crop: crop,flipHorizontal: horizontal,flipVertical: vertical)
+                let actual = try pixels(MetalRenderer(scene: RenderScene(surfaces: [face])),time: 0.37)
+                face.appearance = .defaults
+                face.inputMap = FaceInputMap(origin: crop.origin,size: crop.size,quarterTurns: vertical ? 2 : 0,mirrored: horizontal != vertical)
+                let reference = try pixels(MetalRenderer(scene: RenderScene(surfaces: [face])),time: 0.37)
+                #expect(zip(actual,reference).allSatisfy { abs(Int($0)-Int($1)) <= 2 })
+            } }
+        }
+    }
+    @Test func sharedAppearancePreservesJoinedFramesAndPreviewOutputParity() throws {
+        let appearance = SurfaceAppearance(opacity: 0.6,brightness: 1.3,crop: ContentCrop(origin: SIMD2(0.1,0.15),size: SIMD2(0.7,0.8)),flipHorizontal: true,flipVertical: true)
+        for content in SurfaceContent.allCases {
+            let full = RenderSurface(geometry: rect(0,1),color: SIMD4(1,0.2,0,1),content: content,appearance: appearance)
+            let whole = try pixels(MetalRenderer(scene: RenderScene(surfaces: [full])),time: 0.37)
+            let pieces = (0..<3).map { i in RenderSurface(geometry: rect(Float(i)/3,1.0/3),color: full.color,content: content,inputMap: FaceInputMap(origin: SIMD2(Float(i)/3,0),size: SIMD2(1.0/3,1)),appearance: appearance) }
+            let preview = try pixels(MetalRenderer(scene: RenderScene(surfaces: pieces)),time: 0.37)
+            #expect(zip(whole,preview).allSatisfy { abs(Int($0)-Int($1)) <= 2 })
+            #expect(try pixels(MetalRenderer(scene: RenderScene(surfaces: pieces)),time: 0.37) == preview)
+        }
+    }
+    @Test func objectMovementAndGeometryResetReachMatchingLiveGPUViews() throws {
+        let defaults = UserDefaults(suiteName: "v1112.gpu." + UUID().uuidString)!
+        let s = EditorSession(presentOutput: { _ in },output: OutputSelectionState(preferences: OutputPreferences(defaults: defaults)))
+        s.addSurface(); s.createObject(faceIDs: Set(s.project.surfaces.map(\.id))); s.setSurfaceContent(.particles); s.seekPlayback(to: 0.37,at: 100)
+        let id = try #require(s.selectedObjectID), preview = try MetalRenderer(scene: s.scene), output = try MetalRenderer(scene: s.testOutput.scene)
+        let original = try pixels(preview), texture = preview.diagnosticTexture
+        s.moveObject(id,by: SIMD2(0.1,0.05)); preview.setScene(s.scene); output.setScene(s.testOutput.scene)
+        let moved = try pixels(preview)
+        let outputPixels = try pixels(output)
+        #expect(moved != original && moved == outputPixels && preview.diagnosticTexture === texture)
+        s.setGeometryLocked(true,objectID: id); let locked = s.project
+        s.resetFace(s.project.surfaces[0].id,scope: .outputGeometry); s.moveObject(id,by: SIMD2(0.1,0))
+        #expect(s.project == locked)
+        s.setGeometryLocked(false,objectID: id); s.resetFace(s.project.surfaces[0].id,scope: .outputGeometry)
+        preview.setScene(s.scene); output.setScene(s.testOutput.scene)
+        #expect(try pixels(preview) == pixels(output) && preview.diagnosticTexture === texture)
     }
     private func pixels(_ renderer: MetalRenderer, size: Int = 128, time: Double? = nil) throws -> [UInt8] {
         let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: MetalRenderer.pixelFormat,width: size,height: size,mipmapped: false)

@@ -18,6 +18,11 @@ struct ProjectInspectorView: View {
                 Divider()
                 PlaybackControls(session: session)
                 Divider()
+                ProjectShowControls(session: session)
+                if let message = session.editMessage {
+                    Text(message).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                }
+                Divider()
                 if let face = session.selectedSurface {
                     FaceInspector(session: session, face: face)
                 } else if let object = session.selectedObject {
@@ -25,7 +30,6 @@ struct ProjectInspectorView: View {
                 } else {
                     Text("Select a face or object in the sidebar.").font(.caption).foregroundStyle(.secondary)
                 }
-                if let message = session.editMessage { Text(message).font(.caption).foregroundStyle(.orange) }
                 Divider()
                 OutputDetailsView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput)
                 Label("Save and open projects from the File menu.", systemImage: "info.circle")
@@ -37,8 +41,14 @@ struct ProjectInspectorView: View {
 
 private struct SourceInspector: View {
     let session: EditorSession
+    private var bindingFaceID: UUID? {
+        if let face = session.selectedSurface { return face.id }
+        guard let object = session.selectedObject else { return nil }
+        return session.project.surfaces.first { $0.layout.objectID == object.id }?.id
+    }
     var body: some View {
-        if let source = session.selectedSource {
+        if let selectedSource = session.selectedSource {
+            let source = session.project.resolvedSource(selectedSource)
             Picker("Content", selection: Binding(get: { source.content }, set: { session.setSurfaceContent($0) })) {
                 ForEach(SurfaceContent.allCases) { Text($0.title).tag($0) }
             }
@@ -50,6 +60,11 @@ private struct SourceInspector: View {
                         session.setSourceColor(SIMD4(Float(rgb.redComponent),Float(rgb.greenComponent),Float(rgb.blueComponent),1))
                     }
                 }), supportsOpacity: false)
+                if let faceID = bindingFaceID {
+                    SourcePaletteBindingControl(session: session, source: source, faceID: faceID, channel: .primary)
+                }
+                Text(session.selectedObject != nil || session.selectedSurface?.layout.objectID != nil ? "Color edits affect every face in this object's shared content." : "Color edits affect this independent face.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             if source.content.isAnimated {
                 ColorPicker("Color 2", selection: Binding(get: {
@@ -60,6 +75,9 @@ private struct SourceInspector: View {
                         session.setSecondaryColor(SIMD4(Float(rgb.redComponent),Float(rgb.greenComponent),Float(rgb.blueComponent),1))
                     }
                 }), supportsOpacity: false)
+                if let faceID = bindingFaceID {
+                    SourcePaletteBindingControl(session: session, source: source, faceID: faceID, channel: .secondary)
+                }
                 GeneratorControls(session: session, source: source)
                 HStack {
                     Button(session.selectedPlayback.isPaused ? "Resume owner" : "Pause owner") {
@@ -188,10 +206,15 @@ private struct FaceInspector: View {
             Text("FACE · OUTPUT GEOMETRY").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             NameEditor(name: face.name, title: "Surface name", apply: { session.renameSurface(face.id, $0) }).id(face.id)
             TagsEditor(tags: face.tags, apply: { session.setTags($0, faceID: face.id) }).id(face.id)
+            Toggle("Lock this face's output geometry",isOn: Binding(get: { face.layout.isGeometryLocked },set: { session.setGeometryLocked($0,faceID: face.id) }))
+            if session.project.object(for: face)?.isGeometryLocked == true {
+                Text("Also locked by its object. Unlock the object to edit output corners.").font(.caption).foregroundStyle(.orange)
+            }
+            Text("Geometry locks protect corners and deletion; content and appearance remain editable.").font(.caption).foregroundStyle(.secondary)
             Toggle("Visible", isOn: Binding(get: { face.layout.isVisible }, set: { session.setVisible($0, faceID: face.id) }))
             HStack {
                 Button("Duplicate") { session.duplicateSurface(face.id) }
-                Button("Delete") { session.deleteSurface(face.id) }
+                Button("Delete") { session.deleteSurface(face.id) }.disabled(session.project.isGeometryLocked(face))
             }
             HStack {
                 Button("Forward") { session.moveSurface(face.id, offset: -1) }
@@ -209,6 +232,14 @@ private struct FaceInspector: View {
                     Button(object.name) { session.attachSurface(face.id, to: object.id) }
                 }
             }.disabled(session.project.objects.isEmpty)
+            Divider()
+            if let object = session.project.object(for: face) {
+                Toggle("Override object appearance on this face",isOn: Binding(get: { face.appearanceOverride != nil },set: { session.setAppearanceOverride($0,faceID: face.id) }))
+                Text(face.appearanceOverride == nil ? "Inherited from \(object.name). Inspect the object to change all faces." : "Face override · crop, flips or appearance may break continuity at joined edges.")
+                    .font(.caption).foregroundStyle(face.appearanceOverride == nil ? Color.secondary : Color.orange)
+            }
+            AppearanceEditor(value: session.project.appearance(for: face),scope: face.layout.objectID == nil ? "Face appearance" : "Face appearance override",apply: { session.setAppearance($0,faceID: face.id) })
+                .disabled(face.layout.objectID != nil && face.appearanceOverride == nil)
             SourceInspector(session: session)
             InputMapEditor(session: session, face: face)
             Divider()
@@ -216,7 +247,9 @@ private struct FaceInspector: View {
                 Text("None").tag(Optional<SurfaceCorner>.none)
                 ForEach(SurfaceCorner.allCases) { Text($0.title).tag(Optional($0)) }
             }
-            Text("Drag handles or use arrows; Shift nudges 1%.").font(.caption).foregroundStyle(.secondary)
+            .disabled(session.project.isGeometryLocked(face))
+            FaceResetControls(session: session,face: face).id(face.id)
+            Text(session.project.isGeometryLocked(face) ? "Output geometry is locked; select or unlock this face." : "Drag handles or use arrows; Shift nudges 1%.").font(.caption).foregroundStyle(.secondary)
             if PerspectiveTransform(face.corners) == nil {
                 Text("Invalid output shape. Move a corner to restore this face.").font(.caption).foregroundStyle(.orange)
             }
@@ -272,16 +305,22 @@ private struct ObjectInspector: View {
             Text("OBJECT · SHARED CONTENT").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             NameEditor(name: object.name, title: "Object name", apply: { session.renameObject(object.id, $0) }).id(object.id)
             TagsEditor(tags: object.tags, apply: { session.setTags($0, objectID: object.id) }).id(object.id)
+            Toggle("Lock all member output geometry",isOn: Binding(get: { object.isGeometryLocked },set: { session.setGeometryLocked($0,objectID: object.id) }))
+            Text("Unlocking the object preserves each face's own lock.").font(.caption).foregroundStyle(.secondary)
+            ObjectMoveControls(session: session,objectID: object.id).id(object.id)
+            ObjectResetControls(session: session,objectID: object.id).id(object.id)
             Toggle("Object visible", isOn: Binding(get: { object.isVisible }, set: { session.setVisible($0, objectID: object.id) }))
             Picker("Mapping", selection: Binding(get: { object.mode }, set: { session.setObjectMode($0, id: object.id) })) {
                 ForEach(ObjectContentMode.allCases) { Text($0.title).tag($0) }
             }
+            AppearanceEditor(value: object.appearance,scope: "Object appearance · inherited by faces",apply: { session.setAppearance($0,objectID: object.id) })
+            Text("Shared crop and flips preserve joined sampling. Faces with overrides keep their own controls.").font(.caption).foregroundStyle(.secondary)
             SourceInspector(session: session)
             HStack {
                 Button("Duplicate object") { session.duplicateObject(object.id) }
                 Button("Ungroup") { session.ungroupObject(object.id) }
             }
-            Button("Delete object and faces") { session.deleteObject(object.id) }
+            Button("Delete object and faces") { session.deleteObject(object.id) }.disabled(!session.project.canMoveObject(object.id))
             Text("Faces keep independent output corners. Grouping arranges input regions side by side using the frontmost checked face's content.")
                 .font(.caption).foregroundStyle(.secondary)
             ForEach(session.project.surfaces.filter { $0.layout.objectID == object.id }) { face in
@@ -365,5 +404,113 @@ private struct NameEditor: View {
             .onSubmit { apply(draft); focused = false }
             .onChange(of: focused) { _, value in if !value { apply(draft) } }
             .onChange(of: name) { _, value in if !focused { draft = value } }
+    }
+}
+
+private struct AppearanceEditor: View {
+    let value: SurfaceAppearance
+    let scope: String
+    let apply: (SurfaceAppearance) -> Void
+    @State private var invalidCrop = false
+    private func change(_ edit: (inout SurfaceAppearance) -> Void) {
+        var next = value; edit(&next); invalidCrop = !next.isValid
+        if next.isValid { apply(next) }
+    }
+    private func cropField(_ title: String,get: @escaping (ContentCrop) -> Float,set: @escaping (inout ContentCrop,Float) -> Void) -> some View {
+        HStack {
+            Text(title).font(.caption)
+            TextField(title,value: Binding(get: { Double(get(value.crop)) },set: { next in change { set(&$0.crop,Float(next)) } }),format: .number.precision(.fractionLength(0...4)))
+                .textFieldStyle(.roundedBorder).accessibilityLabel(scope + " crop " + title)
+        }
+    }
+    var body: some View {
+        VStack(alignment: .leading,spacing: 8) {
+            Text(scope.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            HStack { Text("Opacity"); Spacer(); Text(value.opacity.formatted(.percent.precision(.fractionLength(0)))).monospacedDigit() }.font(.caption)
+            Slider(value: Binding(get: { Double(value.opacity) },set: { next in change { $0.opacity = Float(next) } }),in: 0...1).accessibilityLabel(scope + " opacity")
+            HStack { Text("Brightness"); Spacer(); Text(value.brightness.formatted(.percent.precision(.fractionLength(0)))).monospacedDigit() }.font(.caption)
+            Slider(value: Binding(get: { Double(value.brightness) },set: { next in change { $0.brightness = Float(next) } }),in: 0...2).accessibilityLabel(scope + " brightness")
+            Toggle("Flip horizontally",isOn: Binding(get: { value.flipHorizontal },set: { next in change { $0.flipHorizontal = next } }))
+            Toggle("Flip vertically",isOn: Binding(get: { value.flipVertical },set: { next in change { $0.flipVertical = next } }))
+            Text("Crop · source coordinates 0–1").font(.caption).foregroundStyle(.secondary)
+            cropField("X",get: { $0.origin.x },set: { $0.origin.x = $1 })
+            cropField("Y",get: { $0.origin.y },set: { $0.origin.y = $1 })
+            cropField("Width",get: { $0.size.x },set: { $0.size.x = $1 })
+            cropField("Height",get: { $0.size.y },set: { $0.size.y = $1 })
+            if invalidCrop { Text("Crop must have positive size and fit inside 0–1. Reduce its size before moving its origin.").font(.caption).foregroundStyle(.orange) }
+            Text("Brightness clips above white; opacity reveals lower faces. Controls preserve output corners and input regions.").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct FaceResetControls: View {
+    let session: EditorSession
+    let face: MappingSurface
+    @State private var confirmFull = false
+    var body: some View {
+        Menu("Reset this face…") {
+            Button("Output corners only") { session.resetFace(face.id,scope: .outputGeometry) }.disabled(session.project.isGeometryLocked(face))
+            Button("Opacity and brightness only") { session.resetFace(face.id,scope: .appearance) }.disabled(face.layout.objectID != nil && face.appearanceOverride == nil)
+            Button("Crop and flips only") { session.resetFace(face.id,scope: .cropAndFlip) }.disabled(face.layout.objectID != nil && face.appearanceOverride == nil)
+            Button("Generator settings and colors only") { session.resetFace(face.id,scope: .generatorParameters) }.disabled(face.layout.objectID != nil)
+            Button("Content defaults only") { session.resetFace(face.id,scope: .content) }.disabled(face.layout.objectID != nil)
+            Divider()
+            Button("All face controls and output…") { confirmFull = true }.disabled(session.project.isGeometryLocked(face))
+        }
+        .confirmationDialog("Reset face controls and output?",isPresented: $confirmFull,titleVisibility: .visible) {
+            Button("Reset face controls and output",role: .destructive) { session.resetFace(face.id,scope: .fullFace) }
+        } message: {
+            Text("Restores this face's output corners, visibility and appearance. Independent content returns to defaults; grouped faces return to object appearance. IDs, names/tags, input regions, membership and links are kept. Shared object content is kept.")
+        }
+    }
+}
+private struct ObjectResetControls: View {
+    let session: EditorSession
+    let objectID: UUID
+    @State private var confirmLayout = false
+    var body: some View {
+        Menu("Reset shared object controls…") {
+            Button("Object opacity and brightness only") { session.resetObject(objectID,scope: .appearance) }
+            Button("Object crop and flips only") { session.resetObject(objectID,scope: .cropAndFlip) }
+            Button("Shared generator settings and colors only") { session.resetObject(objectID,scope: .generatorParameters) }
+            Button("Shared content defaults only") { session.resetObject(objectID,scope: .content) }
+            Divider()
+            Button("Arrange input regions side by side…") { confirmLayout = true }
+        }
+        .confirmationDialog("Reset shared input layout?",isPresented: $confirmLayout,titleVisibility: .visible) {
+            Button("Arrange input regions side by side",role: .destructive) { session.resetObject(objectID,scope: .inputLayout) }
+        } message: {
+            Text("Resets current member input regions and their orientation. Output corners, appearance, membership and all link identities/directions/seams stay intact. Custom links may show join warnings afterwards.")
+        }
+    }
+}
+private struct ObjectMoveControls: View {
+    let session: EditorSession
+    let objectID: UUID
+    @State private var step = 0.01
+    @State private var x = 0.0
+    @State private var y = 0.0
+    var body: some View {
+        VStack(alignment: .leading,spacing: 8) {
+            Text("MOVE ALL OUTPUT FACES").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            VStack(spacing: 8) {
+                Picker("Step",selection: $step) {
+                    Text("0.1%").tag(0.001); Text("1%").tag(0.01); Text("5%").tag(0.05)
+                }
+                HStack {
+                    Button("Left",systemImage: "arrow.left") { session.moveObject(objectID,by: SIMD2(Float(-step),0)) }
+                    Button("Up",systemImage: "arrow.up") { session.moveObject(objectID,by: SIMD2(0,Float(-step))) }
+                    Button("Down",systemImage: "arrow.down") { session.moveObject(objectID,by: SIMD2(0,Float(step))) }
+                    Button("Right",systemImage: "arrow.right") { session.moveObject(objectID,by: SIMD2(Float(step),0)) }
+                }.labelStyle(.iconOnly)
+                HStack {
+                    TextField("X offset",value: $x,format: .number).textFieldStyle(.roundedBorder).accessibilityLabel("Object X movement offset")
+                    TextField("Y offset",value: $y,format: .number).textFieldStyle(.roundedBorder).accessibilityLabel("Object Y movement offset")
+                }
+                Button("Move by X / Y") { session.moveObject(objectID,by: SIMD2(Float(x),Float(y))) }
+                    .disabled(!x.isFinite || !y.isFinite || !Float(x).isFinite || !Float(y).isFinite)
+            }.disabled(!session.project.canMoveObject(objectID))
+            Text(session.project.canMoveObject(objectID) ? "Click or drag the center square; arrows move the object and Shift moves 1%. Offsets are normalized 0–1 and stop at canvas edges." : "Unlock the object and every locked member face to move all faces together.").font(.caption).foregroundStyle(.secondary)
+        }
     }
 }

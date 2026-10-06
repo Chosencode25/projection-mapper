@@ -1,11 +1,37 @@
 import Foundation
 import simd
 
+/// Declarative content sampling and appearance; independent from output geometry and clocks.
+struct ContentCrop: Equatable, Sendable, Codable {
+    var origin = SIMD2<Float>(0,0)
+    var size = SIMD2<Float>(1,1)
+    var isValid: Bool { FaceInputMap(origin: origin,size: size).isValid }
+}
+struct SurfaceAppearance: Equatable, Sendable, Codable {
+    var opacity: Float = 1
+    var brightness: Float = 1
+    var crop = ContentCrop()
+    var flipHorizontal = false
+    var flipVertical = false
+    static let defaults = Self()
+    var isValid: Bool {
+        opacity.isFinite && (0...1).contains(opacity) && brightness.isFinite && (0...2).contains(brightness) && crop.isValid
+    }
+    /// Crop the selected source region, then flip its displayed orientation.
+    var matrix: simd_float3x3 {
+        let x: Float = flipHorizontal ? -1 : 1, y: Float = flipVertical ? -1 : 1
+        let origin = crop.origin + crop.size * SIMD2(flipHorizontal ? 1 : 0,flipVertical ? 1 : 0)
+        return simd_float3x3(columns: (SIMD3(crop.size.x*x,0,0),SIMD3(0,crop.size.y*y,0),SIMD3(origin.x,origin.y,1)))
+    }
+}
+
 struct SurfaceSource: Equatable, Sendable, Codable {
     var id = UUID()
     var content: SurfaceContent = .diagnosticGrid
     var generator: GeneratorSettings = .defaults
     var color: SIMD4<Float> = SIMD4(1, 0.25, 0, 1)
+    var primaryBinding: ColorBinding?
+    var secondaryBinding: ColorBinding?
     func independentCopy() -> Self { var copy = self; copy.id = UUID(); return copy }
 }
 
@@ -67,6 +93,8 @@ struct MappingObject: Identifiable, Equatable, Sendable, Codable {
     var id = UUID()
     var name: String
     var source: SurfaceSource
+    var appearance = SurfaceAppearance.defaults
+    var isGeometryLocked = false
     var mode: ObjectContentMode = .continuous
     var isVisible = true
     var tags: [String] = []
@@ -75,6 +103,7 @@ struct MappingObject: Identifiable, Equatable, Sendable, Codable {
 
 struct SurfaceLayout: Equatable, Sendable, Codable {
     var corners: NormalizedRectangle = .diagnostic
+    var isGeometryLocked = false
     var inputMap: FaceInputMap = .full
     var objectID: UUID?
     var isVisible = true
@@ -87,6 +116,8 @@ struct MappingSurface: Identifiable, Equatable, Sendable, Codable {
     var layout: SurfaceLayout
     var source: SurfaceSource
     var tags: [String] = []
+    var appearance = SurfaceAppearance.defaults
+    var appearanceOverride: SurfaceAppearance?
     var corners: NormalizedRectangle {
         get { layout.corners }
         set { layout.corners = newValue }
@@ -101,8 +132,13 @@ struct MappingSurface: Identifiable, Equatable, Sendable, Codable {
         source = SurfaceSource(content: content, color: color)
     }
     var hasDefaultContent: Bool {
-        name == Self.defaultName && layout == SurfaceLayout() && tags.isEmpty &&
-        color == SIMD4(1, 0.25, 0, 1) && content == .diagnosticGrid && source.generator == .defaults
+        name == Self.defaultName && layout == SurfaceLayout() && tags.isEmpty && appearance == .defaults && appearanceOverride == nil &&
+        color == SIMD4(1, 0.25, 0, 1) && content == .diagnosticGrid && source.generator == .defaults &&
+        source.primaryBinding == nil && source.secondaryBinding == nil
     }
-    var renderScene: RenderScene { RenderScene(surfaces: [RenderSurface(geometry: corners, color: color, content: content, generator: source.generator)]) }
+    var renderScene: RenderScene { RenderScene(surfaces: [RenderSurface(geometry: corners, color: color, content: content, generator: source.generator, appearance: appearance)]) }
 }
+
+/// Reset scopes intentionally preserve layout membership, input maps, identities and runtime clocks.
+enum FaceResetScope { case outputGeometry, appearance, cropAndFlip, generatorParameters, content, fullFace }
+enum ObjectResetScope { case appearance, cropAndFlip, generatorParameters, content, inputLayout }

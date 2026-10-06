@@ -34,7 +34,7 @@ struct ProjectPersistenceTests {
         json["formatVersion"] = 1; json.removeValue(forKey: "output")
         var project = try #require(json["project"] as? [String:Any]); project.removeValue(forKey: "generatorPresets"); json["project"] = project
         let migrated = try ProjectCodec.decode(JSONSerialization.data(withJSONObject: json))
-        #expect(migrated.formatVersion == 2 && migrated.project.generatorPresets.isEmpty && migrated.output.resolution == .hd)
+        #expect(migrated.formatVersion == ProjectDocument.currentVersion && migrated.project.generatorPresets.isEmpty && migrated.output.resolution == .hd)
         json["formatVersion"] = 999
         #expect(throws: ProjectFileError.self) { try ProjectCodec.decode(JSONSerialization.data(withJSONObject: json)) }
         #expect(throws: ProjectFileError.self) { try ProjectCodec.decode(Data("{bad".utf8)) }

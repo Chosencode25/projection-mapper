@@ -27,7 +27,12 @@ struct EditorCanvasView: View {
                                       if let id = surface?.id { session.moveSelectedCorner(to: point, surfaceID: id) }
                                   },
                                   nudge: { session.nudgeSelectedCorner(direction: $0, larger: $1) },
-                                  selectFace: { session.selectSurface(at: $0) })
+                                  selectFace: { session.selectSurface(at: $0) },
+                                  isLocked: surface.map { session.project.isGeometryLocked($0) } ?? session.selectedObject.map { !session.project.canMoveObject($0.id) } ?? false,
+                                  objectID: session.selectedObjectID,
+                                  objectBounds: session.selectedObjectID.flatMap { session.project.outputBounds(forObject: $0) },
+                                  moveObject: { delta in if let id = session.selectedObjectID { session.moveObject(id,by: delta) } },
+                                  nudgeObject: { session.nudgeSelectedObject(direction: $0,larger: $1) })
                         .frame(width: width + 24, height: height + 24)
                 }
                 Text("\(output.selectedName) · \(output.renderSizeText) · Editor preview").font(.caption).foregroundStyle(.secondary)

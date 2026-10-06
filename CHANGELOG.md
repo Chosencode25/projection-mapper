@@ -1,11 +1,33 @@
 # Changelog
 
+## v1.11 — Surface Controls milestone — October 6, 2026
+
+- Complete appearance/crop/flips, object/face overrides, geometry locks, bounded object movement and scoped resets from the first two local slices.
+- Add project-owned reusable looks that preserve mapping/locks/playback and report missing/regrouped targets; add named palettes with stable color bindings and reference-safe deletion.
+- Add saved master brightness/fade duration and temporary playback-independent fade/restore plus immediate latched blackout, shared across preview and Test Window. Toolbar/menu restore remains accessible; Command-Shift-B/Command-Shift-R control blackout/restore.
+- Schema 5 stores libraries/bindings/master settings and migrates schemas 1–4. Preserve colors/source IDs and failed-save safety; enforce manifest-size limits.
+- Bundle 1.11/build 8. All 184 correctness tests passed in Debug/Release; signed universal local app delivered. User visuals remain pending. Milestone source backup prepared; no release/tag/assets requested.
+
+## Local preview — v1.11.2 Locks, Movement and Resets — October 5, 2026
+
+- Add persistent output-geometry locks with preserved member locks, protected drag/nudge/reset/deletion, reachable unlock and lock-aware overlays/sidebar controls.
+- Move all object corners by one bounded offset via center drag, focused arrows or inspector controls; preserve shared mapping/content/playback and block partial moves when a member is locked.
+- Add scoped face/object resets and explicit full-face/shared-input-layout confirmations, preserving identity, membership, links and unrelated settings.
+- Save lock flags in schema 4; older formats migrate unlocked. 150 Debug/Release correctness tests passed; user visuals pending. Keep slice local/uncommitted and bundle 1.10/build 7.
+
+## Local preview — v1.11.1 Appearance, Crop and Flips — October 5, 2026
+
+- Add opacity/brightness/crop/flips, scoped object inheritance and explicit face overrides; preserve output mapping and generator values.
+- Share final RGB/alpha compositing and content transforms across preview/output; preserve joined sampling and report divergent overrides.
+- Persist appearance in schema 3 with schema 1/2 defaults; include saved baselines, recovery and copy/detach/group policies.
+- All 138 correctness tests passed in Debug/Release. User visuals pending. Intermediate slice stays local/uncommitted with bundle 1.10/build 7.
+
 ## v1.10 — Save & Load source milestone — October 5, 2026
 
 - Add native Save/Save As/Open/Recent commands and portable validated .projectionmap packages preserving grouped/standalone layouts, content, presets and stable identities.
 - Add atomic replacement, saved baselines and Save/Discard/Cancel lifecycle protection; failed saves retain the last good project.
 - Add debounced untitled/saved recovery with restore/later/delete and ten-copy retention. Reload paused with fresh clocks and safe output fallback.
-- Bundle 1.10/build 7. All 128 Debug/Release correctness tests passed; native visual acceptance belongs to the user. GitHub source backup authorized before v1.11.1; no release/tag/assets requested.
+- Bundle 1.10/build 7. All 128 Debug/Release correctness tests passed; native visual acceptance belongs to the user. GitHub source backup successfully pushed to main at 55d242c before v1.11.1; no release/tag/assets requested.
 
 ## v1.09 — Source milestone — October 5, 2026
 

@@ -25,6 +25,13 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .appInfo) {
             Button("About Projection Mapper") { coordinator.showAbout() }
         }
+        CommandMenu("Show") {
+            Button("Immediate Blackout") { coordinator.session.blackoutOutput() }
+                .keyboardShortcut("b", modifiers: [.command, .shift])
+            Button("Fade to Black") { coordinator.session.fadeToBlack() }
+            Button("Restore Output") { coordinator.session.restoreOutput() }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+        }
         CommandGroup(after: .windowArrangement) {
             Button("Show Editor") { coordinator.showEditor() }
                 .keyboardShortcut("e", modifiers: [.command, .control])

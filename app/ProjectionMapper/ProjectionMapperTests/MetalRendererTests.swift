@@ -194,6 +194,12 @@ struct MetalRendererTests {
         positions.withUnsafeBytes { encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 0) }
         var color = SIMD4<Float>(1, 0.25, 0, 1)
         encoder.setFragmentBytes(&color, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
+        var contentKind: UInt32 = 0
+        var appearance = SIMD2<Float>(1,1)
+        var masterGain: Float = 1
+        encoder.setFragmentBytes(&contentKind,length: MemoryLayout<UInt32>.stride,index: 2)
+        encoder.setFragmentBytes(&appearance,length: MemoryLayout<SIMD2<Float>>.stride,index: 9)
+        encoder.setFragmentBytes(&masterGain,length: MemoryLayout<Float>.stride,index: 10)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: positions.count)
         encoder.endEncoding()
         command.commit()

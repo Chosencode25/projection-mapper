@@ -29,10 +29,15 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     let rectanglePipeline: any MTLRenderPipelineState
     let diagnosticTexture: any MTLTexture
     private var prepared: [(RenderSurface, PerspectiveTransform)] = []
+    private var hasVisibleSurface = false
+    private var hasRunningAnimation = false
     static let pixelFormat: MTLPixelFormat = .bgra8Unorm
     static let backgroundColor = MTLClearColorMake(0, 0, 0, 1)
     let diagnostics: RenderDiagnostics?
     private var requestedAt: TimeInterval?
+    private var lastContinuousDemand: Bool?
+    /// The view uses this after a submitted frame, including the completed fade's final frame.
+    var renderDemandDidChange: ((Bool) -> Void)?
     var isDrawingEnabled = true { didSet { if !isDrawingEnabled { requestedAt = nil } } }
     private(set) var scene: RenderScene
     var geometry: NormalizedRectangle { scene.geometry }
@@ -52,6 +57,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         self.device = device
         self.scene = scene
         prepared = scene.surfaces.compactMap { item in item.perspective.map { (item, $0) } }
+        hasVisibleSurface = prepared.contains { $0.0.appearance.opacity > 0 }
+        hasRunningAnimation = prepared.contains { $0.0.appearance.opacity > 0 && $0.0.content.isAnimated && !$0.0.playback.isPaused }
         guard let texture = DiagnosticTexture.make(device: device) else {
             throw MetalInitializationError.diagnosticTextureUnavailable
         }
@@ -83,7 +90,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
     /// Shared by drawable presentation and offscreen GPU verification.
     func encodeScene(to descriptor: MTLRenderPassDescriptor, viewIdentifier: String = "offscreen",
-                     requestTime: TimeInterval? = nil, evaluationTime: Double? = nil) -> (any MTLCommandBuffer)? {
+                     requestTime: TimeInterval? = nil, evaluationTime: Double? = nil,
+                     evaluationUptime: TimeInterval? = nil) -> (any MTLCommandBuffer)? {
         let encodeStart = diagnostics == nil ? nil : ProcessInfo.processInfo.systemUptime
         descriptor.colorAttachments[0].loadAction = .clear
         descriptor.colorAttachments[0].storeAction = .store
@@ -95,8 +103,12 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
         command.label = "Mapped surface output"
         // All faces in this frame evaluate one explicit global time; no per-view frame counter.
-        let seconds = evaluationTime ?? scene.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)
+        let uptime = evaluationUptime ?? ProcessInfo.processInfo.systemUptime
+        let seconds = evaluationTime ?? scene.transport.elapsed(at: uptime)
+        var masterGain = scene.effectiveGain(at: uptime)
+        encoder.setFragmentBytes(&masterGain, length: MemoryLayout<Float>.stride, index: 10)
         for (item, perspective) in prepared {
+            guard masterGain > 0, item.appearance.opacity > 0 else { continue }
             encoder.setRenderPipelineState(rectanglePipeline)
             let positions = item.geometry.trianglePositions
             positions.withUnsafeBytes {
@@ -108,7 +120,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             encoder.setFragmentBytes(&color, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
             encoder.setFragmentBytes(&inverse, length: MemoryLayout<simd_float3x3>.stride, index: 1)
             encoder.setFragmentBytes(&textured, length: MemoryLayout<UInt32>.stride, index: 2)
-            var inputMap = item.inputMap.matrix
+            var inputMap = item.appearance.matrix * item.inputMap.matrix
             encoder.setFragmentBytes(&inputMap, length: MemoryLayout<simd_float3x3>.stride, index: 3)
             let settings = item.generator.isValid ? item.generator : .defaults
             var phaseValue = Float((item.playback.elapsed(at: seconds.isFinite ? seconds : 0) * Double(settings.rate)).truncatingRemainder(dividingBy: 8) / 8)
@@ -121,6 +133,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             var secondary = settings.secondaryColor
             encoder.setFragmentBytes(&phaseValue, length: MemoryLayout<Float>.stride, index: 4)
             encoder.setFragmentBytes(&secondary, length: MemoryLayout<SIMD4<Float>>.stride, index: 5)
+            var appearance = SIMD2(item.appearance.opacity,item.appearance.brightness)
+            encoder.setFragmentBytes(&appearance,length: MemoryLayout<SIMD2<Float>>.stride,index: 9)
             encoder.setFragmentTexture(diagnosticTexture, index: 0)
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: positions.count)
         }
@@ -144,7 +158,18 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
     func setScene(_ scene: RenderScene) {
         self.scene = scene
+        lastContinuousDemand = nil
         prepared = scene.surfaces.compactMap { item in item.perspective.map { (item, $0) } }
+        hasVisibleSurface = prepared.contains { $0.0.appearance.opacity > 0 }
+        hasRunningAnimation = prepared.contains { $0.0.appearance.opacity > 0 && $0.0.content.isAnimated && !$0.0.playback.isPaused }
+    }
+
+    func updateRenderingDemand(at uptime: TimeInterval) {
+        let continuous = isDrawingEnabled && scene.needsContinuousRendering(at: uptime,
+            hasVisibleSurface: hasVisibleSurface, hasRunningAnimation: hasRunningAnimation)
+        guard lastContinuousDemand != continuous else { return }
+        lastContinuousDemand = continuous
+        renderDemandDidChange?(continuous)
     }
 
     func requestDraw(in view: MTKView) {
@@ -165,9 +190,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
         let requestTime = requestedAt
         requestedAt = nil
+        let uptime = ProcessInfo.processInfo.systemUptime
         guard let command = encodeScene(to: descriptor, viewIdentifier: String(describing: ObjectIdentifier(view)),
-                                        requestTime: requestTime) else { return }
+                                        requestTime: requestTime, evaluationUptime: uptime) else { return }
         command.present(drawable)
         command.commit()
+        updateRenderingDemand(at: uptime)
     }
 }

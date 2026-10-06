@@ -25,6 +25,12 @@ struct SurfaceSidebarView: View {
                                     }
                                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
                             }.buttonStyle(.plain)
+                            Button {
+                                if let object = session.project.object(for: face),object.isGeometryLocked { session.selectObject(object.id) }
+                                else { session.setGeometryLocked(!face.layout.isGeometryLocked,faceID: face.id) }
+                            } label: { Image(systemName: session.project.isGeometryLocked(face) ? "lock.fill" : "lock.open") }
+                            .buttonStyle(.plain).help(session.project.object(for: face)?.isGeometryLocked == true ? "Inspect the locking object" : "Toggle face geometry lock")
+                            .accessibilityLabel("Geometry lock for " + face.name)
                             Button { session.setVisible(!face.layout.isVisible, faceID: face.id) } label: {
                                 Image(systemName: face.layout.isVisible ? "eye" : "eye.slash")
                             }.buttonStyle(.plain).accessibilityLabel("Toggle visibility of \(face.name)")
@@ -41,6 +47,9 @@ struct SurfaceSidebarView: View {
                                 Button { session.selectObject(object.id) } label: {
                                     Label(object.name, systemImage: "cube").frame(maxWidth: .infinity, alignment: .leading)
                                 }.buttonStyle(.plain)
+                                Button { session.setGeometryLocked(!object.isGeometryLocked,objectID: object.id) } label: {
+                                    Image(systemName: object.isGeometryLocked ? "lock.fill" : "lock.open")
+                                }.buttonStyle(.plain).help("Toggle object geometry lock").accessibilityLabel("Geometry lock for " + object.name)
                                 Button { session.setVisible(!object.isVisible, objectID: object.id) } label: {
                                     Image(systemName: object.isVisible ? "eye" : "eye.slash")
                                 }.buttonStyle(.plain).accessibilityLabel("Toggle visibility of \(object.name)")

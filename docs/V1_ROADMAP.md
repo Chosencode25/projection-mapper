@@ -2,7 +2,7 @@
 
 V1 targets a native Mac mapping workspace for images, videos and built-in animations on multiple surfaces. Faces can form objects with shared content coordinates so content continues across joined faces. Reusable looks/palettes, masks, time-based playback, an editor-only house photo and portable projects prepare it for musical shows. V1 acceptance remains Test Mode; fullscreen projector implementation and physical acceptance are scheduled for v2.01.
 
-See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). v1.08 is implemented and locally accepted; v1.09 is implemented and automatically verified with user visual acceptance pending; v1.10 Save & Load is implemented locally and automatically verified; v1.11 onward remains planned. See [V2 music/show roadmap](V2_ROADMAP.md) and [detailed V2 implementation steps](V2_IMPLEMENTATION_PLAN.md) for the next major version.
+See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). v1.08 is implemented and locally accepted; v1.09 is implemented and automatically verified with user visual acceptance pending; v1.10 Save & Load is implemented locally and automatically verified; v1.11 Surface Controls is implemented and automatically verified, with user visuals pending; v1.12 onward remains planned. See [V2 music/show roadmap](V2_ROADMAP.md) and [detailed V2 implementation steps](V2_IMPLEMENTATION_PLAN.md) for the next major version.
 
 | Stage | Scope |
 |---|---|
@@ -16,8 +16,8 @@ See [ordered implementation steps for every remaining milestone](V1_REMAINING_PL
 | [1.08 — Multiple Surfaces](V1.08_PLAN.md) | Ordered surfaces, named object groups/tags, separate layout/content ownership, shared input maps, manual edge alignment and visibility. Implemented and locally accepted; see [verification](V1.08_VERIFICATION.md). |
 | [1.09 — Built-In Animations](V1.09_PLAN.md) | Gradients, plasma, noise, checkers, moving lines, particles; deterministic elapsed-time playback/seek, shared object generators and reusable generator presets. |
 | 1.10 — Save & Load | Versioned portable layout/content/preset data, objects/tags/input maps, output settings, autosave and recovery; explicit later-feature and V2 migration contracts. |
-| 1.11 — Surface Controls | Opacity/brightness/crop/flip/locks/resets; object/face scope; reusable looks/palettes; master visual brightness and fade/restore. |
-| 1.12 — Mapping Tools | Calibration, global blackout, editor handles and join diagnostics; saved basic face-local polygon masks/cutout holes. |
+| 1.11 — Surface Controls | Opacity/brightness/crop/flip/locks/resets; object/face scope; reusable looks/palettes; master brightness/fade/restore and immediate blackout. |
+| 1.12 — Mapping Tools | Calibration integrated with existing blackout, editor handles and join diagnostics; saved basic face-local polygon masks/cutout holes. |
 | 1.13 — Images | PNG/JPEG import/drop, placement and shared object textures; portable assets; separate editor-only house/display reference photo. |
 | 1.14 — Video | AVFoundation video into Metal; deterministic requested-time playback and shared object player/frame; explicit embedded-audio routing/mute; portable media/preferences. |
 | 1.15 — Polish & Release | Undo/redo and recovery for all new data, playback-readiness report, object identification, portable demos, profiling and accurate Test Mode packaging/upload. |
@@ -38,7 +38,7 @@ The user will not have a projector for a while. Projector-window implementation 
 
 ## v1.04 slices — approved October 5, 2026
 
-See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). v1.07 is also [implemented and locally accepted](V1.07_VERIFICATION.md). v1.08 is also [implemented and locally accepted](V1.08_VERIFICATION.md). Next active development milestone after v1.10 delivery: v1.11 Surface Controls. See the reordered remaining roadmap below.
+See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). v1.07 is also [implemented and locally accepted](V1.07_VERIFICATION.md). v1.08 is also [implemented and locally accepted](V1.08_VERIFICATION.md). Next active development milestone after v1.11 delivery: v1.12 Mapping Tools. See the reordered remaining roadmap below.
 
 | Slice | Scope | Finished when |
 |---|---|---|
@@ -122,3 +122,15 @@ All three v1.09 slices are now implemented and automatically verified; full visu
 ## Current delivery — October 5, 2026
 
 v1.09 source is backed up on GitHub main at 9e64c0a. v1.10 Save & Load is implemented locally and automatically verified; it remains off GitHub as requested. See [verification](V1.10_VERIFICATION.md). Native visual checks belong to the user. Next: v1.11 Surface Controls. Earlier chronological entries above remain historical.
+
+## v1.11 staged implementation — October 5, 2026
+
+v1.10 is backed up on GitHub main at 55d242c. The local v1.11.1 slice adds appearance/crop/flips and explicit object/face overrides with persistence. v1.11.2 covers locks/group movement/scoped resets; v1.11.3 covers looks/palettes/master controls/fades. See [slice plan](V1.11_PLAN.md) and [current verification](V1.11.1_VERIFICATION.md). User visuals are pending; intermediate slices stay local.
+
+## v1.11.2 local implementation — October 5, 2026
+
+Locks, bounded object translation and scoped resets are implemented locally. All 150 Debug/Release correctness tests passed; visual acceptance belongs to the user. Schema 4 adds lock persistence/migration. See [verification](V1.11.2_VERIFICATION.md). No intermediate Git upload or bundle bump. Next: v1.11.3 looks/palettes/master controls.
+
+## v1.11 completed implementation — October 6, 2026
+
+All three slices are implemented; all 184 Debug/Release correctness tests passed. The 1.11/build 8 universal app is delivered locally; source backup is ready at the milestone boundary. See [verification](V1.11.3_VERIFICATION.md). User visuals remain pending. Next: v1.12 Mapping Tools, extending the same global blackout to calibration and face-local masks. No new release/tag/assets requested.

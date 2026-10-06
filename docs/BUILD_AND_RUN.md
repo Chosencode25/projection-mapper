@@ -122,3 +122,17 @@ Installed app/product/evidence are under app/ProjectionMapper.app and builds/v1.
 ## v1.10 Save & Load
 
 Current local source/build is v1.10/build 7. Use builds/v1.10/DerivedData for build/test commands; products are copied to builds/v1.10/ProjectionMapper.app and app/ProjectionMapper.app after verification. File commands: Command-S Save, Shift-Command-S Save As, Command-O Open, Open Recent, Recover Unsaved Project. Projects use .projectionmap packages and reopen paused. Recovery is separate from manual save and updates after two seconds of editing inactivity. See [verification](V1.10_VERIFICATION.md) for automated evidence and user visual checks. v1.09 source is backed up on GitHub; v1.10 is explicitly local/uncommitted. Historical slice descriptions above describe their deliveries at the time.
+
+## v1.11.1 appearance preview
+
+Current preview source/products/evidence use builds/v1.11.1/DerivedData and builds/v1.11.1/ProjectionMapper.app, installed at app/ProjectionMapper.app after verification. Bundle stays 1.10/build 7 until the x.xx milestone boundary. Inspect a standalone face or object for opacity/brightness/crop/flips; member faces inherit object controls until "Override object appearance on this face" is enabled. Schema 3 saves include these controls; schema 1/2 load with defaults. See [verification](V1.11.1_VERIFICATION.md). v1.10 source is backed up at 55d242c; this slice is local/uncommitted. Quit/reopen an already running app to pick up the new binary.
+
+## v1.11.2 editing protection preview
+
+Current source/products/evidence use builds/v1.11.2/DerivedData and builds/v1.11.2/ProjectionMapper.app, installed to app/ProjectionMapper.app after verification. Bundle remains 1.10/build 7. Use sidebar/inspector locks to protect output geometry. Select an object and click/drag its center square, use arrows/Shift-arrows, or inspector steps/normalized offsets to move all members together. Any member lock blocks the whole move. Reset menus clearly separate face/shared controls and input layout; full-face and input-layout resets have confirmations. Schema 4 stores locks; schema 1–3 migrate. See [verification](V1.11.2_VERIFICATION.md). Quit/reopen a running older instance to use this preview. No intermediate commit/upload.
+
+## v1.11 completed Surface Controls milestone
+
+Current tested product is 1.11/build 8 at app/ProjectionMapper.app and builds/v1.11/ProjectionMapper.app, with Debug/Release logs/results in builds/v1.11.3/. Use builds/v1.11.3/DerivedData for current builds. Exact pinned Xcode 27A5237l; macOS 15.0 minimum; universal arm64/x86_64 build, tests run on Apple Silicon. All 184 correctness tests passed; four optional benchmarks skipped.
+
+The project inspector offers Master Output, Looks and Palettes. Add palette slots, then choose a binding beside a selected owner's primary/secondary color. Save New Look captures current content/appearance; Apply preserves mapping/locks and reports missing targets. Palette removal keeps resolved colors. Fade duration accepts 0–30 seconds; fade/restore completes while generators are paused. Immediate Blackout is in the toolbar/Show menu (Command-Shift-B); Restore (Command-Shift-R) fades from black to saved master brightness. Runtime output actions do not dirty the project. Schema 5 libraries/settings save and recover; schemas 1–4 migrate. See [verification](V1.11.3_VERIFICATION.md). Quit/reopen a running older app to use the new binary. User visuals remain pending; no routine screen control is required.

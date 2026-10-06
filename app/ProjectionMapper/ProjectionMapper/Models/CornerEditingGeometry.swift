@@ -22,6 +22,9 @@ extension NormalizedRectangle {
         case .bottomLeft: bottomLeft
         }
     }
+    func translated(by delta: SIMD2<Float>) -> Self {
+        Self(topLeft: topLeft + delta,topRight: topRight + delta,bottomRight: bottomRight + delta,bottomLeft: bottomLeft + delta)
+    }
     func replacing(_ corner: SurfaceCorner, with point: SIMD2<Float>) -> Self {
         Self(topLeft: corner == .topLeft ? point : topLeft,
              topRight: corner == .topRight ? point : topRight,

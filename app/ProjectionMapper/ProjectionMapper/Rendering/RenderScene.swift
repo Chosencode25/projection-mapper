@@ -90,22 +90,42 @@ struct RenderSurface: Equatable, Sendable {
     var inputMap: FaceInputMap = .full
     var generator: GeneratorSettings = .defaults
     var sourceID: UUID?
+    var appearance = SurfaceAppearance.defaults
     var playback = SourcePlayback()
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.geometry == rhs.geometry && lhs.color == rhs.color && lhs.content == rhs.content &&
-        lhs.inputMap == rhs.inputMap && lhs.generator == rhs.generator && lhs.playback == rhs.playback
+        lhs.inputMap == rhs.inputMap && lhs.generator == rhs.generator && lhs.playback == rhs.playback && lhs.appearance == rhs.appearance
     }
-    var perspective: PerspectiveTransform? { inputMap.isValid ? PerspectiveTransform(geometry) : nil }
+    var perspective: PerspectiveTransform? { inputMap.isValid && appearance.isValid ? PerspectiveTransform(geometry) : nil }
 }
 
 /// Immutable collection shared by preview/output; items already in back-to-front draw order.
 struct RenderScene: Equatable, Sendable {
     let surfaces: [RenderSurface]
     var transport = AnimationTransport()
-    var hasAnimation: Bool { surfaces.contains { $0.content.isAnimated && $0.perspective != nil } }
-    var needsContinuousRendering: Bool { transport.isPlaying && surfaces.contains { $0.content.isAnimated && $0.perspective != nil && !$0.playback.isPaused } }
-    init(surfaces: [RenderSurface], transport: AnimationTransport = AnimationTransport()) {
+    var masterBrightness: Float = 1
+    var showOutput = ShowOutputState()
+    var hasAnimation: Bool { surfaces.contains { $0.content.isAnimated && $0.appearance.opacity > 0 && $0.perspective != nil } }
+    var needsContinuousRendering: Bool { needsContinuousRendering(at: ProcessInfo.processInfo.systemUptime) }
+    func effectiveGain(at uptime: TimeInterval) -> Float {
+        let brightness = masterBrightness.isFinite ? min(1, max(0, masterBrightness)) : 0
+        return brightness * showOutput.gain(at: uptime)
+    }
+    func needsContinuousRendering(at uptime: TimeInterval) -> Bool {
+        let visible = surfaces.filter { $0.appearance.opacity > 0 && $0.perspective != nil }
+        return needsContinuousRendering(at: uptime, hasVisibleSurface: !visible.isEmpty,
+                                        hasRunningAnimation: visible.contains { $0.content.isAnimated && !$0.playback.isPaused })
+    }
+    /// The renderer supplies eligibility cached alongside its prepared geometry.
+    func needsContinuousRendering(at uptime: TimeInterval, hasVisibleSurface: Bool, hasRunningAnimation: Bool) -> Bool {
+        guard masterBrightness.isFinite, masterBrightness > 0, !showOutput.isBlackout else { return false }
+        if showOutput.isFading(at: uptime), hasVisibleSurface { return true }
+        return effectiveGain(at: uptime) > 0 && transport.isPlaying && hasRunningAnimation
+    }
+    init(surfaces: [RenderSurface], transport: AnimationTransport = AnimationTransport(),
+         masterBrightness: Float = 1, showOutput: ShowOutputState = ShowOutputState()) {
         self.surfaces = surfaces; self.transport = transport
+        self.masterBrightness = masterBrightness; self.showOutput = showOutput
     }
     init(geometry: NormalizedRectangle, color: SIMD4<Float>, content: SurfaceContent = .solid) {
         surfaces = [RenderSurface(geometry: geometry, color: color, content: content)]

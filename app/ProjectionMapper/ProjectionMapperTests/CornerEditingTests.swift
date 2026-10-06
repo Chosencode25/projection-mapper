@@ -130,4 +130,66 @@ struct CornerEditingTests {
         }
         #expect(CornerOverlayView.direction(keyCode: 0, modifiers: []) == nil)
     }
+    @Test func nativeLocksBlockDragAndKeysAndCancelAnActiveDrag() throws {
+        _ = NSApplication.shared
+        let s = EditorSession(), id = s.project.surfaces[0].id
+        let view = CornerOverlayView(frame: CGRect(x: 0,y: 0,width: 424,height: 424))
+        let window = NSWindow(contentRect: view.frame,styleMask: [.titled],backing: .buffered,defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = view
+        defer { window.contentView = nil; window.close() }
+        func configure(_ locked: Bool) {
+            view.configure(surfaceID: id,corners: s.project.surfaces[0].corners,activeCorner: s.selectedCorner,
+                select: { s.selectCorner($0) },move: { s.moveSelectedCorner(to: $0,surfaceID: id) },
+                nudge: { s.nudgeSelectedCorner(direction: $0,larger: $1) },isLocked: locked)
+        }
+        func mouse(_ type: NSEvent.EventType,_ point: CGPoint) throws -> NSEvent {
+            try #require(NSEvent.mouseEvent(with: type,location: view.convert(point,to: nil),modifierFlags: [],timestamp: 0,
+                windowNumber: window.windowNumber,context: nil,eventNumber: 1,clickCount: 1,pressure: 1))
+        }
+        let arrow = try #require(NSEvent.keyEvent(with: .keyDown,location: .zero,modifierFlags: .shift,timestamp: 0,windowNumber: window.windowNumber,context: nil,characters: "",charactersIgnoringModifiers: "",isARepeat: true,keyCode: 124))
+        s.setGeometryLocked(true,faceID: id); configure(true); let before = s.project
+        let center = SurfaceCoordinates.position(s.project.surfaces[0].corners.topLeft,in: view.previewRect)
+        view.mouseDown(with: try mouse(.leftMouseDown,center)); view.mouseDragged(with: try mouse(.leftMouseDragged,CGPoint(x: center.x+40,y: center.y+40))); view.keyDown(with: arrow)
+        #expect(s.project == before && s.selectedSurfaceID == id && window.firstResponder === view)
+        s.setGeometryLocked(false,faceID: id); configure(false)
+        view.mouseDown(with: try mouse(.leftMouseDown,center))
+        s.setGeometryLocked(true,faceID: id); configure(true); let interrupted = s.project
+        s.setGeometryLocked(false,faceID: id); configure(false)
+        view.mouseDragged(with: try mouse(.leftMouseDragged,CGPoint(x: center.x+40,y: center.y+40)))
+        #expect(s.project.surfaces[0].corners == interrupted.surfaces[0].corners)
+        view.keyDown(with: arrow); #expect(abs(s.project.surfaces[0].corners.topLeft.x-0.26) < 0.000001)
+    }
+    @Test func nativeObjectCenterDragAndArrowKeysMoveTogetherAndHonorLocks() throws {
+        _ = NSApplication.shared
+        let s = EditorSession(); s.addSurface(); s.createObject(faceIDs: Set(s.project.surfaces.map(\.id)))
+        let id = try #require(s.selectedObjectID)
+        let view = CornerOverlayView(frame: CGRect(x: 0,y: 0,width: 424,height: 624))
+        let window = NSWindow(contentRect: view.frame,styleMask: [.titled],backing: .buffered,defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = view
+        defer { window.contentView = nil; window.close() }
+        func configure() {
+            view.configure(surfaceID: nil,corners: .diagnostic,activeCorner: nil,select: { s.selectCorner($0) },move: { _ in },nudge: { _,_ in },
+                isLocked: !s.project.canMoveObject(id),objectID: id,objectBounds: s.project.outputBounds(forObject: id),
+                moveObject: { s.moveObject(id,by: $0) },nudgeObject: { s.nudgeSelectedObject(direction: $0,larger: $1) })
+        }
+        func mouse(_ type: NSEvent.EventType,_ point: CGPoint) throws -> NSEvent {
+            try #require(NSEvent.mouseEvent(with: type,location: view.convert(point,to: nil),modifierFlags: [],timestamp: 0,
+                windowNumber: window.windowNumber,context: nil,eventNumber: 1,clickCount: 1,pressure: 1))
+        }
+        let arrow = try #require(NSEvent.keyEvent(with: .keyDown,location: .zero,modifierFlags: .shift,timestamp: 0,windowNumber: window.windowNumber,context: nil,characters: "",charactersIgnoringModifiers: "",isARepeat: true,keyCode: 124))
+        configure(); let before = s.project
+        let center = SurfaceCoordinates.position(SIMD2(0.5,0.5),in: view.previewRect)
+        view.mouseDown(with: try mouse(.leftMouseDown,center)); view.mouseDragged(with: try mouse(.leftMouseDragged,CGPoint(x: center.x+40,y: center.y+60)))
+        configure(); view.mouseUp(with: try mouse(.leftMouseUp,CGPoint(x: center.x+40,y: center.y+60))); view.keyDown(with: arrow)
+        for (old,new) in zip(before.surfaces,s.project.surfaces) {
+            #expect(abs(new.corners.topLeft.x-old.corners.topLeft.x-0.11) < 0.000001 && abs(new.corners.topLeft.y-old.corners.topLeft.y-0.1) < 0.000001)
+            #expect(new.layout.inputMap == old.layout.inputMap)
+        }
+        s.setGeometryLocked(true,objectID: id); configure(); let locked = s.project
+        view.keyDown(with: arrow)
+        let movedCenter = SurfaceCoordinates.position(SIMD2(0.61,0.6),in: view.previewRect)
+        view.mouseDown(with: try mouse(.leftMouseDown,movedCenter)); view.mouseDragged(with: try mouse(.leftMouseDragged,CGPoint(x: movedCenter.x+30,y: movedCenter.y+30)))
+        #expect(s.project == locked && s.selectedObjectID == id)
+    }
+
 }
