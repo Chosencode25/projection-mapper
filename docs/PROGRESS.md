@@ -282,3 +282,9 @@ Completed milestones and historical acceptance records retain their original num
 ## Remaining milestone steps — October 5, 2026
 
 Expanded all eight reordered milestones into [ordered implementation and verification steps](V1_REMAINING_PLAN.md), including collection/renderer migration, shared animation timing, early saving and later schema/media extensions, surface controls, calibration/blackout, image/video resources, and final undo/redo/packaging/upload. Planning only: no feature implementation, app changes, builds, tests or publication. Next implementation remains v1.08 Multiple Surfaces.
+
+## Connected object faces planned — October 5, 2026
+
+User approved adding object grouping and continuous content across faces to the whole plan. Updated development requirements, roadmap and every remaining milestone in [the detailed plan](V1_REMAINING_PLAN.md): v1.08 adds object membership/shared input maps/manual edge alignment; v1.09 adds shared generators and cross-face motion; v1.10 saves that structure; v1.11–v1.15 cover scoped controls, continuity diagnostics, shared image/video ownership, undo/redo, demo and final acceptance. Continuous and Repeat modes are explicit; standalone/detached faces remain supported. Manual flat layouts can contain deliberate seams; full 3D reconstruction is future scope.
+
+Documentation-only update: reviewed scope/dependencies and checked the diff; no app code, build, screen use, feature implementation, version bump or release. v1.07 remains the latest accepted app.

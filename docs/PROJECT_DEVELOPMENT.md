@@ -40,3 +40,7 @@ Use `/Users/keith/Documents/Projection Mapping` for project work. Keep the origi
 ## Test Mode first — October 5, 2026 scope update
 
 The user explicitly deferred projector output implementation and physical testing. v1.03 is split into 1.03.1 basic Test Window, 1.03.2 resolution/scaling, and 1.03.3 window behavior/polish. Test-only milestones can be accepted and merged after local verification; missing projector hardware is no longer a release blocker for that scope. Preserve the shared-renderer direction for v1.04 and record external behavior as deferred/unverified.
+
+## Connected object faces — October 5, 2026 requirement
+
+The approved remaining V1 plan includes optional object groups whose faces share one content canvas and content owner. Each face retains independent output corners and a separate input mapping; manual edge alignment, orientation/scale validation and deliberate seams establish continuity. Continuous mode spans linked faces; Repeat uses shared timing with repeated whole content. Use one generator seed/time or video player/frame per linked object. Carry stable membership, shared maps/links and content ownership through saving, controls, calibration, imports, resource cleanup and undo/redo. Keep standalone surfaces and explicit detach supported. This is planned work beginning in v1.08, with animations in v1.09; full 3D reconstruction and physical projector checks remain deferred. See [remaining milestone plan](V1_REMAINING_PLAN.md).

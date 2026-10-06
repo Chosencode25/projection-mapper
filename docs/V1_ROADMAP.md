@@ -1,6 +1,6 @@
 # V1 Roadmap — Core Mapper
 
-V1 is a native Mac app for projecting images, videos, and built-in animations onto multiple surfaces using four-corner mapping. The editor stays on the Mac; clean output appears in a separate test window or on a projector.
+V1 is a native Mac app for projecting images, videos, and built-in animations onto multiple surfaces using four-corner mapping. Faces can form objects with shared content coordinates so animations and media continue across joined faces. The editor stays on the Mac; clean output appears in a separate test window or on a projector.
 
 See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). Those steps are planned, not implemented.
 
@@ -13,14 +13,14 @@ See [ordered implementation steps for every remaining milestone](V1_REMAINING_PL
 | [1.05 — First Surface](V1.05_PLAN.md) | Implemented and locally accepted: one project-owned surface, four normalized corners, initial rectangle, sidebar selection and inspector. |
 | [1.06 — Corner Nodes](V1.06_PLAN.md) | Implemented and locally accepted: draggable handles, live output updates, focused arrow-key nudging, larger Shift nudges. |
 | [1.07 — Perspective Warp](V1.07_PLAN.md) | Implemented and locally accepted: projective diagnostic textures, trapezoids, safe invalid geometry and recovery. |
-| 1.08 — Multiple Surfaces | Add/select/rename/duplicate/delete/reorder surfaces and toggle visibility. Next active milestone. |
-| 1.09 — Built-In Animations | Gradients, plasma, noise, checkers, moving lines, particles/starfield; speed, scale, color, intensity controls. |
-| 1.10 — Save & Load | Versioned project files; surface geometry, generator settings, output configuration; autosave and recent projects. Extend saved media references when import arrives. |
-| 1.11 — Surface Controls | Opacity, brightness, crop, flipping, resets, and locking. |
-| 1.12 — Mapping Tools | Grid, checkerboard, crosshairs, white/black output, global blackout, handle visibility. |
-| 1.13 — Images | PNG/JPEG import and drag/drop; fit/fill/stretch; aspect ratio; replace/remove; integrate media references with saved projects. |
-| 1.14 — Video | System-supported video import; AVFoundation frames into Metal; play/pause, restart, loop, speed; integrate media references/playback settings with saved projects. |
-| 1.15 — Polish & Release | Undo/redo, shortcuts, error and missing-media handling, disconnect warning, welcome/demo, profiling, icon, signing, DMG, final verification and release upload. |
+| 1.08 — Multiple Surfaces | Add/select/rename/duplicate/delete/reorder surfaces and toggle visibility; object groups, shared-canvas input maps and static edge alignment. Next active milestone. |
+| 1.09 — Built-In Animations | Gradients, plasma, noise, checkers, moving lines, particles/starfield; speed, scale, color, intensity controls; shared object generators and continuous motion across linked faces. |
+| 1.10 — Save & Load | Versioned project files; surface geometry, object membership, input maps/edge links, generator settings, output configuration; autosave and recent projects. Extend saved media references when import arrives. |
+| 1.11 — Surface Controls | Opacity, brightness, crop, flipping, resets, and locking; object/face scope, inherited locks and group movement. |
+| 1.12 — Mapping Tools | Grid, checkerboard, crosshairs, white/black output, global blackout, handle visibility; object/edge continuity diagnostics. |
+| 1.13 — Images | PNG/JPEG import and drag/drop; fit/fill/stretch; aspect ratio; shared images spanning object faces; replace/remove; integrate media references with saved projects. |
+| 1.14 — Video | System-supported video import; AVFoundation frames into Metal; play/pause, restart, loop, speed; shared player/frame across object faces; integrate media references/playback settings with saved projects. |
+| 1.15 — Polish & Release | Undo/redo including object edits, continuity demo/checks, shortcuts, error and missing-media handling, disconnect warning, welcome/demo, profiling, icon, signing, DMG, final verification and release upload. |
 
 The first major mapping milestone is 1.07. A temporary developer test texture or pattern can exercise warping before image/video import, now scheduled after the core mapping tools; full calibration tools remain planned for 1.12.
 
@@ -65,8 +65,8 @@ These are subjective implementation/testing-complexity estimates relative to thi
 | 1.05 — First Surface | 3/10 | Geometry model and selection on the renderer. |
 | 1.06 — Corner Nodes | 6/10 | Dragging, coordinate conversion, nudging, live updates. |
 | 1.07 — Perspective Warp | 8/10 | Mapping math, texture correctness, extreme shapes. |
-| 1.08 — Multiple Surfaces | 6/10 | Selection, ordering, duplication, visibility, multiple draws. |
-| 1.09 — Built-In Animations | 7/10 | Several shaders, controls, consistent performance. |
+| 1.08 — Multiple Surfaces | 6/10 | Selection, ordering, object membership, input maps, edge alignment, multiple draws. |
+| 1.09 — Built-In Animations | 7/10 | Several shaders, shared object coordinates/timing, cross-face motion, performance. |
 | 1.10 — Save & Load | 8/10 | Reliable files, generator settings, autosave, migrations, recovery; later media extensions. |
 | 1.11 — Surface Controls | 5/10 | Controls interacting with content and mapping. |
 | 1.12 — Mapping Tools | 4/10 | Patterns and output controls on established rendering. |
@@ -102,3 +102,7 @@ The user explicitly requested this sequence and renumbering: multiple surfaces, 
 | 1.15 | 1.15 | Polish & Release |
 
 Saving begins with the content supported at v1.10; subsequent surface settings and imported media extend that versioned format as their milestones arrive. Image/video import is scheduled later, rather than permanently removed. Physical projector output/testing remains separately deferred; Test Mode and shared rendering remain required. This is an approved roadmap update, not implementation of v1.08 or authorization to publish a release now.
+
+## Connected object faces — approved October 5, 2026
+
+Added throughout the remaining plan: group faces into one object, align their regions on a shared content canvas, and use one content source and timeline across those faces. Continuous mode spans joined faces; Repeat repeats full content with shared timing. Each face retains its output corner geometry. Manual edge alignment and explicit seams are part of v1.08; animated continuity follows in v1.09, persistence in v1.10, then scoped controls, calibration, shared images/video and final acceptance. Full 3D reconstruction is future scope. See the [complete requirements and milestone steps](V1_REMAINING_PLAN.md). Planning only: v1.07 remains the implemented app.
