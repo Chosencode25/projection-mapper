@@ -1,6 +1,6 @@
 # V2 Roadmap — Music and Show Playback
 
-Status: planned only, October 5, 2026. The user requested revising V1 foundations and planning V2 after research into projection mapping, Christmas sequencing and show control. v1.07 remains the latest implemented/accepted app. These milestone numbers describe implementation order; they do not authorize implementation, version bumps or publication now.
+Status: planned only, October 5, 2026. The user requested revising V1 foundations and planning V2 after research into projection mapping, Christmas sequencing and show control. v1.08 remains the latest implemented/locally accepted app (local-only delivery). These milestone numbers describe implementation order; they do not authorize implementation, version bumps or publication now.
 
 V2 turns the V1 mapper into a native Mac workspace for building repeatable projection shows to music, rehearsing them, coordinating with an existing lighting system and running playlists. Map the display once, reuse it across songs, and keep Test Mode available for editing without hardware. Preserve connected object faces and their shared content coordinates.
 

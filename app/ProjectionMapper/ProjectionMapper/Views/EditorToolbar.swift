@@ -13,6 +13,7 @@ struct EditorToolbar: View {
             .help(session.isSidebarVisible ? "Hide sidebar" : "Show sidebar")
             .accessibilityLabel("Toggle sidebar")
             Button(action: newProject) { Label("New Project", systemImage: "doc.badge.plus") }
+            Button("Add Surface", systemImage: "plus") { session.addSurface() }
             Spacer()
             HStack(spacing: 8) {
                 Image(systemName: "viewfinder").foregroundStyle(.purple)

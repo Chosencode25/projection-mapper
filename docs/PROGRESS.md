@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.07 Perspective Warp is implemented and locally accepted. New projects use a diagnostic grid; one validated projective transform maps content in shared preview/output without a triangle seam. Invalid shapes clear safely with stable editor warning layout and overlapping-handle recovery. All 79 correctness tests passed in Debug/Release with Xcode 27.0 beta 5 (27A5237l); vital screen checks passed. Signed Release copies: builds/v1.07/ProjectionMapper.app and app/ProjectionMapper.app; source preserved on GitHub main. Bundle remains 1.04.2/build 4; latest published release is [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next active milestone: v1.08 Multiple Surfaces; its planned scope now includes object groups, shared input maps and separate layout/content ownership. Remaining milestones were reordered and renumbered; image/video import now follows core tools at v1.13/v1.14. Physical projector/display transitions remain deferred.
+v1.09.3 Presets, Seeking and Final Animation Checks is implemented and automatically verified; full v1.09 implementation is ready for user visual acceptance. The installed app is app/ProjectionMapper.app with a preserved product in builds/v1.09.3/. All 111 correctness tests passed in Debug/Release using required Xcode 27.0 beta 5 (27A5237l). Presets/reset, bounded seek, owner-scoped pause/restart and deterministic effect replay are implemented. Mixed and heavy-overlap GPU workloads were measured. User visuals: v1.09.1 explicitly accepted; v1.09.2/.3 feedback pending. No routine screen control was used. Bundle remains 1.08/build 5 while full v1.09 acceptance/version/history delivery is pending; no commit/push/tag/archive/GitHub release. Last known remote main is prior v1.07; latest published release remains v1.04.2. Next build milestone after acceptance: v1.10 Save & Load.
 
 ## Completed
 
@@ -24,13 +24,13 @@ v1.07 Perspective Warp is implemented and locally accepted. New projects use a d
 
 ## Current acceptance and next milestone
 
-v1.07 is complete for local Test Mode and saved to tested main. See [verification](V1.07_VERIFICATION.md), [five-step plan](V1.07_PLAN.md) and [roadmap](V1_ROADMAP.md). The user approved a reordered and renumbered remaining roadmap. Next: v1.08 Multiple Surfaces, then v1.09 Built-In Animations and v1.10 Save & Load. Future work is planned, not implemented. See [updated V1 foundations](V1_REMAINING_PLAN.md) and [V2 show roadmap](V2_ROADMAP.md).
+v1.09 implementation is complete and automatically verified; final visuals belong to the user. See [current verification](V1.09.3_VERIFICATION.md) and [slice plan](V1.09_PLAN.md). Full acceptance and milestone Git/version delivery remain pending visual feedback. Next: v1.10 Save & Load.
 
 ## Scope and limitations
 
-Projects stay in memory. Output selection and preferences are implemented; the Test Window, Metal rectangle rendering, and shared editor preview are implemented. Projector output is deferred; One project surface and corner editing are implemented; perspective textures are implemented and accepted; media import, multiple surfaces and saving are later milestones. Runtime checks used the development Mac on macOS 27.0; older macOS versions and Intel hardware have not been runtime-tested. The local Release build contains arm64 and x86_64 slices; runtime verification is Apple Silicon only.
+Projects stay in memory. Output selection/preferences, a separate resizable Test Window, editable perspective surfaces and static connected-object mapping are implemented. Six built-in effects and shared playback are implemented; generator presets/seeking and scoped runtime playback are implemented; saving, controls/masks and media imports remain later work. Physical projector output remains deferred. Runtime verification used Apple Silicon on the development Mac running macOS 27.0; Intel and older macOS runtime compatibility are unverified. Release includes arm64 and x86_64 slices.
 
-See V1.07_VERIFICATION.md for current evidence, V1.03.1_VERIFICATION.md for the previous milestone, V1.01_VERIFICATION.md for the earlier milestone, and BUILD_AND_RUN.md for instructions.
+See [V1.08_VERIFICATION.md](V1.08_VERIFICATION.md) for current evidence and [BUILD_AND_RUN.md](BUILD_AND_RUN.md) for instructions.
 
 ## GitHub version history
 
@@ -296,3 +296,56 @@ User requested adjusting all V1 planning and planning V2 following research into
 Created [V2 roadmap](V2_ROADMAP.md) and [ordered implementation/acceptance plan](V2_IMPLEMENTATION_PLAN.md): 2.01 projector output/calibration, 2.02 music transport, 2.03 timeline/cues, 2.04 holiday choreography, 2.05 layers/regions/text, 2.06 reusable shows/layouts, 2.07 external synchronization/lighting integration, 2.08 Show Mode/readiness, 2.09 playlists/schedules, 2.10 local remote control, 2.11 export/portable delivery, 2.12 acceptance/release. Includes dependency gates, migration/seek/resource rules, research links and a prioritized later-feature backlog. Integration is conditional on a verified workflow and measured device versions, not assumed full xLights/FPP format support.
 
 Physical hardware remains deferred; v2.01 now provides its future implementation/acceptance stage. V1 is accepted/published as Test Mode scope only until those capabilities are actually delivered. Planning changes only: reviewed document consistency, numbered stages and links; no feature implementation, app build, screen use, version bump, tag or release. v1.07 remains the latest accepted app.
+
+## Git/GitHub delivery cadence changed — October 5, 2026
+
+User requested Git/GitHub activity only when a new app version at the x.xx level is completed. Recorded this as no intermediate commits, pushes, tags or GitHub uploads for planning changes, small fixes or x.xx.x slices unless the user explicitly requests an exception. Read-only Git checks/local branch setup remain available; do not bump a version to create an upload boundary. Eligible milestone delivery does not automatically publish a release. Updated AGENTS.md, workflow and active plan delivery rules locally. These policy edits are intentionally uncommitted/unpushed until the next eligible milestone. Existing history remains intact.
+
+## Known GitHub state preference — October 5, 2026
+
+User states this agent is the sole GitHub writer and requests avoiding redundant remote inspection of known work. Updated local instructions/workflow to rely on local history and the last confirmed remote state, using remote checks only for unknown information, reported problems, evidence of outside changes or explicit requests. Successful delivery output is sufficient confirmation. Policy updates remain local under the x.xx-only delivery rule; no commit/push/upload or remote inspection performed.
+
+
+## v1.08 implementation — local delivery
+
+- [x] All twelve milestone steps implemented: ordered faces, stable layout/source/object IDs, tags, ownership, grouping, input maps/links, add/select/rename/duplicate/delete, visibility/order, dirty/reset behavior and shared collection rendering.
+- [x] Seventeen new focused model/GPU tests; 96 correctness tests passed in both configurations (99 declarations including three skipped opt-in benchmarks).
+- [x] Vital actual-app checks passed for independent warped faces, Continuous/Repeat, clean 4K output, face/object hiding, tags, object duplicate/delete, appearance-preserving ungrouping, empty black output and Cancel/Discard reset.
+- [x] Version 1.08/build 5 universal Release copies installed locally and signatures verified; previous installed build preserved.
+- [x] Local feature branch codex/v1.08-multiple-surfaces; source/documentation intentionally uncommitted and unpushed under this delivery's explicit exception.
+
+## v1.08 local follow-up — canvas face selection
+
+Clicking a rendered face in the editor selects its inspector/sidebar row, choosing the frontmost visible valid face when shapes overlap. Empty canvas deselects; selected corner handles keep drag priority. Picking works when no face or an object was previously selected, without dirtying the project. Required Xcode 27.0 beta 5 (27A5237l) reverified. Full Release suite passed 97 correctness tests (100 declarations including three skipped benchmarks), and focused native input/drag tests passed after adding native click/margin assertions. Logs: builds/v1.08/ClickSelection.log and ClickRouting.log. Refreshed signed Release copies in builds/v1.08/ and app/ProjectionMapper.app. No version bump, commit or GitHub upload. No additional manual screen session was needed for this follow-up.
+
+## v1.09.1 implementation — local preview delivered
+
+Shared elapsed-time transport, Play/Pause/Restart/speed, animated gradient/moving lines/checkers and two-color editing are implemented. Static/paused views retain on-demand rendering; eligible playing views use native display scheduling and resume at the shared phase. Full Debug and Release suites passed 102 correctness tests (105 declarations, three opt-in benchmarks skipped). Universal signed Release copies installed in builds/v1.09.1/ and app/ProjectionMapper.app; prior installed app preserved. Bundle remains 1.08/build 5 for this intermediate slice. Work is local with no GitHub delivery.
+
+Vital screen playback acceptance is pending: the Mac was locked and automatic unlock failed. No manual motion/controls pass is claimed. See [verification](V1.09.1_VERIFICATION.md) and [three-slice plan](V1.09_PLAN.md). v1.08 remains the last milestone with complete local visual acceptance; the installed app now includes the automatically verified v1.09.1 preview. v1.09.2/.3 remain planned.
+
+## Visual checks and v1.09.2 — current work
+
+The user confirmed v1.09.1 visual playback checks worked. v1.09.1 is now accepted with user-reported visual evidence. They will perform routine visual checks until changing this preference; no screen control for routine acceptance. v1.09.2 effects/settings are implemented; automated correctness/performance verification and local delivery are in progress. v1.09.3 remains planned; no GitHub delivery for these slices.
+
+## v1.09.2 — local delivery
+
+- [x] Plasma, seeded animated value noise and analytic seeded particle field; existing gradient/lines/checkers gain effect settings.
+- [x] Bounded owner settings and relevant-only controls; shared source edits preserve corners, input maps and global runtime transport.
+- [x] 105 correctness tests pass in both configurations; new boundary/seed/limits/isolation tests plus expanded all-effect deterministic three-face GPU checks.
+- [x] Separate opt-in Release mixed-effect matrix across all presets: six faces per view, two views, 20 measured pairs per preset; 4K GPU pair p95 1.6783 ms (workload timing, not visible FPS).
+- [x] Universal ad-hoc signed app installed locally; previous installed app preserved. No source commit/upload or bundle bump.
+- [ ] User visual check of new effects/settings; no routine screen control performed by the agent.
+
+## v1.09.3 — local delivery
+
+- [x] Bounded project-owned presets, save/apply/update/delete/reset, preserving mapping and runtime phase.
+- [x] Global bounded seeking/scrubbing and elapsed readout; source-scoped pause/resume/restart with duplicate/detach/cleanup policies.
+- [x] All 111 correctness tests passed in final Debug/Release runs, including backward loop replay, preset isolation, scope and reversed particle continuity.
+- [x] Mixed/overlap profiling across all presets: 4K pair p95 2.1578 ms mixed; 44.5873 ms for eight overlapping particle faces per view. Heavy 4K overlap does not meet a 60 Hz two-view budget.
+- [x] Universal signed app installed locally, previous app preserved. No screen control or GitHub delivery.
+- [ ] User visual acceptance of v1.09.2/.3; full milestone version/history delivery pending.
+
+## v1.09 GitHub delivery — authorized
+
+The user explicitly requested saving v1.09 to GitHub before implementing v1.10 locally. The version is now 1.09/build 6. Final 111-test source and accumulated multiple-surface/animation work will be preserved on tested main; no release/tag/asset publication requested. v1.10 must remain off GitHub. Routine visuals continue to belong to the user.

@@ -28,7 +28,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     let commandQueue: any MTLCommandQueue
     let rectanglePipeline: any MTLRenderPipelineState
     let diagnosticTexture: any MTLTexture
-    private var perspective: PerspectiveTransform?
+    private var prepared: [(RenderSurface, PerspectiveTransform)] = []
     static let pixelFormat: MTLPixelFormat = .bgra8Unorm
     static let backgroundColor = MTLClearColorMake(0, 0, 0, 1)
     let diagnostics: RenderDiagnostics?
@@ -51,7 +51,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         self.diagnostics = diagnostics
         self.device = device
         self.scene = scene
-        perspective = scene.perspective
+        prepared = scene.surfaces.compactMap { item in item.perspective.map { (item, $0) } }
         guard let texture = DiagnosticTexture.make(device: device) else {
             throw MetalInitializationError.diagnosticTextureUnavailable
         }
@@ -71,6 +71,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         descriptor.vertexFunction = vertex
         descriptor.fragmentFunction = fragment
         descriptor.colorAttachments[0].pixelFormat = Self.pixelFormat
+        descriptor.colorAttachments[0].isBlendingEnabled = true
+        descriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+        descriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+        descriptor.colorAttachments[0].sourceAlphaBlendFactor = .one
+        descriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
         do { rectanglePipeline = try pipelineProvider(device, descriptor) }
         catch { throw MetalInitializationError.renderPipelineUnavailable(error.localizedDescription) }
         super.init()
@@ -78,7 +83,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
     /// Shared by drawable presentation and offscreen GPU verification.
     func encodeScene(to descriptor: MTLRenderPassDescriptor, viewIdentifier: String = "offscreen",
-                     requestTime: TimeInterval? = nil) -> (any MTLCommandBuffer)? {
+                     requestTime: TimeInterval? = nil, evaluationTime: Double? = nil) -> (any MTLCommandBuffer)? {
         let encodeStart = diagnostics == nil ? nil : ProcessInfo.processInfo.systemUptime
         descriptor.colorAttachments[0].loadAction = .clear
         descriptor.colorAttachments[0].storeAction = .store
@@ -89,18 +94,33 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             return nil
         }
         command.label = "Mapped surface output"
-        if let perspective {
+        // All faces in this frame evaluate one explicit global time; no per-view frame counter.
+        let seconds = evaluationTime ?? scene.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)
+        for (item, perspective) in prepared {
             encoder.setRenderPipelineState(rectanglePipeline)
-            let positions = geometry.trianglePositions
+            let positions = item.geometry.trianglePositions
             positions.withUnsafeBytes {
                 encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 0)
             }
-            var color = scene.color
+            var color = item.color
             var inverse = perspective.shaderInverse
-            var textured: UInt32 = scene.content == .diagnosticGrid ? 1 : 0
+            var textured = item.content.shaderKind
             encoder.setFragmentBytes(&color, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
             encoder.setFragmentBytes(&inverse, length: MemoryLayout<simd_float3x3>.stride, index: 1)
             encoder.setFragmentBytes(&textured, length: MemoryLayout<UInt32>.stride, index: 2)
+            var inputMap = item.inputMap.matrix
+            encoder.setFragmentBytes(&inputMap, length: MemoryLayout<simd_float3x3>.stride, index: 3)
+            let settings = item.generator.isValid ? item.generator : .defaults
+            var phaseValue = Float((item.playback.elapsed(at: seconds.isFinite ? seconds : 0) * Double(settings.rate)).truncatingRemainder(dividingBy: 8) / 8)
+            var parameters = SIMD4(settings.scale, settings.intensity, Float(settings.density), settings.particleSize)
+            var motion = settings.motion
+            var seed = settings.seed
+            encoder.setFragmentBytes(&parameters, length: MemoryLayout<SIMD4<Float>>.stride, index: 6)
+            encoder.setFragmentBytes(&motion, length: MemoryLayout<SIMD2<Float>>.stride, index: 7)
+            encoder.setFragmentBytes(&seed, length: MemoryLayout<UInt32>.stride, index: 8)
+            var secondary = settings.secondaryColor
+            encoder.setFragmentBytes(&phaseValue, length: MemoryLayout<Float>.stride, index: 4)
+            encoder.setFragmentBytes(&secondary, length: MemoryLayout<SIMD4<Float>>.stride, index: 5)
             encoder.setFragmentTexture(diagnosticTexture, index: 0)
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: positions.count)
         }
@@ -124,7 +144,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
     func setScene(_ scene: RenderScene) {
         self.scene = scene
-        perspective = scene.perspective
+        prepared = scene.surfaces.compactMap { item in item.perspective.map { (item, $0) } }
     }
 
     func requestDraw(in view: MTKView) {

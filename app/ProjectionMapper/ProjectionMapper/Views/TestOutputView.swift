@@ -132,8 +132,10 @@ class MetalSceneView: NSView {
         isRenderingActive = active
         renderer?.isDrawingEnabled = active
         if let metalView {
-            metalView.isPaused = true // No display link or repeating render loop for this static scene.
-            metalView.enableSetNeedsDisplay = active
+            let animate = active && renderer?.scene.needsContinuousRendering == true
+            metalView.preferredFramesPerSecond = 60
+            metalView.isPaused = !animate
+            metalView.enableSetNeedsDisplay = active && !animate
             if active { renderer?.requestDraw(in: metalView) }
         }
     }
@@ -141,7 +143,7 @@ class MetalSceneView: NSView {
     func setScene(_ scene: RenderScene) {
         guard let renderer, renderer.scene != scene else { return }
         renderer.setScene(scene)
-        if let metalView { renderer.requestDraw(in: metalView) }
+        setRenderingActive(isRenderingActive)
     }
 
     func stopRendering() {

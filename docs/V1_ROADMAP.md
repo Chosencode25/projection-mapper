@@ -2,7 +2,7 @@
 
 V1 targets a native Mac mapping workspace for images, videos and built-in animations on multiple surfaces. Faces can form objects with shared content coordinates so content continues across joined faces. Reusable looks/palettes, masks, time-based playback, an editor-only house photo and portable projects prepare it for musical shows. V1 acceptance remains Test Mode; fullscreen projector implementation and physical acceptance are scheduled for v2.01.
 
-See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). Those steps are planned, not implemented. See [V2 music/show roadmap](V2_ROADMAP.md) and [detailed V2 implementation steps](V2_IMPLEMENTATION_PLAN.md) for the next major version.
+See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). v1.08 is implemented and locally accepted; v1.09 is implemented and automatically verified with user visual acceptance pending; v1.10 onward remains planned. See [V2 music/show roadmap](V2_ROADMAP.md) and [detailed V2 implementation steps](V2_IMPLEMENTATION_PLAN.md) for the next major version.
 
 | Stage | Scope |
 |---|---|
@@ -13,8 +13,8 @@ See [ordered implementation steps for every remaining milestone](V1_REMAINING_PL
 | [1.05 — First Surface](V1.05_PLAN.md) | Implemented and locally accepted: one project-owned surface, four normalized corners, initial rectangle, sidebar selection and inspector. |
 | [1.06 — Corner Nodes](V1.06_PLAN.md) | Implemented and locally accepted: draggable handles, live output updates, focused arrow-key nudging, larger Shift nudges. |
 | [1.07 — Perspective Warp](V1.07_PLAN.md) | Implemented and locally accepted: projective diagnostic textures, trapezoids, safe invalid geometry and recovery. |
-| 1.08 — Multiple Surfaces | Ordered surfaces, named object groups/tags, separate layout/content ownership, shared input maps, manual edge alignment and visibility. Next active milestone. |
-| 1.09 — Built-In Animations | Gradients, plasma, noise, checkers, moving lines, particles; deterministic elapsed-time playback/seek, shared object generators and reusable generator presets. |
+| [1.08 — Multiple Surfaces](V1.08_PLAN.md) | Ordered surfaces, named object groups/tags, separate layout/content ownership, shared input maps, manual edge alignment and visibility. Implemented and locally accepted; see [verification](V1.08_VERIFICATION.md). |
+| [1.09 — Built-In Animations](V1.09_PLAN.md) | Gradients, plasma, noise, checkers, moving lines, particles; deterministic elapsed-time playback/seek, shared object generators and reusable generator presets. |
 | 1.10 — Save & Load | Versioned portable layout/content/preset data, objects/tags/input maps, output settings, autosave and recovery; explicit later-feature and V2 migration contracts. |
 | 1.11 — Surface Controls | Opacity/brightness/crop/flip/locks/resets; object/face scope; reusable looks/palettes; master visual brightness and fade/restore. |
 | 1.12 — Mapping Tools | Calibration, global blackout, editor handles and join diagnostics; saved basic face-local polygon masks/cutout holes. |
@@ -38,7 +38,7 @@ The user will not have a projector for a while. Projector-window implementation 
 
 ## v1.04 slices — approved October 5, 2026
 
-See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). v1.07 is also [implemented and locally accepted](V1.07_VERIFICATION.md). Next active development milestone: v1.08 Multiple Surfaces. See the reordered remaining roadmap below.
+See [master plan](V1.04_PLAN.md) for requirements, acceptance, and delivery. All five slices are implemented and locally accepted for Test Mode. See [final performance/acceptance](V1.04.5_VERIFICATION.md). Physical display/projector and backing-scale transitions remain deferred. v1.05 is also [implemented and locally accepted](V1.05_VERIFICATION.md). v1.06 is also [implemented and locally accepted](V1.06_VERIFICATION.md). v1.07 is also [implemented and locally accepted](V1.07_VERIFICATION.md). v1.08 is also [implemented and locally accepted](V1.08_VERIFICATION.md). Next active development milestone: v1.09 Built-In Animations. See the reordered remaining roadmap below.
 
 | Slice | Scope | Finished when |
 |---|---|---|
@@ -65,8 +65,8 @@ These are subjective implementation/testing-complexity estimates relative to thi
 | 1.05 — First Surface | 3/10 | Geometry model and selection on the renderer. |
 | 1.06 — Corner Nodes | 6/10 | Dragging, coordinate conversion, nudging, live updates. |
 | 1.07 — Perspective Warp | 8/10 | Mapping math, texture correctness, extreme shapes. |
-| 1.08 — Multiple Surfaces | 8/10 | Selection, ordering, object membership, input maps, edge alignment, multiple draws. |
-| 1.09 — Built-In Animations | 8/10 | Several shaders, shared object coordinates/timing, cross-face motion, performance. |
+| [1.08 — Multiple Surfaces](V1.08_PLAN.md) | 8/10 | Selection, ordering, object membership, input maps, edge alignment, multiple draws. |
+| [1.09 — Built-In Animations](V1.09_PLAN.md) | 8/10 | Several shaders, shared object coordinates/timing, cross-face motion, performance. |
 | 1.10 — Save & Load | 8/10 | Reliable files, generator settings, autosave, migrations, recovery; later media extensions. |
 | 1.11 — Surface Controls | 7/10 | Scoped appearance, looks/palettes, master fades and saved references. |
 | 1.12 — Mapping Tools | 7/10 | Calibration priority, polygon/hole validation, mask coordinate correctness and persistence. |
@@ -112,3 +112,9 @@ Added throughout the remaining plan: group faces into one object, align their re
 The user requested adjusting all V1 planning and planning V2 after the software comparison. The current future scope is reflected in the table and [remaining steps](V1_REMAINING_PLAN.md): preserve layout/content separation, stable targets, deterministic time/seek, generator presets, looks/palettes, master visual control, basic masks, editor reference photos, embedded-video audio policy and playback readiness. Keep the approved v1.08–v1.15 order and completed historical identities.
 
 [V2](V2_ROADMAP.md) owns song sequencing and show operation. Physical output is explicitly scheduled at v2.01 while retaining the user's hardware deferral; a V1 Test Mode release must not claim projector/fullscreen or real Christmas-show verification. Each added foundation includes persistence, resource ownership and acceptance checks. This is planning only; no app changes or release.
+
+The first animation slice v1.09.1 is implemented and accepted with user-confirmed visuals. v1.09.2 is automatically verified; v1.09.3 remains planned. See [slice evidence](V1.09.1_VERIFICATION.md).
+
+v1.09.1 visual acceptance was confirmed by the user. v1.09.2 is implemented and automatically verified with user visual feedback pending; v1.09.3 remains planned. Routine screen checks now belong to the user. See [current slice evidence](V1.09.2_VERIFICATION.md).
+
+All three v1.09 slices are now implemented and automatically verified; full visual acceptance belongs to the user. See [final animation evidence](V1.09.3_VERIFICATION.md). Next build milestone is v1.10 Save & Load. Full milestone version/Git delivery remains pending acceptance.

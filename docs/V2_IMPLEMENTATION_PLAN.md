@@ -4,7 +4,7 @@ Status: planned only, October 5, 2026. See [V2 roadmap](V2_ROADMAP.md) for scope
 
 ## Common contracts
 
-Use the required Xcode 27.0 beta 5 (27A5237l), rechecked before implementation, SwiftUI/programmatic AppKit, Metal and supported AVFoundation APIs. Use files, simulations and automated checks before vital screen/hardware checks. Feature branches start from tested main. Each completed slice receives appropriate checks, honest verification notes, a commit/push and the requested local app copy; milestone labels are not automatic releases. Preserve published tags/assets and read-only mirrors.
+Use the required Xcode 27.0 beta 5 (27A5237l), rechecked before implementation, SwiftUI/programmatic AppKit, Metal and supported AVFoundation APIs. Use files, simulations and automated checks before vital screen/hardware checks. Feature branches start from tested main. Each completed slice receives appropriate checks and honest verification notes; intermediate work stays local. Git commits/pushes and GitHub uploads wait for a completed x.xx app milestone unless explicitly requested. Deliver the requested local app copy at the applicable milestone; milestone labels are not automatic releases. Preserve published tags/assets and read-only mirrors.
 
 A persistent layout owns output geometry, masks, input maps, joins and optional reference photo. A show owns songs, tracks, clips, curves, cues and target-role assignments. Both retain stable IDs; layout selection/zoom, live playheads, decoder frames, sync health and operator overrides stay runtime-only. V2 opens V1 packages through explicit migration and preserves their media/mapping. Opening a file never silently starts playback or arms scheduling.
 

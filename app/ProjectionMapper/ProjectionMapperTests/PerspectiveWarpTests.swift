@@ -119,9 +119,9 @@ struct PerspectiveWarpTests {
         session.setSurfaceContent(.solid)
         #expect(renderer.scene.content == .solid && session.hasUserChanges)
         session.selectCorner(.topLeft)
-        session.moveSelectedCorner(to: SIMD2(0.7,0.7),surfaceID: session.project.surface.id)
+        session.moveSelectedCorner(to: SIMD2(0.7,0.7),surfaceID: session.project.surfaces[0].id)
         #expect(session.scene.perspective == nil && renderer.scene == session.scene)
-        session.moveSelectedCorner(to: SIMD2(0.25,0.25),surfaceID: session.project.surface.id)
+        session.moveSelectedCorner(to: SIMD2(0.25,0.25),surfaceID: session.project.surfaces[0].id)
         #expect(session.scene.perspective != nil && renderer.scene == session.scene)
         session.selectSurface(nil); session.setSurfaceContent(.diagnosticGrid)
         #expect(session.scene.content == .solid) // Deselecting prevents inspector edits.
@@ -143,7 +143,7 @@ struct PerspectiveWarpTests {
         _ = NSApplication.shared
         let session = EditorSession(presentOutput: { _ in })
         session.selectCorner(.topLeft)
-        session.moveSelectedCorner(to: session.project.surface.corners.topRight, surfaceID: session.project.surface.id)
+        session.moveSelectedCorner(to: session.project.surfaces[0].corners.topRight, surfaceID: session.project.surfaces[0].id)
         #expect(session.scene.perspective == nil)
         // Top right must win the shared hit point even though top left occurs first in the corner list.
         session.selectCorner(.topRight)
@@ -151,10 +151,10 @@ struct PerspectiveWarpTests {
         let window = NSWindow(contentRect: view.frame, styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = view
         defer { window.contentView = nil; window.close() }
-        view.configure(surfaceID: session.project.surface.id, corners: session.project.surface.corners,
+        view.configure(surfaceID: session.project.surfaces[0].id, corners: session.project.surfaces[0].corners,
             activeCorner: session.selectedCorner, select: { session.selectCorner($0) },
-            move: { session.moveSelectedCorner(to: $0, surfaceID: session.project.surface.id) }, nudge: { _, _ in })
-        let point = SurfaceCoordinates.position(session.project.surface.corners.topRight, in: view.previewRect)
+            move: { session.moveSelectedCorner(to: $0, surfaceID: session.project.surfaces[0].id) }, nudge: { _, _ in })
+        let point = SurfaceCoordinates.position(session.project.surfaces[0].corners.topRight, in: view.previewRect)
         func event(_ type: NSEvent.EventType, at point: CGPoint) throws -> NSEvent {
             try #require(NSEvent.mouseEvent(with: type, location: view.convert(point, to: nil),
                 modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
@@ -163,8 +163,8 @@ struct PerspectiveWarpTests {
         view.mouseDown(with: try event(.leftMouseDown, at: point))
         #expect(session.selectedCorner == .topRight && window.firstResponder === view)
         view.mouseDragged(with: try event(.leftMouseDragged, at: CGPoint(x: point.x + 80, y: point.y)))
-        #expect(session.project.surface.corners.topLeft == SIMD2(0.75, 0.25))
-        #expect(session.project.surface.corners.topRight == SIMD2(0.95, 0.25))
+        #expect(session.project.surfaces[0].corners.topLeft == SIMD2(0.75, 0.25))
+        #expect(session.project.surfaces[0].corners.topRight == SIMD2(0.95, 0.25))
         #expect(session.scene.perspective != nil)
     }
 
@@ -189,13 +189,13 @@ struct PerspectiveWarpTests {
         let originalHandles = handles.convert(handles.previewRect, to: host)
         #expect(originalPreview.width > 0 && originalPreview.height > 0)
         session.selectCorner(.topLeft)
-        session.moveSelectedCorner(to: SIMD2(0.7,0.7), surfaceID: session.project.surface.id)
+        session.moveSelectedCorner(to: SIMD2(0.7,0.7), surfaceID: session.project.surfaces[0].id)
         layout()
         #expect(session.scene.perspective == nil)
         #expect(find(MetalSceneView.self, in: host) === preview)
         #expect(preview.convert(preview.outputFrame, to: host) == originalPreview)
         #expect(handles.convert(handles.previewRect, to: host) == originalHandles)
-        session.moveSelectedCorner(to: SIMD2(0.25,0.25), surfaceID: session.project.surface.id)
+        session.moveSelectedCorner(to: SIMD2(0.25,0.25), surfaceID: session.project.surfaces[0].id)
         layout()
         #expect(session.scene.perspective != nil)
         #expect(preview.convert(preview.outputFrame, to: host) == originalPreview)

@@ -2,17 +2,19 @@ import AppKit
 import SwiftUI
 
 struct CornerOverlay: NSViewRepresentable {
-    let surfaceID: UUID
+    let surfaceID: UUID?
     let corners: NormalizedRectangle
     let activeCorner: SurfaceCorner?
     let select: (SurfaceCorner?) -> Void
     let move: (SIMD2<Float>) -> Void
     let nudge: (SIMD2<Float>, Bool) -> Void
+    var deselect: () -> Void = {}
+    var selectFace: ((SIMD2<Float>?) -> Void)?
 
     func makeNSView(context: Context) -> CornerOverlayView { CornerOverlayView() }
     func updateNSView(_ view: CornerOverlayView, context: Context) {
         view.configure(surfaceID: surfaceID, corners: corners, activeCorner: activeCorner,
-                       select: select, move: move, nudge: nudge)
+                       select: select, move: move, nudge: nudge, deselect: deselect, selectFace: selectFace)
     }
 }
 
@@ -27,6 +29,8 @@ final class CornerOverlayView: NSView {
     private var select: (SurfaceCorner?) -> Void = { _ in }
     private var move: (SIMD2<Float>) -> Void = { _ in }
     private var nudge: (SIMD2<Float>, Bool) -> Void = { _, _ in }
+    private var deselect: () -> Void = {}
+    private var selectFace: ((SIMD2<Float>?) -> Void)?
     var previewRect: CGRect { bounds.insetBy(dx: 12, dy: 12) }
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
@@ -40,20 +44,21 @@ final class CornerOverlayView: NSView {
     convenience init() { self.init(frame: .zero) }
     required init?(coder: NSCoder) { fatalError("CornerOverlayView is created in code") }
 
-    func configure(surfaceID: UUID, corners: NormalizedRectangle, activeCorner: SurfaceCorner?,
+    func configure(surfaceID: UUID?, corners: NormalizedRectangle, activeCorner: SurfaceCorner?,
                    select: @escaping (SurfaceCorner?) -> Void, move: @escaping (SIMD2<Float>) -> Void,
-                   nudge: @escaping (SIMD2<Float>, Bool) -> Void) {
+                   nudge: @escaping (SIMD2<Float>, Bool) -> Void, deselect: @escaping () -> Void = {},
+                   selectFace: ((SIMD2<Float>?) -> Void)? = nil) {
         if self.surfaceID != surfaceID || (dragging != nil && activeCorner != dragging) { dragging = nil }
         self.surfaceID = surfaceID
         self.corners = corners
         self.activeCorner = activeCorner
-        self.select = select; self.move = move; self.nudge = nudge
+        self.select = select; self.move = move; self.nudge = nudge; self.deselect = deselect; self.selectFace = selectFace
         setAccessibilityValue(activeCorner.map { "\($0.title) selected" } ?? "Click a corner to edit")
         needsDisplay = true
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        guard previewRect.width > 0, previewRect.height > 0 else { return }
+        guard surfaceID != nil, previewRect.width > 0, previewRect.height > 0 else { return }
         let points = SurfaceCorner.allCases.map { SurfaceCoordinates.position(corners[$0], in: previewRect) }
         let outline = NSBezierPath()
         outline.move(to: points[0]); points.dropFirst().forEach { outline.line(to: $0) }; outline.close()
@@ -75,9 +80,13 @@ final class CornerOverlayView: NSView {
             distance(point, SurfaceCoordinates.position(corners[$0], in: previewRect)) <
             distance(point, SurfaceCoordinates.position(corners[$1], in: previewRect))
         }
-        guard previewRect.width > 0, previewRect.height > 0, let corner = nearest,
+        guard surfaceID != nil, previewRect.width > 0, previewRect.height > 0, let corner = nearest,
               distance(point, SurfaceCoordinates.position(corners[corner], in: previewRect)) <= 12 else {
-            dragging = nil; activeCorner = nil; select(nil); needsDisplay = true; return
+            dragging = nil; activeCorner = nil; select(nil)
+            if let selectFace {
+                selectFace(previewRect.contains(point) ? SurfaceCoordinates.normalized(point, in: previewRect) : nil)
+            } else { deselect() }
+            window?.makeFirstResponder(self); needsDisplay = true; return
         }
         let center = SurfaceCoordinates.position(corners[corner], in: previewRect)
         grabOffset = CGSize(width: point.x - center.x, height: point.y - center.y)

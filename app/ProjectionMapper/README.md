@@ -1,4 +1,4 @@
-# Projection Mapper — v1.07 source
+# Projection Mapper — v1.09.3 preview source
 
 A native, entirely code-based Mac editor skeleton. Built for **Xcode 27.0 beta 5 (27A5237l)**. Minimum deployment target: **macOS 15.0**.
 
@@ -19,16 +19,17 @@ Local builds use ad-hoc signing (“Sign to Run Locally”); an Apple Developer 
 - Sidebar/inspector toggles, keyboard shortcuts, and About information.
 - Test Window/display output menus, display information, safe recovery, and remembered preferences.
 - Open/Close Output actions, one normal resizable test window with shared scene rendering, and shared status.
-- One project-owned Surface 1, selected initially, with sidebar selection/deselection and read-only normalized corner inspector.
+- Ordered project-owned surfaces, starting with selected Surface 1; add, rename, tag, duplicate, delete, hide and reorder from sidebar/inspector.
 - Editor-only corner handles/outline, normalized dragging and focused arrow/Shift nudging; active-corner inspector and geometry discard protection.
 - Projective diagnostic grid with mipmaps, Solid fill option, safe invalid geometry and overlapping-handle recovery.
-- 79 correctness tests (77 run without presenting windows) plus three opt-in benchmarks, runnable with Command–U; see ../../docs/BUILD_AND_RUN.md.
+- Named object grouping/ungrouping, shared content, Continuous/Repeat input maps, quarter-turn/mirror controls, manual edge alignment and join/seam diagnostics.
+- 96 correctness tests (94 run without presenting windows) plus three opt-in benchmarks, runnable with Command–U; see ../../docs/BUILD_AND_RUN.md.
 
-Projects remain in memory. Basic test output is available. Shared editor/Test Output rendering is implemented. Four-corner surface storage is implemented; corner editing is implemented; perspective mapping is implemented; multiple surfaces (v1.08) are next, followed by built-in animations (v1.09) and saving (v1.10). Image/video import now follows core tools at v1.13/v1.14.
+Projects remain in memory. Basic test output is available. Shared editor/Test Output rendering is implemented. Four-corner surface storage is implemented; corner editing is implemented; perspective mapping is implemented; multiple surfaces and static connected objects (v1.08) are implemented, followed by planned built-in animations (v1.09) and saving (v1.10). Image/video import now follows core tools at v1.13/v1.14.
 
 ## Planned direction
 
-The [remaining V1 plan](../../docs/V1_REMAINING_PLAN.md) adds connected object faces, layout/content separation, deterministic effect time/seek, generator presets, reusable looks/palettes, master brightness/fades, polygon masks, editor-only house photos, explicit video-audio controls and readiness checks. These features are planned, not included in the v1.07 source/app.
+The [remaining V1 plan](../../docs/V1_REMAINING_PLAN.md) builds on implemented connected object faces and layout/content separation with deterministic effect time/seek, generator presets, reusable looks/palettes, master brightness/fades, polygon masks, editor-only house photos, explicit video-audio controls and readiness checks. These features are planned, not included in the v1.08 source/app.
 
 The [V2 roadmap](../../docs/V2_ROADMAP.md) and [detailed steps](../../docs/V2_IMPLEMENTATION_PLAN.md) cover music timelines, holiday choreography and show operation. Fullscreen projector implementation/physical checks are scheduled for v2.01 with the hardware deferral preserved.
 
@@ -52,4 +53,24 @@ For tests, replace `build` with `test`. Before building, verify the toolchain us
 
 The minimum deployment target is a build setting; runtime verification on the development Mac does not establish testing on every supported macOS release.
 
-Projector output implementation and physical checks are deferred. See ../../docs/V1.03.1_VERIFICATION.md. Test Output draws an orange Metal rectangle on black with normalized geometry and aspect fitting in v1.04.2. See ../../docs/V1.04.2_VERIFICATION.md. Shared editor preview is implemented in v1.04.3; see ../../docs/V1.04.3_VERIFICATION.md. Bundle remains 1.04.2/build 4. Lifecycle handling and local v1.04 acceptance are complete; see ../../docs/V1.04.5_VERIFICATION.md for Debug/Release tests, measured performance and remaining physical hardware limits. First Surface is implemented and locally accepted in v1.05; see ../../docs/V1.05_VERIFICATION.md. Corner Nodes are implemented and locally accepted in v1.06; see ../../docs/V1.06_VERIFICATION.md. Perspective Warp is implemented and locally accepted in v1.07; see ../../docs/V1.07_VERIFICATION.md. The local built app is ../ProjectionMapper.app.
+Projector output implementation and physical checks are deferred. See ../../docs/V1.03.1_VERIFICATION.md. Test Output draws an orange Metal rectangle on black with normalized geometry and aspect fitting in v1.04.2. See ../../docs/V1.04.2_VERIFICATION.md. Shared editor preview is implemented in v1.04.3; see ../../docs/V1.04.3_VERIFICATION.md. Bundle is 1.08/build 5. Lifecycle handling and local v1.04 acceptance are complete; see ../../docs/V1.04.5_VERIFICATION.md for Debug/Release tests, measured performance and remaining physical hardware limits. First Surface is implemented and locally accepted in v1.05; see ../../docs/V1.05_VERIFICATION.md. Corner Nodes are implemented and locally accepted in v1.06; see ../../docs/V1.06_VERIFICATION.md. Perspective Warp is implemented and locally accepted in v1.07; see ../../docs/V1.07_VERIFICATION.md. The local built app is ../ProjectionMapper.app.
+
+Multiple Surfaces is locally accepted; see ../../docs/V1.08_VERIFICATION.md. This delivery is intentionally uncommitted/unpushed with no GitHub upload.
+
+## Animation preview
+
+Choose Animated gradient, Moving lines or Moving checkers in the face/object Content picker. The inspector Playback section controls all animated faces with Play/Pause, Restart and speed. Linked faces share settings; Continuous samples their input regions and Repeat shows the whole effect per face. Two-color controls edit the selected source. New/reset projects start paused; playback is runtime state and does not dirty the project. The preview and output use the same elapsed-time clock.
+
+Debug/Release suites now pass 102 correctness tests. The user subsequently confirmed v1.09.1 visual playback checks worked. Installed copies: ../ProjectionMapper.app and ../../builds/v1.09.1/ProjectionMapper.app. Bundle remains 1.08/build 5. Full v1.09 and its other two slices remain incomplete; no GitHub delivery. See ../../docs/V1.09.1_VERIFICATION.md.
+
+## More effects and settings
+
+Choose Plasma, Animated noise or Particles in Content, alongside the first three effects. Each owner has Effect speed and two colors. Scale/spacing and direction apply to supported patterns; noise/plasma have Contrast; particles have Density (16–256) and Size; noise/particles have Seed. A shared object edits every linked face together. Controls preserve geometry and use the global playback clock.
+
+Current Debug/Release evidence: 105 correctness tests pass; four opt-in benchmark declarations are disabled normally. Product is ../../builds/v1.09.2/ProjectionMapper.app and ../ProjectionMapper.app. User confirmed v1.09.1 visuals; v1.09.2 visual feedback is pending under the user's routine-check preference. No agent screen control used. See ../../docs/V1.09.2_VERIFICATION.md. Presets/seek remain v1.09.3.
+
+## Presets and seeking
+
+The inspector Effect Presets section saves/applies/updates/deletes named effect settings and resets current effect parameters/colors. It preserves mapping and phase. Presets remain in memory with the project until v1.10 saving. Playback offers numeric seek (0–3600 seconds), first-minute scrubbing and elapsed readout. Owner pause/restart controls affect the selected standalone face or every linked face in its object. Global Restart resets all phases; seek updates frozen times too.
+
+Current product: ../../builds/v1.09.3/ProjectionMapper.app and ../ProjectionMapper.app. All 111 correctness tests pass in Debug/Release; profiling is recorded in ../../docs/V1.09.3_VERIFICATION.md. Visual acceptance belongs to the user. Bundle remains 1.08/build 5 pending full v1.09 acceptance; no GitHub delivery.

@@ -32,15 +32,15 @@ struct CornerEditingTests {
         session.selectCorner(.topLeft)
         #expect(!session.hasUserChanges && session.project == project)
         session.moveSelectedCorner(to: SIMD2(0.1,0.2), surfaceID: UUID())
-        session.moveSelectedCorner(to: SIMD2(.nan,0.2), surfaceID: project.surface.id)
-        session.moveSelectedCorner(to: project.surface.corners.topLeft, surfaceID: project.surface.id)
+        session.moveSelectedCorner(to: SIMD2(.nan,0.2), surfaceID: project.surfaces[0].id)
+        session.moveSelectedCorner(to: project.surfaces[0].corners.topLeft, surfaceID: project.surfaces[0].id)
         #expect(session.project == project)
         let changed = Date(timeIntervalSince1970: 900)
-        session.moveSelectedCorner(to: SIMD2(-3,2), surfaceID: project.surface.id, now: changed)
-        #expect(session.project.surface.corners.topLeft == SIMD2(0,1))
+        session.moveSelectedCorner(to: SIMD2(-3,2), surfaceID: project.surfaces[0].id, now: changed)
+        #expect(session.project.surfaces[0].corners.topLeft == SIMD2(0,1))
         #expect(session.project.modifiedAt == changed && session.project.createdAt == project.createdAt)
-        #expect(session.project.surface.id == project.surface.id && session.hasUserChanges)
-        session.moveSelectedCorner(to: SIMD2(-3,2), surfaceID: project.surface.id, now: .distantFuture)
+        #expect(session.project.surfaces[0].id == project.surfaces[0].id && session.hasUserChanges)
+        session.moveSelectedCorner(to: SIMD2(-3,2), surfaceID: project.surfaces[0].id, now: .distantFuture)
         #expect(session.project.modifiedAt == changed)
     }
 
@@ -48,10 +48,10 @@ struct CornerEditingTests {
         let session = EditorSession()
         session.selectCorner(.topRight)
         session.nudgeSelectedCorner(direction: SIMD2(1,0), larger: false)
-        #expect(abs(session.project.surface.corners.topRight.x - 0.751) < 0.000001)
+        #expect(abs(session.project.surfaces[0].corners.topRight.x - 0.751) < 0.000001)
         session.nudgeSelectedCorner(direction: SIMD2(0,-1), larger: true)
-        #expect(abs(session.project.surface.corners.topRight.y - 0.24) < 0.000001)
-        session.moveSelectedCorner(to: SIMD2(1,0), surfaceID: session.project.surface.id)
+        #expect(abs(session.project.surfaces[0].corners.topRight.y - 0.24) < 0.000001)
+        session.moveSelectedCorner(to: SIMD2(1,0), surfaceID: session.project.surfaces[0].id)
         let before = session.project
         session.nudgeSelectedCorner(direction: SIMD2(1,-1), larger: true)
         #expect(session.project == before)
@@ -60,13 +60,13 @@ struct CornerEditingTests {
     @Test func selectionResetAndPresetsKeepCornerStateConsistent() {
         let session = EditorSession(presentOutput: { _ in })
         session.selectCorner(.bottomLeft)
-        session.moveSelectedCorner(to: SIMD2(0.1,0.8), surfaceID: session.project.surface.id)
-        let edited = session.project.surface
+        session.moveSelectedCorner(to: SIMD2(0.1,0.8), surfaceID: session.project.surfaces[0].id)
+        let edited = session.project.surfaces[0]
         for preset in TestResolution.allCases {
             session.setTestResolution(preset)
             session.testOutput.open(for: .testWindow, resolution: preset)
             session.testOutput.close()
-            #expect(session.selectedCorner == .bottomLeft && session.project.surface == edited)
+            #expect(session.selectedCorner == .bottomLeft && session.project.surfaces[0] == edited)
         }
         session.selectSurface(nil)
         #expect(session.selectedCorner == nil)
@@ -87,12 +87,12 @@ struct CornerEditingTests {
         let window = NSWindow(contentRect: view.frame, styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = view
         defer { window.contentView = nil; window.close() }
-        let id = session.project.surface.id
-        view.configure(surfaceID: id, corners: session.project.surface.corners, activeCorner: nil,
+        let id = session.project.surfaces[0].id
+        view.configure(surfaceID: id, corners: session.project.surfaces[0].corners, activeCorner: nil,
                        select: { session.selectCorner($0) },
                        move: { session.moveSelectedCorner(to: $0, surfaceID: id) },
                        nudge: { session.nudgeSelectedCorner(direction: $0, larger: $1) })
-        let center = SurfaceCoordinates.position(session.project.surface.corners.topLeft, in: view.previewRect)
+        let center = SurfaceCoordinates.position(session.project.surfaces[0].corners.topLeft, in: view.previewRect)
         func mouse(_ type: NSEvent.EventType, _ point: CGPoint) throws -> NSEvent {
             try #require(NSEvent.mouseEvent(with: type, location: view.convert(point, to: nil),
                 modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
@@ -101,13 +101,20 @@ struct CornerEditingTests {
         view.mouseDown(with: try mouse(.leftMouseDown, CGPoint(x: center.x + 4, y: center.y + 3)))
         #expect(window.firstResponder === view && session.selectedCorner == .topLeft && !session.hasUserChanges)
         view.mouseDragged(with: try mouse(.leftMouseDragged, CGPoint(x: center.x + 44, y: center.y + 63)))
-        #expect(abs(session.project.surface.corners.topLeft.x - 0.35) < 0.000001)
-        #expect(abs(session.project.surface.corners.topLeft.y - 0.35) < 0.000001)
+        #expect(abs(session.project.surfaces[0].corners.topLeft.x - 0.35) < 0.000001)
+        #expect(abs(session.project.surfaces[0].corners.topLeft.y - 0.35) < 0.000001)
         let key = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .shift,
             timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "", charactersIgnoringModifiers: "",
             isARepeat: true, keyCode: 124))
         view.keyDown(with: key)
-        #expect(abs(session.project.surface.corners.topLeft.x - 0.36) < 0.000001)
+        #expect(abs(session.project.surfaces[0].corners.topLeft.x - 0.36) < 0.000001)
+        var clicks: [SIMD2<Float>?] = []
+        view.configure(surfaceID: nil, corners: .diagnostic, activeCorner: nil,
+                       select: { _ in }, move: { _ in }, nudge: { _,_ in }, selectFace: { clicks.append($0) })
+        view.mouseDown(with: try mouse(.leftMouseDown, SurfaceCoordinates.position(SIMD2(0.5,0.5), in: view.previewRect)))
+        #expect(clicks.count == 1 && clicks[0] == SIMD2(0.5,0.5))
+        view.mouseDown(with: try mouse(.leftMouseDown, CGPoint(x: 2,y: 2)))
+        #expect(clicks.count == 2 && clicks[1] == nil)
         let text = NSTextView(frame: .zero)
         window.contentView?.addSubview(text); window.makeFirstResponder(text)
         #expect(window.firstResponder === text) // Native field/editor focus replaces canvas routing.

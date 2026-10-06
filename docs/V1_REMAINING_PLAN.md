@@ -1,8 +1,8 @@
 # Remaining V1 milestones — ordered implementation plan
 
-Status: planned only, October 5, 2026. User approved this order and renumbering, connected object faces, and an update to V1 foundations with a staged V2 show plan. v1.07 remains the latest implemented/accepted app. This document does not authorize implementing all milestones or publishing now.
+Status: v1.08 accepted, v1.09 implemented/automatically verified with user visual acceptance pending; v1.10–v1.15 planned, October 5, 2026. User approved this order and renumbering, connected object faces, and an update to V1 foundations with a staged V2 show plan. v1.08 is the latest locally accepted app; see [verification](V1.08_VERIFICATION.md). This delivery explicitly excludes GitHub upload and remains uncommitted/unpushed. This document does not authorize implementing all milestones or publishing now.
 
-Use Xcode 27.0 beta 5 (27A5237l), verified before implementation, and code-only SwiftUI/programmatic AppKit. Preserve Test Mode and shared preview/output rendering. Work on feature branches; use files/automated checks first and screen only for vital final acceptance. Each implemented milestone ends with appropriate Debug/Release checks, progress/verification records, recoverable GitHub history and the requested local app copy. Keep builds/caches out of commits; preserve prior source, tags and assets. Releases are separate milestone decisions, with final package/upload planned for v1.15.
+Use Xcode 27.0 beta 5 (27A5237l), verified before implementation, and code-only SwiftUI/programmatic AppKit. Preserve Test Mode and shared preview/output rendering. Work on feature branches; use files/automated checks first and screen only for vital final acceptance. Each completed x.xx app milestone ends with appropriate Debug/Release checks, progress/verification records, recoverable GitHub history and the requested local app copy. Intermediate planning edits, fixes and x.xx.x slices stay local; no commits/pushes or uploads until that boundary unless explicitly requested. Keep builds/caches out of commits; preserve prior source, tags and assets. Releases are separate milestone decisions, with final package/upload planned for v1.15.
 
 ## Connected object faces — approved October 5, 2026
 
@@ -10,7 +10,7 @@ Multiple surfaces can be faces of one named object, such as the front, side and 
 
 Define a shared two-dimensional content canvas and a separate input mapping for each face. Provide manual placement, orientation and size controls, plus edge links recording which face edges meet and their direction. Matching linked boundaries sample matching content coordinates, with consistent content scale. Each face retains its perspective transform to output coordinates. A closed object can require deliberate seams in a flat layout: record those seams and validate linked edges. Automatic 3D reconstruction is future scope.
 
-Offer explicit **Continuous** and **Repeat** modes. Continuous assigns each face a region of the shared canvas so a stripe, image or particle can cross joined faces. Repeat shows the whole content on each face with shared timing. Linked faces use one generator seed/time or video player/frame. Detaching a face creates independent content under an explicit copy policy; editing linked content clearly applies to the object. These are planned requirements, not existing app features.
+Offer explicit **Continuous** and **Repeat** modes. Continuous assigns each face a region of the shared canvas so a stripe, image or particle can cross joined faces. Repeat shows the whole content on each face with shared timing. Linked faces use one generator seed/time or video player/frame. Detaching a face creates independent content under an explicit copy policy; editing linked content clearly applies to the object. Static ownership, mapping and joins are implemented in v1.08. Shared animation timing and video resources arrive in their later milestones.
 
 ## V1 scope and the V2 handoff — October 5, 2026
 
@@ -26,6 +26,8 @@ Preserve the user's physical-projector deferral. V1 delivery remains Test Mode w
 
 ## v1.08 — Multiple Surfaces
 
+Implemented and locally accepted; the numbered steps below record delivered scope. See [milestone plan](V1.08_PLAN.md) and [verification](V1.08_VERIFICATION.md).
+
 1. Replace the single surface in the project with an ordered collection. Give each surface its own stable ID, name, corners, content and visibility; start new projects with one default surface. Prepare collection-based immutable render snapshots.
 2. Separate persistent layout (output corners, object membership, input maps/joins and later masks) from content assignments and runtime resources. Add bounded named tags to faces/objects for selection and future show targeting; tags do not imply a shared generator or change connected-face membership. Define duplicate/delete policies for tag and owner references.
 3. Add named object groups with stable IDs, membership, group/ungroup and object selection. Make face/object edit scope clear. Keep global surface draw order authoritative within groups. Object duplication assigns new object/face IDs and rewrites links; face deletion/detachment cleans up references. Group visibility inherits without erasing individual face visibility. Include these edits in dirty state and discard protection.
@@ -40,6 +42,8 @@ Preserve the user's physical-projector deferral. V1 delivery remains Test Mode w
 12. Verify independent editing/IDs, duplicate isolation, selection after deletion, empty projects, overlapping order, hide/show, invalid-shape isolation, shared GPU output and resource cleanup. Visually check multiple overlapping warped surfaces and clean output, then deliver the tested milestone.
 
 ## v1.09 — Built-In Animations
+
+Approved as three local slices; see [slice plan](V1.09_PLAN.md). v1.09.1 adds global playback and animated gradients/lines/checkers; v1.09.2 adds plasma/noise/particles and effect settings; v1.09.3 adds presets, seeking and final acceptance. The full numbered requirements below span all three slices, not just the first. v1.09.1 is accepted with user-confirmed visuals; v1.09.2 is implemented and automatically verified, awaiting user visual feedback; v1.09.3 is implemented and automatically verified; full animation acceptance awaits user visuals.
 
 1. Introduce a generator content model with a typed pattern choice, bounded parameters and reproducible seed where needed. Standalone surfaces own independent settings; linked faces share an object content owner; preserve existing grid and solid content.
 2. Extend generator ownership: standalone faces remain independent; linked faces reference one object generator/settings owner. Evaluate Continuous patterns in shared canvas coordinates; Repeat uses the whole pattern per face. Object-level parameter edits and pause/restart affect all linked faces. Define linking/detaching and duplication phase behavior. Particles live in the shared canvas and cross valid joins without being recreated. Reuse generated resources across linked faces where appropriate.

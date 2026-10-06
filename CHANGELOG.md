@@ -1,5 +1,45 @@
 # Changelog
 
+## v1.09 — Source milestone — October 5, 2026
+
+- Preserve accumulated multiple-surface and six-effect animation implementation, presets, seeking and scoped playback on GitHub at the user’s explicit request.
+- Bundle 1.09/build 6; automated acceptance covers 111 correctness tests. Routine visual checks belong to the user.
+- Source-history delivery only: no release/tag/assets requested. Subsequent v1.10 Save & Load work remains local.
+
+## Local preview — v1.09.3 Presets, Seeking and Final Checks — October 5, 2026
+
+- Add bounded named generator presets with save/apply/update/delete/reset, preserving layout and runtime ownership.
+- Add 0–3600-second seeking, first-minute scrub slider and time readout; owner-scoped pause/resume/restart with copied phase and cleanup policies.
+- All 111 correctness tests pass in final Debug/Release runs; all-effect backward seek/preset replay and independently paused/moving owners verified.
+- Profile mixed and heavy-overlap scenes across presets; 4K GPU pair p95 2.1578 ms mixed / 44.5873 ms eight overlapping particle faces per view. Timings are not visible FPS.
+- Signed universal app installed locally; user visuals pending. Bundle remains 1.08/build 5 until acceptance; no Git/version delivery yet. Presets/projects remain in memory until v1.10.
+
+## Local preview — v1.09.2 More Effects and Settings — October 5, 2026
+
+- Add procedural plasma, seeded animated value noise and deterministic wrapped particles (16–256), preserving shared-canvas face continuity and global transport.
+- Add per-source effect speed, scale/spacing, eight directions, contrast, particle density/size and seed where relevant; bounds prevent unsafe settings.
+- Three new correctness tests and expanded GPU coverage; 105 correctness tests pass in Debug/Release. Separate six-effect/two-view benchmark passes across presets (4K GPU pair p95 1.6783 ms; not visible FPS).
+- User accepted v1.09.1 visuals and now owns routine visual checks. v1.09.2 visual feedback pending; no screen control performed.
+- Universal signed local app updated in builds/v1.09.2/ and app/; prior app preserved. Bundle remains 1.08/build 5. No Git commit/upload or release.
+
+## Local preview — v1.09.1 Playback Foundation — October 5, 2026
+
+- Add shared global Play/Pause, Restart and bounded speed controls, separate from project dirty state.
+- Add animated gradients, moving lines and checkers with two colors; preserve independent/shared ownership, perspective and Continuous/Repeat input maps.
+- Evaluate effects from explicit elapsed time; run native display scheduling only for eligible playing views, retaining static/paused on-demand drawing.
+- Five new model/GPU tests; all 102 correctness tests pass in Debug/Release. Vital visual playback acceptance pending because the Mac was locked.
+- Universal signed local app updated in builds/v1.09.1/ and app/; prior app preserved. Bundle remains 1.08/build 5. No Git commit/upload or release.
+
+## Local — v1.08 Multiple Surfaces — October 5, 2026
+
+- Follow-up: click faces in the editor to select them; frontmost visible face wins overlaps, empty canvas deselects, and corner dragging remains intact. Release suite now passes 97 correctness tests; native click routing checks pass.
+
+- Add ordered independent faces with stable IDs, names/tags, add/select/duplicate/delete, visibility and draw-order controls.
+- Separate output layout from content ownership; add optional shared-content objects, grouping, detach/ungroup and isolated whole-object duplication.
+- Add Continuous/Repeat input regions, rotation/mirroring, manual edge linking/alignment and join/seam diagnostics; render every valid visible face through shared preview/output.
+- Seventeen new model/GPU tests; all 96 correctness tests pass in Debug and Release. Vital actual-app checks pass.
+- Universal signed Release copies in builds/v1.08/ and app/ProjectionMapper.app, version 1.08/build 5. Entire delivery remains local: no commit, push, tag, archive or release.
+
 ## Unreleased — v1.07 Perspective Warp — October 5, 2026
 
 - Add mipmapped diagnostic grid with orientation markers; new projects default to grid, with Solid fill available in the inspector.

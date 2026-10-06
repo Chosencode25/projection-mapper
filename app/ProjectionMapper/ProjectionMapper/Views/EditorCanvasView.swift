@@ -19,14 +19,16 @@ struct EditorCanvasView: View {
                     }
                 .frame(width: width, height: height)
                 .overlay {
-                    if let surface = session.selectedSurface {
-                        CornerOverlay(surfaceID: surface.id, corners: surface.corners,
-                                      activeCorner: session.selectedCorner,
-                                      select: { session.selectCorner($0) },
-                                      move: { session.moveSelectedCorner(to: $0, surfaceID: surface.id) },
-                                      nudge: { session.nudgeSelectedCorner(direction: $0, larger: $1) })
-                            .frame(width: width + 24, height: height + 24)
-                    }
+                    let surface = session.selectedSurface
+                    CornerOverlay(surfaceID: surface?.id, corners: surface?.corners ?? .diagnostic,
+                                  activeCorner: session.selectedCorner,
+                                  select: { session.selectCorner($0) },
+                                  move: { point in
+                                      if let id = surface?.id { session.moveSelectedCorner(to: point, surfaceID: id) }
+                                  },
+                                  nudge: { session.nudgeSelectedCorner(direction: $0, larger: $1) },
+                                  selectFace: { session.selectSurface(at: $0) })
+                        .frame(width: width + 24, height: height + 24)
                 }
                 Text("\(output.selectedName) · \(output.renderSizeText) · Editor preview").font(.caption).foregroundStyle(.secondary)
                     .lineLimit(2).multilineTextAlignment(.center)
@@ -34,8 +36,8 @@ struct EditorCanvasView: View {
                     .help("\(output.selectedName) · \(output.renderSizeText)")
                 // Reserve warning space so validation changes cannot move the canvas during a drag.
                 Group {
-                    if session.scene.perspective == nil {
-                        Label("Invalid surface — move a corner to restore output", systemImage: "exclamationmark.triangle")
+                    if session.scene.invalidCount > 0 || !session.project.joinWarnings.isEmpty {
+                        Label("Check invalid shapes or input joins in the inspector", systemImage: "exclamationmark.triangle")
                             .font(.caption).foregroundStyle(.orange).multilineTextAlignment(.center)
                     } else {
                         Color.clear.accessibilityHidden(true)

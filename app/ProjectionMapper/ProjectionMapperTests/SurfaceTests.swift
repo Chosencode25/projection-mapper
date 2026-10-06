@@ -7,17 +7,17 @@ import Testing
 struct SurfaceTests {
     @Test func freshProjectsOwnDistinctDefaultSurfaces() {
         let first = MappingProject(), second = MappingProject()
-        #expect(first.surface.id != second.surface.id)
-        #expect(first.surface.name == "Surface 1")
-        #expect(first.surface.corners.topLeft == SIMD2<Float>(0.25, 0.25))
-        #expect(first.surface.corners.topRight == SIMD2<Float>(0.75, 0.25))
-        #expect(first.surface.corners.bottomRight == SIMD2<Float>(0.75, 0.75))
-        #expect(first.surface.corners.bottomLeft == SIMD2<Float>(0.25, 0.75))
-        #expect(first.surface.renderScene == .diagnosticGrid)
+        #expect(first.surfaces[0].id != second.surfaces[0].id)
+        #expect(first.surfaces[0].name == "Surface 1")
+        #expect(first.surfaces[0].corners.topLeft == SIMD2<Float>(0.25, 0.25))
+        #expect(first.surfaces[0].corners.topRight == SIMD2<Float>(0.75, 0.25))
+        #expect(first.surfaces[0].corners.bottomRight == SIMD2<Float>(0.75, 0.75))
+        #expect(first.surfaces[0].corners.bottomLeft == SIMD2<Float>(0.25, 0.75))
+        #expect(first.surfaces[0].renderScene == .diagnosticGrid)
         let copy = first
-        #expect(copy.surface.id == first.surface.id)
+        #expect(copy.surfaces[0].id == first.surfaces[0].id)
         let session = EditorSession(project: first)
-        #expect(session.selectedSurfaceID == first.surface.id && !session.hasUserChanges)
+        #expect(session.selectedSurfaceID == first.surfaces[0].id && !session.hasUserChanges)
     }
 
     @Test func selectionIsValidatedAndDoesNotModifyProjectOrScene() {
@@ -27,10 +27,10 @@ struct SurfaceTests {
         #expect(session.selectedSurface == nil)
         session.selectSurface(UUID())
         #expect(session.selectedSurfaceID == nil)
-        session.selectSurface(project.surface.id)
-        #expect(session.selectedSurface == project.surface)
+        session.selectSurface(project.surfaces[0].id)
+        #expect(session.selectedSurface == project.surfaces[0])
         session.selectSurface(UUID())
-        #expect(session.selectedSurfaceID == project.surface.id)
+        #expect(session.selectedSurfaceID == project.surfaces[0].id)
         #expect(session.project == project && session.scene == scene && !session.hasUserChanges)
     }
 
@@ -43,12 +43,12 @@ struct SurfaceTests {
             session.setTestResolution(preset)
             #expect(session.testOutput.open(for: .testWindow, resolution: preset))
             let renderer = try #require((session.testOutput.window?.contentView as? TestOutputView)?.metalView?.delegate as? MetalRenderer)
-            #expect(renderer.scene == project.surface.renderScene)
+            #expect(renderer.scene == project.surfaces[0].renderScene)
             session.testOutput.close()
             #expect(session.project == project && session.selectedSurface == nil && !session.hasUserChanges)
         }
-        session.selectSurface(project.surface.id)
-        #expect(session.selectedSurface == project.surface)
+        session.selectSurface(project.surfaces[0].id)
+        #expect(session.selectedSurface == project.surfaces[0])
     }
 
     @Test func resetReplacesSurfaceAndSelectionButPreservesOutputAndPreferences() throws {
@@ -62,10 +62,10 @@ struct SurfaceTests {
         session.isSidebarVisible = false
         session.renameProject("House")
         session.resetProject()
-        #expect(session.project.id != previous.id && session.project.surface.id != previous.surface.id)
-        #expect(session.selectedSurfaceID == session.project.surface.id)
-        session.selectSurface(previous.surface.id)
-        #expect(session.selectedSurfaceID == session.project.surface.id)
+        #expect(session.project.id != previous.id && session.project.surfaces[0].id != previous.surfaces[0].id)
+        #expect(session.selectedSurfaceID == session.project.surfaces[0].id)
+        session.selectSurface(previous.surfaces[0].id)
+        #expect(session.selectedSurfaceID == session.project.surfaces[0].id)
         #expect(session.testOutput.window === window && session.output.testResolution == .portrait)
         #expect(!session.isSidebarVisible && !session.hasUserChanges && session.scene == .diagnosticGrid)
     }
@@ -105,7 +105,7 @@ struct SurfaceTests {
         let output = try #require(session.testOutput.window?.contentView as? TestOutputView)
         let outputRenderer = try #require(output.metalView?.delegate as? MetalRenderer)
         for renderer in [previewRenderer, outputRenderer] {
-            #expect(renderer.scene == project.surface.renderScene)
+            #expect(renderer.scene == project.surfaces[0].renderScene)
             #expect(try pixels(renderer) == [[0,255,0,255],[0,0,0,255],[0,0,0,255]])
         }
         session.selectSurface(nil)
@@ -142,7 +142,7 @@ struct SurfaceTests {
         defer { session.testOutput.close() }
         let output = try #require((session.testOutput.window?.contentView as? TestOutputView)?.metalView?.delegate as? MetalRenderer)
         session.selectCorner(.topLeft)
-        session.moveSelectedCorner(to: SIMD2(0.35,0.4), surfaceID: session.project.surface.id)
+        session.moveSelectedCorner(to: SIMD2(0.35,0.4), surfaceID: session.project.surfaces[0].id)
         host.rootView = MetalScenePreview(scene: session.scene, aspectRatio: 1, outputDescription: "Test")
         host.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.03))

@@ -12,16 +12,22 @@ Runnable builds belong in GitHub Releases as zipped assets, while local copies r
 
 ## Branches and milestones
 
-- `main` is the latest verified project state; small verified changes can advance it without a release.
+- `main` is the latest delivered, tested x.xx app milestone. Intermediate planning, fixes and implementation slices stay local until a new x.xx milestone is completed.
 - Develop the next milestone on a branch such as `feature/v1.02-output-selection`.
-- Make small commits explaining meaningful changes.
+- At the completed x.xx milestone boundary, make clear commits explaining the accumulated verified changes. Do not make intermediate commits solely for planning edits, small fixes or x.xx.x slices under the current user policy.
 - Verify code changes with **Xcode 27.0 beta 5 (27A5237l)** before merging into main; choose checks appropriate to the change. Documentation-only changes do not require an app build.
 - Keep docs/PROGRESS.md accurate after meaningful work. Update verification notes and CHANGELOG.md when the change warrants them; avoid release paperwork for tiny changes.
-- Commit and push meaningful completed changes so the user can recover previous source versions through Git history. This is sufficient for small fixes and minuscule changes; do not automatically bump versions, tag, package an app, or publish a release.
-- For substantial milestones or when the user asks for a release, create an annotated tag and publish notes with a verified runnable app archive.
+- User policy effective October 5, 2026: perform Git commits/pushes and GitHub uploads only for a newly completed app version at the x.xx milestone level (such as v1.08 or v2.01), unless the user explicitly requests an exception. Keep intermediate files local; do not bump versions to manufacture an upload boundary. Read-only Git inspection and local feature-branch setup remain available. Record pending delivery accurately in progress notes.
+- Eligibility for milestone delivery does not automatically authorize a release/tag/asset upload. When a release is requested or included in the approved milestone delivery, publish notes and a verified runnable app archive with an annotated tag. An explicit user request can override the normal cadence.
 - Preserve existing milestone tags and release assets; corrections get a new version instead of replacing an old snapshot.
 
 The first preserved milestone is **v1.01 — App Skeleton**, a development prerelease. It includes the code and a local Apple Silicon build. Saving, media import, mapping, and output windows are later milestones.
+
+## Known remote state
+
+The user states this agent is the only person changing GitHub. Rely on local repository history and the last confirmed remote state for work created in this project. Do not routinely browse GitHub, fetch, pull or poll merely to rediscover known commits, plans, tags or releases. A successful push result confirms that delivery without a separate GitHub inspection.
+
+Use remote checks when required information is not known locally, a command reports a conflict/failure, there is concrete evidence of outside changes, or the user explicitly asks. Preserve the x.xx-only delivery cadence; this preference does not authorize intermediate commits or uploads.
 
 ## Accessing a past version
 
