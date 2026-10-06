@@ -133,4 +133,4 @@ Locks, bounded object translation and scoped resets are implemented locally. All
 
 ## v1.11 completed implementation — October 6, 2026
 
-All three slices are implemented; all 184 Debug/Release correctness tests passed. The 1.11/build 8 universal app is delivered locally; source backup is ready at the milestone boundary. See [verification](V1.11.3_VERIFICATION.md). User visuals remain pending. Next: v1.12 Mapping Tools, extending the same global blackout to calibration and face-local masks. No new release/tag/assets requested.
+All three slices are implemented; all 184 Debug/Release correctness tests passed. The 1.11/build 8 universal app is delivered locally; tested source backup was successfully pushed to main at 87459a8. See [verification](V1.11.3_VERIFICATION.md). User visuals remain pending. Next: v1.12 Mapping Tools, extending the same global blackout to calibration and face-local masks. No new release/tag/assets requested.

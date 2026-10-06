@@ -4,7 +4,7 @@ Last updated: October 6, 2026.
 
 ## Current state
 
-v1.11 Surface Controls is implemented and automatically verified: all **184 correctness tests passed in Debug and Release**, with four optional benchmarks skipped. Bundle **1.11/build 8** is installed at app/ProjectionMapper.app; tested universal product is under builds/v1.11/, evidence under builds/v1.11.3/. The previous preview is preserved. Looks, palettes and master brightness/fade/blackout complete all three slices. Source backup is ready for milestone Git delivery; last confirmed remote main remains v1.10 at 55d242c until successful push. Routine visuals belong to the user and remain pending; no screen control was used. Latest published release remains v1.04.2. Next development milestone: v1.12 Mapping Tools.
+v1.11 Surface Controls is implemented and automatically verified: all **184 correctness tests passed in Debug and Release**, with four optional benchmarks skipped. Bundle **1.11/build 8** is installed at app/ProjectionMapper.app; tested universal product is under builds/v1.11/, evidence under builds/v1.11.3/. The previous preview is preserved. Looks, palettes and master brightness/fade/blackout complete all three slices. v1.11 source backup was successfully pushed to GitHub main at **87459a8**; prior v1.10 history at 55d242c is preserved. Routine visuals belong to the user and remain pending; no screen control was used. Latest published release remains v1.04.2. Next development milestone: v1.12 Mapping Tools.
 
 ## Completed
 
@@ -402,6 +402,8 @@ The user explicitly requested saving v1.09 to GitHub before implementing v1.10 l
 - [x] Reverified Xcode 27.0 beta 5 (27A5237l); all 184 correctness tests passed in final Debug/Release runs. Four optional benchmarks skipped.
 - [x] Delivered 1.11/build 8 universal locally signed app to app/ and builds/v1.11/; previous installed preview preserved; all tested-product file hashes match.
 - [x] Updated schema 5 migration/save/recovery, documentation and [verification evidence](V1.11.3_VERIFICATION.md).
-- [ ] Complete eligible milestone Git source delivery (remote confirmation follows push). No release/tag/assets requested.
+- [x] Completed eligible milestone Git source delivery: main fast-forwarded and successfully pushed from 55d242c to **87459a8**. No release/tag/assets requested or published.
 - [ ] User visual acceptance: look recall, palettes, fade/blackout and prior appearance/locks/movement/reset checks. No new acceptance has been reported; no screen control used.
 - Next: v1.12 calibration tools and basic face-local polygon masks, extending the existing global output controls.
+
+Milestone source delivery confirmed October 6, 2026 by successful push output; no routine GitHub browse/fetch was needed. A documentation-only delivery record follows the tested source commit.

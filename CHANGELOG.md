@@ -6,7 +6,7 @@
 - Add project-owned reusable looks that preserve mapping/locks/playback and report missing/regrouped targets; add named palettes with stable color bindings and reference-safe deletion.
 - Add saved master brightness/fade duration and temporary playback-independent fade/restore plus immediate latched blackout, shared across preview and Test Window. Toolbar/menu restore remains accessible; Command-Shift-B/Command-Shift-R control blackout/restore.
 - Schema 5 stores libraries/bindings/master settings and migrates schemas 1–4. Preserve colors/source IDs and failed-save safety; enforce manifest-size limits.
-- Bundle 1.11/build 8. All 184 correctness tests passed in Debug/Release; signed universal local app delivered. User visuals remain pending. Milestone source backup prepared; no release/tag/assets requested.
+- Bundle 1.11/build 8. All 184 correctness tests passed in Debug/Release; signed universal local app delivered. User visuals remain pending. Milestone source backup successfully pushed to main at 87459a8; no release/tag/assets requested or published.
 
 ## Local preview — v1.11.2 Locks, Movement and Resets — October 5, 2026
 

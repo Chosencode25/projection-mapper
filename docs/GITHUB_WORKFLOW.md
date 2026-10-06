@@ -50,3 +50,7 @@ git push origin v1.02
 ```
 
 Commit changes before pushing. Push a milestone tag only after verifying that it points to the intended tested commit.
+
+## Latest confirmed source milestone — October 6, 2026
+
+v1.11 Surface Controls (bundle 1.11/build 8) is tested and backed up on main at **87459a8**, successful push from 55d242c. All 184 correctness tests passed in Debug and Release; user visuals remain pending. A documentation-only delivery record follows that tested source commit. No new release/tag/app assets were published; latest release remains v1.04.2. Next milestone v1.12 starts on a new codex/ feature branch.
