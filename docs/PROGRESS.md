@@ -4,7 +4,7 @@ Last updated: October 5, 2026.
 
 ## Current state
 
-v1.07 Perspective Warp is implemented and locally accepted. New projects use a diagnostic grid; one validated projective transform maps content in shared preview/output without a triangle seam. Invalid shapes clear safely with stable editor warning layout and overlapping-handle recovery. All 79 correctness tests passed in Debug/Release with Xcode 27.0 beta 5 (27A5237l); vital screen checks passed. Signed Release copies: builds/v1.07/ProjectionMapper.app and app/ProjectionMapper.app; source preserved on GitHub main. Bundle remains 1.04.2/build 4; latest published release is [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next active milestone: v1.08 Multiple Surfaces. Remaining milestones were reordered and renumbered; image/video import now follows core tools at v1.13/v1.14. Physical projector/display transitions remain deferred.
+v1.07 Perspective Warp is implemented and locally accepted. New projects use a diagnostic grid; one validated projective transform maps content in shared preview/output without a triangle seam. Invalid shapes clear safely with stable editor warning layout and overlapping-handle recovery. All 79 correctness tests passed in Debug/Release with Xcode 27.0 beta 5 (27A5237l); vital screen checks passed. Signed Release copies: builds/v1.07/ProjectionMapper.app and app/ProjectionMapper.app; source preserved on GitHub main. Bundle remains 1.04.2/build 4; latest published release is [v1.04.2](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.04.2). Next active milestone: v1.08 Multiple Surfaces; its planned scope now includes object groups, shared input maps and separate layout/content ownership. Remaining milestones were reordered and renumbered; image/video import now follows core tools at v1.13/v1.14. Physical projector/display transitions remain deferred.
 
 ## Completed
 
@@ -24,7 +24,7 @@ v1.07 Perspective Warp is implemented and locally accepted. New projects use a d
 
 ## Current acceptance and next milestone
 
-v1.07 is complete for local Test Mode and saved to tested main. See [verification](V1.07_VERIFICATION.md), [five-step plan](V1.07_PLAN.md) and [roadmap](V1_ROADMAP.md). The user approved a reordered and renumbered remaining roadmap. Next: v1.08 Multiple Surfaces, then v1.09 Built-In Animations and v1.10 Save & Load. Future work is planned, not implemented.
+v1.07 is complete for local Test Mode and saved to tested main. See [verification](V1.07_VERIFICATION.md), [five-step plan](V1.07_PLAN.md) and [roadmap](V1_ROADMAP.md). The user approved a reordered and renumbered remaining roadmap. Next: v1.08 Multiple Surfaces, then v1.09 Built-In Animations and v1.10 Save & Load. Future work is planned, not implemented. See [updated V1 foundations](V1_REMAINING_PLAN.md) and [V2 show roadmap](V2_ROADMAP.md).
 
 ## Scope and limitations
 
@@ -288,3 +288,11 @@ Expanded all eight reordered milestones into [ordered implementation and verific
 User approved adding object grouping and continuous content across faces to the whole plan. Updated development requirements, roadmap and every remaining milestone in [the detailed plan](V1_REMAINING_PLAN.md): v1.08 adds object membership/shared input maps/manual edge alignment; v1.09 adds shared generators and cross-face motion; v1.10 saves that structure; v1.11–v1.15 cover scoped controls, continuity diagnostics, shared image/video ownership, undo/redo, demo and final acceptance. Continuous and Repeat modes are explicit; standalone/detached faces remain supported. Manual flat layouts can contain deliberate seams; full 3D reconstruction is future scope.
 
 Documentation-only update: reviewed scope/dependencies and checked the diff; no app code, build, screen use, feature implementation, version bump or release. v1.07 remains the latest accepted app.
+
+## V1 foundations updated and V2 planned — October 5, 2026
+
+User requested adjusting all V1 planning and planning V2 following research into mapping/sequencing/show-control software. Updated the remaining steps, roadmap, development requirements and source README future-scope links. V1 retains its approved order and adds layout/content separation and tags (1.08), deterministic time/seek and generator presets (1.09), migration contracts (1.10), reusable looks/palettes and master brightness/fades (1.11), basic polygon masks (1.12), editor-only house photo (1.13), explicit video-audio routing and requested-time playback (1.14), and readiness/full regression coverage (1.15).
+
+Created [V2 roadmap](V2_ROADMAP.md) and [ordered implementation/acceptance plan](V2_IMPLEMENTATION_PLAN.md): 2.01 projector output/calibration, 2.02 music transport, 2.03 timeline/cues, 2.04 holiday choreography, 2.05 layers/regions/text, 2.06 reusable shows/layouts, 2.07 external synchronization/lighting integration, 2.08 Show Mode/readiness, 2.09 playlists/schedules, 2.10 local remote control, 2.11 export/portable delivery, 2.12 acceptance/release. Includes dependency gates, migration/seek/resource rules, research links and a prioritized later-feature backlog. Integration is conditional on a verified workflow and measured device versions, not assumed full xLights/FPP format support.
+
+Physical hardware remains deferred; v2.01 now provides its future implementation/acceptance stage. V1 is accepted/published as Test Mode scope only until those capabilities are actually delivered. Planning changes only: reviewed document consistency, numbered stages and links; no feature implementation, app build, screen use, version bump, tag or release. v1.07 remains the latest accepted app.

@@ -26,6 +26,12 @@ Local builds use ad-hoc signing (“Sign to Run Locally”); an Apple Developer 
 
 Projects remain in memory. Basic test output is available. Shared editor/Test Output rendering is implemented. Four-corner surface storage is implemented; corner editing is implemented; perspective mapping is implemented; multiple surfaces (v1.08) are next, followed by built-in animations (v1.09) and saving (v1.10). Image/video import now follows core tools at v1.13/v1.14.
 
+## Planned direction
+
+The [remaining V1 plan](../../docs/V1_REMAINING_PLAN.md) adds connected object faces, layout/content separation, deterministic effect time/seek, generator presets, reusable looks/palettes, master brightness/fades, polygon masks, editor-only house photos, explicit video-audio controls and readiness checks. These features are planned, not included in the v1.07 source/app.
+
+The [V2 roadmap](../../docs/V2_ROADMAP.md) and [detailed steps](../../docs/V2_IMPLEMENTATION_PLAN.md) cover music timelines, holiday choreography and show operation. Fullscreen projector implementation/physical checks are scheduled for v2.01 with the hardware deferral preserved.
+
 ## Source organization
 
 `ProjectionMapper/App/` contains app entry, commands, and window lifecycle. `Models/` contains project and display models. `Services/` contains display discovery and output preferences. `State/` contains observable editor state. `Views/` contains SwiftUI panels. `Resources/` contains the asset catalog. `ProjectionMapperTests/` contains unhosted state tests; those compile the same model/session/output source files and do not launch the editor.

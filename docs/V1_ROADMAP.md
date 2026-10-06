@@ -1,8 +1,8 @@
 # V1 Roadmap — Core Mapper
 
-V1 is a native Mac app for projecting images, videos, and built-in animations onto multiple surfaces using four-corner mapping. Faces can form objects with shared content coordinates so animations and media continue across joined faces. The editor stays on the Mac; clean output appears in a separate test window or on a projector.
+V1 targets a native Mac mapping workspace for images, videos and built-in animations on multiple surfaces. Faces can form objects with shared content coordinates so content continues across joined faces. Reusable looks/palettes, masks, time-based playback, an editor-only house photo and portable projects prepare it for musical shows. V1 acceptance remains Test Mode; fullscreen projector implementation and physical acceptance are scheduled for v2.01.
 
-See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). Those steps are planned, not implemented.
+See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). Those steps are planned, not implemented. See [V2 music/show roadmap](V2_ROADMAP.md) and [detailed V2 implementation steps](V2_IMPLEMENTATION_PLAN.md) for the next major version.
 
 | Stage | Scope |
 |---|---|
@@ -13,18 +13,18 @@ See [ordered implementation steps for every remaining milestone](V1_REMAINING_PL
 | [1.05 — First Surface](V1.05_PLAN.md) | Implemented and locally accepted: one project-owned surface, four normalized corners, initial rectangle, sidebar selection and inspector. |
 | [1.06 — Corner Nodes](V1.06_PLAN.md) | Implemented and locally accepted: draggable handles, live output updates, focused arrow-key nudging, larger Shift nudges. |
 | [1.07 — Perspective Warp](V1.07_PLAN.md) | Implemented and locally accepted: projective diagnostic textures, trapezoids, safe invalid geometry and recovery. |
-| 1.08 — Multiple Surfaces | Add/select/rename/duplicate/delete/reorder surfaces and toggle visibility; object groups, shared-canvas input maps and static edge alignment. Next active milestone. |
-| 1.09 — Built-In Animations | Gradients, plasma, noise, checkers, moving lines, particles/starfield; speed, scale, color, intensity controls; shared object generators and continuous motion across linked faces. |
-| 1.10 — Save & Load | Versioned project files; surface geometry, object membership, input maps/edge links, generator settings, output configuration; autosave and recent projects. Extend saved media references when import arrives. |
-| 1.11 — Surface Controls | Opacity, brightness, crop, flipping, resets, and locking; object/face scope, inherited locks and group movement. |
-| 1.12 — Mapping Tools | Grid, checkerboard, crosshairs, white/black output, global blackout, handle visibility; object/edge continuity diagnostics. |
-| 1.13 — Images | PNG/JPEG import and drag/drop; fit/fill/stretch; aspect ratio; shared images spanning object faces; replace/remove; integrate media references with saved projects. |
-| 1.14 — Video | System-supported video import; AVFoundation frames into Metal; play/pause, restart, loop, speed; shared player/frame across object faces; integrate media references/playback settings with saved projects. |
-| 1.15 — Polish & Release | Undo/redo including object edits, continuity demo/checks, shortcuts, error and missing-media handling, disconnect warning, welcome/demo, profiling, icon, signing, DMG, final verification and release upload. |
+| 1.08 — Multiple Surfaces | Ordered surfaces, named object groups/tags, separate layout/content ownership, shared input maps, manual edge alignment and visibility. Next active milestone. |
+| 1.09 — Built-In Animations | Gradients, plasma, noise, checkers, moving lines, particles; deterministic elapsed-time playback/seek, shared object generators and reusable generator presets. |
+| 1.10 — Save & Load | Versioned portable layout/content/preset data, objects/tags/input maps, output settings, autosave and recovery; explicit later-feature and V2 migration contracts. |
+| 1.11 — Surface Controls | Opacity/brightness/crop/flip/locks/resets; object/face scope; reusable looks/palettes; master visual brightness and fade/restore. |
+| 1.12 — Mapping Tools | Calibration, global blackout, editor handles and join diagnostics; saved basic face-local polygon masks/cutout holes. |
+| 1.13 — Images | PNG/JPEG import/drop, placement and shared object textures; portable assets; separate editor-only house/display reference photo. |
+| 1.14 — Video | AVFoundation video into Metal; deterministic requested-time playback and shared object player/frame; explicit embedded-audio routing/mute; portable media/preferences. |
+| 1.15 — Polish & Release | Undo/redo and recovery for all new data, playback-readiness report, object identification, portable demos, profiling and accurate Test Mode packaging/upload. |
 
 The first major mapping milestone is 1.07. A temporary developer test texture or pattern can exercise warping before image/video import, now scheduled after the core mapping tools; full calibration tools remain planned for 1.12.
 
-Later major versions cover richer mesh/mask/effect tools, camera-assisted mapping and live control, and professional 3D or multi-projector features.
+V2 adds actual projector output, music/song transport, timelines/cues, holiday choreography, layers/regions/text, reusable show roles/templates, external synchronization, Show Mode, scheduling, local remote controls and export. Multi-projector blending, mesh/3D tools, camera-assisted mapping, direct fixture/pixel output and standalone playback remain an explicit later backlog in the V2 plan.
 
 ## v1.03 slices — approved October 5, 2026
 
@@ -52,7 +52,7 @@ Test each slice as it is developed. Commit and push completed verified slices wi
 
 ## Relative difficulty estimates — October 5, 2026
 
-These are subjective implementation/testing-complexity estimates relative to this project, not measured effort or time commitments. v1.04's 8/10 describes the complete renderer milestone; individual slices narrow its scope.
+These are subjective implementation/testing-complexity estimates relative to this project, not measured effort or time commitments. Remaining-stage estimates include the approved object-continuity and show-foundation expansion. v1.04's 8/10 describes the complete renderer milestone; individual slices narrow its scope.
 
 | Step | Estimate | Main complexity |
 |---|---|---|
@@ -65,11 +65,11 @@ These are subjective implementation/testing-complexity estimates relative to thi
 | 1.05 — First Surface | 3/10 | Geometry model and selection on the renderer. |
 | 1.06 — Corner Nodes | 6/10 | Dragging, coordinate conversion, nudging, live updates. |
 | 1.07 — Perspective Warp | 8/10 | Mapping math, texture correctness, extreme shapes. |
-| 1.08 — Multiple Surfaces | 6/10 | Selection, ordering, object membership, input maps, edge alignment, multiple draws. |
-| 1.09 — Built-In Animations | 7/10 | Several shaders, shared object coordinates/timing, cross-face motion, performance. |
+| 1.08 — Multiple Surfaces | 8/10 | Selection, ordering, object membership, input maps, edge alignment, multiple draws. |
+| 1.09 — Built-In Animations | 8/10 | Several shaders, shared object coordinates/timing, cross-face motion, performance. |
 | 1.10 — Save & Load | 8/10 | Reliable files, generator settings, autosave, migrations, recovery; later media extensions. |
-| 1.11 — Surface Controls | 5/10 | Controls interacting with content and mapping. |
-| 1.12 — Mapping Tools | 4/10 | Patterns and output controls on established rendering. |
+| 1.11 — Surface Controls | 7/10 | Scoped appearance, looks/palettes, master fades and saved references. |
+| 1.12 — Mapping Tools | 7/10 | Calibration priority, polygon/hole validation, mask coordinate correctness and persistence. |
 | 1.13 — Images | 5/10 | Import, GPU textures, fit/fill/stretch, replacement, saved media references. |
 | 1.14 — Video | 9/10 | Playback timing, decoding, Metal integration, resource management, saved settings. |
 | 1.15 — Polish & Release | 9/10 | Undo/redo, error handling, profiling, packaging, release verification and upload. |
@@ -106,3 +106,9 @@ Saving begins with the content supported at v1.10; subsequent surface settings a
 ## Connected object faces — approved October 5, 2026
 
 Added throughout the remaining plan: group faces into one object, align their regions on a shared content canvas, and use one content source and timeline across those faces. Continuous mode spans joined faces; Repeat repeats full content with shared timing. Each face retains its output corner geometry. Manual edge alignment and explicit seams are part of v1.08; animated continuity follows in v1.09, persistence in v1.10, then scoped controls, calibration, shared images/video and final acceptance. Full 3D reconstruction is future scope. See the [complete requirements and milestone steps](V1_REMAINING_PLAN.md). Planning only: v1.07 remains the implemented app.
+
+## V1 show foundations and V2 plan — October 5, 2026
+
+The user requested adjusting all V1 planning and planning V2 after the software comparison. The current future scope is reflected in the table and [remaining steps](V1_REMAINING_PLAN.md): preserve layout/content separation, stable targets, deterministic time/seek, generator presets, looks/palettes, master visual control, basic masks, editor reference photos, embedded-video audio policy and playback readiness. Keep the approved v1.08–v1.15 order and completed historical identities.
+
+[V2](V2_ROADMAP.md) owns song sequencing and show operation. Physical output is explicitly scheduled at v2.01 while retaining the user's hardware deferral; a V1 Test Mode release must not claim projector/fullscreen or real Christmas-show verification. Each added foundation includes persistence, resource ownership and acceptance checks. This is planning only; no app changes or release.
