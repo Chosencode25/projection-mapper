@@ -6,7 +6,7 @@ Last updated: October 7, 2026.
 
 **v1.12 Mapping Tools is complete and automatically verified.** All three slices include temporary calibration, face-local masks/cutouts, editor guide visibility/names/edge labels and shared-canvas stripe/join inspection. **225 offscreen correctness tests passed in Debug and Release**, with four optional benchmarks skipped and two legacy visible-window tests excluded. Tested universal **1.12/build 9** app is installed at app/ProjectionMapper.app and archived under builds/v1.12/, with evidence under builds/v1.12.3/ and the previous preview preserved. Packages use format 6.
 
-Completed-milestone source backup is pending from codex/v1.12-mapping-tools to main/GitHub. Last confirmed source backup remains v1.11 at 87459a8 with notes 03c9a45. No release/tag/assets are authorized; latest published release remains v1.04.2. Routine user visuals remain pending. No screen automation or visible-window tests were used for 1.12.3. Next: **v1.13 Image Import**; physical projector output remains deferred.
+Completed-milestone source backup successfully pushed to GitHub main at **b786f55**, fast-forwarded from 03c9a45. Prior v1.11 source 87459a8 and v1.10 source 55d242c remain preserved. Delivery-record documentation follows the tested source commit. No release/tag/assets are authorized; latest published release remains v1.04.2. Routine user visuals remain pending. No screen automation or visible-window tests were used for 1.12.3. Next: **v1.13 Image Import**; physical projector output remains deferred.
 
 ## Completed
 
@@ -452,7 +452,7 @@ Milestone source delivery confirmed October 6, 2026 by successful push output; n
 - [x] Shared-canvas vertical/horizontal stripes and checker join inspection, projected traversal arrows and seam/mismatch status, preserving geometry/maps/content/clocks/masks.
 - [x] 225 offscreen correctness checks passed in Debug/Release; four benchmarks skipped, two visible-window tests excluded. Exact Xcode 27A5237l, universal slices, strict signing and complete file hashes verified.
 - [x] Bundle 1.12/build 9 delivered to app/ and builds/v1.12/; previous preview preserved.
-- [ ] Completed milestone source backup to main/GitHub; delivery confirmation pending.
+- [x] Completed milestone source backup successfully pushed to main/GitHub at b786f55, preserving earlier history.
 - [ ] User mapping-tools visual acceptance. See [verification](V1.12.3_VERIFICATION.md).
 
 Next planned build: v1.13 Image Import. No release publication requested.

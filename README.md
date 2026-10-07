@@ -40,4 +40,4 @@ Private repository: [Chosencode25/projection-mapper](https://github.com/Chosenco
 
 The first milestone is `v1.01`. Follow [GitHub workflow](docs/GITHUB_WORKFLOW.md) for branches, commits, milestone tags, and release downloads. See [Changelog](CHANGELOG.md) for completed version changes.
 
-Completed v1.12 milestone source backup to GitHub main is pending. Last confirmed backup is v1.11 at 87459a8 with notes 03c9a45, preserving v1.10 at 55d242c. No new release/tag/assets are authorized. Next: v1.13 Image Import.
+Completed v1.12 tested source is backed up on GitHub main at b786f55, successfully pushed from 03c9a45. Delivery documentation follows that source commit. Earlier v1.11 at 87459a8 and v1.10 at 55d242c remain preserved. No new release/tag/assets are authorized. Next: v1.13 Image Import.

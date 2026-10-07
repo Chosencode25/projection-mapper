@@ -54,3 +54,7 @@ Commit changes before pushing. Push a milestone tag only after verifying that it
 ## Latest confirmed source milestone — October 6, 2026
 
 v1.11 Surface Controls (bundle 1.11/build 8) is tested and backed up on main at **87459a8**, successful push from 55d242c. All 184 correctness tests passed in Debug and Release; user visuals remain pending. A documentation-only delivery record follows that tested source commit. No new release/tag/app assets were published; latest release remains v1.04.2. Next milestone v1.12 starts on a new codex/ feature branch.
+
+## Latest confirmed source milestone — October 7, 2026
+
+v1.12 Mapping Tools (bundle 1.12/build 9, package format 6) is tested and backed up on main at **b786f55**, successfully pushed from 03c9a45 after fast-forwarding codex/v1.12-mapping-tools. All 225 offscreen correctness tests passed in Debug/Release; four benchmarks skipped and two visible-window tests excluded. Tested universal signed app installed locally and previous preview preserved. User visuals remain pending. A documentation-only delivery record follows the tested source commit; no release/tag/assets published. Latest published release remains v1.04.2. Next milestone is v1.13 Image Import; start a codex/ feature branch before implementing it, retaining the milestone-only Git cadence.

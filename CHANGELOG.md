@@ -6,7 +6,7 @@
 - Add temporary editor handles/outlines/names/edge visibility controls with reachable toolbar/View menu actions and safe defaults. Hide handles without enabling invisible drag/nudge; retain face picking and text focus.
 - Add shared-canvas vertical/horizontal stripe and checker join inspection, projected edge traversal arrows and joined/seam/mismatch labels. Decorations stay out of clean output and saved projects.
 - All 225 offscreen correctness checks passed in Debug/Release; four benchmarks skipped and two visible-window tests excluded. Exact Xcode 27A5237l; universal signed 1.12/build 9 app delivered locally, previous preview preserved.
-- Completed source backup pending; user visuals pending. No new release/tag/assets authorized. Next: v1.13 Image Import.
+- Completed source successfully backed up on GitHub main at b786f55; user visuals pending. No new release/tag/assets authorized. Next: v1.13 Image Import.
 
 ## Local preview — v1.12.2 Face Masks and Cutouts — October 7, 2026
 
