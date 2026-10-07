@@ -7,13 +7,13 @@ Required Xcode: **27.0 beta 5 (27A5237l)** at `/Applications/Xcode-beta.app`.
 1. Open `app/ProjectionMapper/ProjectionMapper.xcodeproj` with Xcode-beta.
 2. Select **ProjectionMapper** and **My Mac**.
 3. Press **Command–R** to build and run.
-4. Press **Command–U** for 111 correctness tests (two require visible native windows). Four optional benchmark declarations are skipped unless explicitly enabled.
+4. Press **Command–U** for the full suite, including two legacy tests that present native windows. The current offscreen verification subset passes 225 correctness tests; four optional benchmark declarations are skipped unless explicitly enabled. Use the exclusions below for checks without visible windows.
 
 The interface uses SwiftUI and programmatic AppKit, without storyboards/XIBs. Minimum deployment target: macOS 15.0. Local ad-hoc signing needs no paid developer account. Review proposed Xcode settings migrations against the pinned toolchain.
 
 ## Standalone local build
 
-Open `app/ProjectionMapper.app` or `builds/v1.08/ProjectionMapper.app`: the accepted Apple Silicon Release build with ordered editable perspective faces, optional shared-content objects and input maps/joins. Bundle is 1.08/build 5; the published v1.04.2 and earlier local products remain preserved. This is a local development build, not a notarized public installer. See [current verification](V1.08_VERIFICATION.md).
+Open `app/ProjectionMapper.app` or `builds/v1.12/ProjectionMapper.app` for the completed Mapping Tools milestone. Bundle is 1.12/build 9. This is a universal arm64/x86_64, ad-hoc signed local development build; runtime verification was on Apple Silicon. Previous previews and published release products remain preserved. See [current verification](V1.12.2_VERIFICATION.md). Quit/reopen a running older instance to use the replacement binary.
 
 ## Build and test commands
 
@@ -26,19 +26,20 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
 xcodebuild -project app/ProjectionMapper/ProjectionMapper.xcodeproj \
   -scheme ProjectionMapper -configuration Release \
   -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath builds/v1.08/DerivedData build
+  -derivedDataPath builds/v1.12.3/DerivedData \
+  'ARCHS=arm64 x86_64' ONLY_ACTIVE_ARCH=NO build
 ```
 
-Replace `build` with `test` to run all correctness tests; use `-configuration Debug` for Debug. Both configurations passed all 96 correctness tests. The system-wide developer directory stays unchanged.
+Replace `build` with `test` to run checks; use `-configuration Debug` for Debug. Both final configurations passed 225 offscreen correctness tests, with the two exclusions below and four opt-in benchmarks skipped. The system-wide developer directory stays unchanged.
 
-For the current 109-test subset without presenting windows, append these before `test`:
+For the current 225-test correctness subset without presenting windows, append these before `test`:
 
 ```sh
 '-skip-testing:ProjectionMapperTests/TestOutputCoordinatorTests/normalFrameRestoresAcrossCloseAndNewCoordinator()' \
 '-skip-testing:ProjectionMapperTests/MetalRendererTests/nativeMetalOutputSurvivesPresetsResizeAndReopen()'
 ```
 
-The excluded tests exercise minimize/zoom/frame persistence and native Metal drawable behavior. The optional benchmarks below remain disabled in normal runs. Current complete evidence: `builds/v1.08/Debug-Verified.xcresult` and `Release-Verified.xcresult` with their respective logs.
+The excluded tests exercise minimize/zoom/frame persistence and native Metal drawable behavior. The optional benchmarks below remain disabled in normal runs. Current evidence: `builds/v1.12.3/Debug-third.xcresult` and `Release-final.xcresult` with their respective logs and JSON summaries. Historical sections below describe earlier deliveries.
 
 ## Opt-in benchmarks
 
@@ -136,3 +137,21 @@ Current source/products/evidence use builds/v1.11.2/DerivedData and builds/v1.11
 Current tested product is 1.11/build 8 at app/ProjectionMapper.app and builds/v1.11/ProjectionMapper.app, with Debug/Release logs/results in builds/v1.11.3/. Use builds/v1.11.3/DerivedData for current builds. Exact pinned Xcode 27A5237l; macOS 15.0 minimum; universal arm64/x86_64 build, tests run on Apple Silicon. All 184 correctness tests passed; four optional benchmarks skipped.
 
 The project inspector offers Master Output, Looks and Palettes. Add palette slots, then choose a binding beside a selected owner's primary/secondary color. Save New Look captures current content/appearance; Apply preserves mapping/locks and reports missing targets. Palette removal keeps resolved colors. Fade duration accepts 0–30 seconds; fade/restore completes while generators are paused. Immediate Blackout is in the toolbar/Show menu (Command-Shift-B); Restore (Command-Shift-R) fades from black to saved master brightness. Runtime output actions do not dirty the project. Schema 5 libraries/settings save and recover; schemas 1–4 migrate. See [verification](V1.11.3_VERIFICATION.md). Quit/reopen a running older app to use the new binary. User visuals remain pending; no routine screen control is required.
+
+## v1.12.1 local calibration preview
+
+Current product/evidence: builds/v1.12.1/; tested app installed at app/ProjectionMapper.app. Use builds/v1.12.1/DerivedData for current builds. Bundle stays 1.11/build 8; exact Xcode 27A5237l; 202 Debug/Release correctness tests passed, four optional benchmarks skipped. Previous v1.11 app preserved at builds/v1.12.1/Previous-installed.app.
+
+Open Calibration in the inspector or the grid icon in the toolbar. Choose Grid/Checkerboard/Crosshair/White Test/Black Test, or Normal Content to exit. Control-Command-C toggles Grid/Normal; blackout/restore shortcuts are unchanged. Patterns cover visible mapped faces, bypass saved content appearance, and retain master brightness/fades/blackout. Restore keeps the selected pattern; choose Normal Content to return to current project content. Counts are 2–64 and line width 1–4 drawable pixels. Calibration is not saved and resets on successful New/Open/recovery. See [verification](V1.12.1_VERIFICATION.md). Quit/reopen a running older app to use this preview. No intermediate Git delivery; routine visuals belong to the user.
+
+## v1.12.2 local mask preview
+
+Current product/evidence: builds/v1.12.2/; tested app installed at app/ProjectionMapper.app, previous preview at builds/v1.12.2/Previous-installed.app. Use builds/v1.12.2/DerivedData for current builds. Bundle stays 1.11/build 8; exact Xcode 27A5237l; final Debug/Release each passed 217 offscreen correctness tests, four benchmarks skipped and two visible-window tests excluded. Universal slices, strict signing and all delivered file hashes verified.
+
+Select a face in the editor/sidebar, then Add Face Mask in its inspector. Draw Boundary or Draw Hole starts a temporary click-to-place draft in the preview or local square; Finish validates and saves the polygon, Cancel discards it. Drag a point, use Add Point to split the selected edge, delete points down to three, or edit X/Y. Enable Mask preserves a disabled draft; Remove Mask explicitly deletes its boundary/holes. Holes reveal lower faces. Masks stay in original face coordinates when input regions/crop/flips change, follow output corner movement, and remain active under calibration. Invalid enabled masks suppress the face with an inspector warning; repair or disable them. Geometry locks still allow mask edits. Saves/recovery use format 6; formats 1–5 migrate without masks, and older app copies cannot open newly saved format 6 packages. See [verification](V1.12.2_VERIFICATION.md) for limits and user checks. Next: 1.12.3 editor/join tools and milestone verification. No intermediate commit/upload.
+
+## v1.12 completed Mapping Tools
+
+Current tested app: app/ProjectionMapper.app and builds/v1.12/ProjectionMapper.app. Previous installed preview: builds/v1.12/Previous-installed.app. Bundle 1.12/build 9; format 6 projects; exact Xcode 27A5237l. Use builds/v1.12.3/DerivedData for builds/tests. Final Debug-third and Release-final result bundles/logs and summaries show 225 passing offscreen correctness tests each, four optional benchmarks skipped and two visible-window tests excluded. Signing, universal slices and file hashes match the tested Release product.
+
+Use the toolbar eye menu/View > Editor Guides to control handles/outlines/names/edges. Control-Command-H toggles corner/object and mask handles together; Control-Command-L toggles names; Restore Editor Guides restores safe defaults. Picking remains available when handles are hidden; inspector mask editing remains available. Object inspector Vertical Stripes/Horizontal Stripes/Shared Checkerboard reveal names and projected edge labels without editing maps or membership. Patterns obey masks/master output; Return to Normal Content restores content and clocks. New/Open/recovery reset temporary guides/calibration. See [milestone verification](V1.12.3_VERIFICATION.md). User visual acceptance and physical output remain unverified. Source backup pending; no release publication requested.

@@ -31,6 +31,18 @@ float4 applyAppearance(float4 value, float2 appearance, float masterGain) {
     return float4(clamp(value.rgb * appearance.y,0.0,1.0) * masterGain,value.a * appearance.x);
 }
 
+// Matches CPU membership: include outer edges and exclude hole edges.
+int maskLocation(float2 p, constant float2 *points, uint2 ring) {
+    bool inside = false;
+    for (uint i = 0; i < ring.y; ++i) {
+        float2 a = points[ring.x+i], b = points[ring.x+(i+1)%ring.y];
+        float2 edge = b-a, delta = p-a;
+        if (abs(edge.x*delta.y-edge.y*delta.x) <= 1e-6 && dot(p-a,p-b) <= 1e-6) return 0;
+        if ((a.y > p.y) != (b.y > p.y) && p.x < (b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x) inside = !inside;
+    }
+    return inside ? 1 : -1;
+}
+
 fragment float4 rectangleFragment(RectangleVertexOutput input [[stage_in]],
                                  constant float4 &color [[buffer(0)]],
                                  constant float3x3 &inverse [[buffer(1)]],
@@ -43,7 +55,54 @@ fragment float4 rectangleFragment(RectangleVertexOutput input [[stage_in]],
                                  constant uint &seed [[buffer(8)]],
                                  constant float2 &appearance [[buffer(9)]],
                                  constant float &masterGain [[buffer(10)]],
+                                 constant float4 &calibration [[buffer(11)]],
+                                 constant uint2 *maskRings [[buffer(12)]],
+                                 constant float2 *maskPoints [[buffer(13)]],
                                  texture2d<float> grid [[texture(0)]]) {
+    // Clip in original face UV before EVERY content/calibration branch.
+    if (maskRings[0].y > 0) {
+        float3 mapped = inverse * float3(input.surfacePosition, 1.0);
+        if (!all(isfinite(mapped)) || abs(mapped.z) < 1e-8) discard_fragment();
+        float2 uv = mapped.xy / mapped.z;
+        if (maskLocation(uv,maskPoints,maskRings[0]) < 0) discard_fragment();
+        for (uint ring = 1; ring < 8; ++ring) {
+            if (maskRings[ring].y > 0 && maskLocation(uv,maskPoints,maskRings[ring]) >= 0) discard_fragment();
+        }
+    }
+    if (calibration.x > 0.5) {
+        float3 mapped = inverse * float3(input.surfacePosition, 1.0);
+        if (!all(isfinite(mapped)) || abs(mapped.z) < 1e-8) discard_fragment();
+        float2 faceUV = mapped.xy / mapped.z;
+        float2 ownerUV = (inputMap * float3(faceUV, 1.0)).xy;
+        uint pattern = uint(calibration.x);
+        float value = 0.0;
+        if (pattern == 1) {
+            float2 cells = ownerUV * calibration.yz;
+            float2 width = max(fwidth(cells), float2(1e-6));
+            float2 distance = abs(fract(cells + 0.5) - 0.5) / width;
+            value = 1.0 - smoothstep(max(0.0, calibration.w * 0.5 - 0.5), calibration.w * 0.5 + 0.5, min(distance.x, distance.y));
+        } else if (pattern == 2) {
+            float2 cells = ownerUV * calibration.yz;
+            float2 wave = sin(3.14159265 * cells);
+            // Integrate the alternating cell sign across a derivative-sized edge footprint.
+            float2 edge = max(fwidth(cells) * 3.14159265, float2(1e-6));
+            float2 sign = smoothstep(-edge * 0.5, edge * 0.5, wave);
+            value = sign.x * sign.y + (1.0 - sign.x) * (1.0 - sign.y);
+        } else if (pattern == 3) {
+            float2 width = max(fwidth(faceUV), float2(1e-6));
+            float2 center = abs(faceUV - 0.5) / width;
+            float2 border = min(abs(faceUV), abs(1.0 - faceUV)) / width;
+            float distance = min(min(center.x, center.y), min(border.x, border.y));
+            value = 1.0 - smoothstep(max(0.0, calibration.w * 0.5 - 0.5), calibration.w * 0.5 + 0.5, distance);
+        } else if (pattern == 4) { value = 1.0; }
+        else if (pattern == 6 || pattern == 7) {
+            float cells = pattern == 6 ? ownerUV.x * calibration.y : ownerUV.y * calibration.z;
+            float wave = sin(3.14159265 * cells);
+            float edge = max(fwidth(cells) * 3.14159265, 1e-6);
+            value = smoothstep(-edge * 0.5, edge * 0.5, wave);
+        }
+        return float4(float3(value * masterGain), 1.0);
+    }
     if (textured == 0) return applyAppearance(color,appearance,masterGain);
     // Applying one homography after interpolation avoids a diagonal UV seam.
     float3 homogeneous = inverse * float3(input.surfacePosition, 1.0);

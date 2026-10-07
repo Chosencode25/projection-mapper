@@ -118,6 +118,7 @@ struct MappingSurface: Identifiable, Equatable, Sendable, Codable {
     var tags: [String] = []
     var appearance = SurfaceAppearance.defaults
     var appearanceOverride: SurfaceAppearance?
+    var mask: FaceMask?
     var corners: NormalizedRectangle {
         get { layout.corners }
         set { layout.corners = newValue }
@@ -132,11 +133,11 @@ struct MappingSurface: Identifiable, Equatable, Sendable, Codable {
         source = SurfaceSource(content: content, color: color)
     }
     var hasDefaultContent: Bool {
-        name == Self.defaultName && layout == SurfaceLayout() && tags.isEmpty && appearance == .defaults && appearanceOverride == nil &&
+        name == Self.defaultName && layout == SurfaceLayout() && tags.isEmpty && appearance == .defaults && appearanceOverride == nil && mask == nil &&
         color == SIMD4(1, 0.25, 0, 1) && content == .diagnosticGrid && source.generator == .defaults &&
         source.primaryBinding == nil && source.secondaryBinding == nil
     }
-    var renderScene: RenderScene { RenderScene(surfaces: [RenderSurface(geometry: corners, color: color, content: content, generator: source.generator, appearance: appearance)]) }
+    var renderScene: RenderScene { RenderScene(surfaces: [RenderSurface(geometry: corners, color: color, content: content, generator: source.generator, appearance: appearance, mask: mask)]) }
 }
 
 /// Reset scopes intentionally preserve layout membership, input maps, identities and runtime clocks.

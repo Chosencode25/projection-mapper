@@ -11,6 +11,8 @@ struct CornerOverlay: NSViewRepresentable {
     var deselect: () -> Void = {}
     var selectFace: ((SIMD2<Float>?) -> Void)?
     var isLocked = false
+    var showsHandles = true
+    var showsOutlines = true
     var objectID: UUID?
     var objectBounds: NormalizedRectangle?
     var moveObject: ((SIMD2<Float>) -> Void)?
@@ -19,7 +21,7 @@ struct CornerOverlay: NSViewRepresentable {
     func makeNSView(context: Context) -> CornerOverlayView { CornerOverlayView() }
     func updateNSView(_ view: CornerOverlayView, context: Context) {
         view.configure(surfaceID: surfaceID, corners: corners, activeCorner: activeCorner,
-                       select: select, move: move, nudge: nudge, deselect: deselect, selectFace: selectFace,isLocked: isLocked,objectID: objectID,objectBounds: objectBounds,moveObject: moveObject,nudgeObject: nudgeObject)
+                       select: select, move: move, nudge: nudge, deselect: deselect, selectFace: selectFace,isLocked: isLocked,showsHandles: showsHandles,showsOutlines: showsOutlines,objectID: objectID,objectBounds: objectBounds,moveObject: moveObject,nudgeObject: nudgeObject)
     }
 }
 
@@ -31,6 +33,8 @@ final class CornerOverlayView: NSView {
     private var activeCorner: SurfaceCorner?
     private var dragging: SurfaceCorner?
     private var grabOffset = CGSize.zero
+    private var showsHandles = true
+    private var showsOutlines = true
     private var isLocked = false
     private var objectID: UUID?
     private var objectBounds: NormalizedRectangle?
@@ -59,13 +63,15 @@ final class CornerOverlayView: NSView {
                    select: @escaping (SurfaceCorner?) -> Void, move: @escaping (SIMD2<Float>) -> Void,
                    nudge: @escaping (SIMD2<Float>, Bool) -> Void, deselect: @escaping () -> Void = {},
                    selectFace: ((SIMD2<Float>?) -> Void)? = nil,isLocked: Bool = false,
+                   showsHandles: Bool = true,showsOutlines: Bool = true,
                    objectID: UUID? = nil,objectBounds: NormalizedRectangle? = nil,
                    moveObject: ((SIMD2<Float>) -> Void)? = nil,nudgeObject: ((SIMD2<Float>,Bool) -> Void)? = nil) {
-        if self.surfaceID != surfaceID || self.objectID != objectID || isLocked || (dragging != nil && activeCorner != dragging) { dragging = nil; objectDragPoint = nil }
+        if self.surfaceID != surfaceID || self.objectID != objectID || isLocked || !showsHandles || (dragging != nil && activeCorner != dragging) { dragging = nil; objectDragPoint = nil }
+        self.showsHandles = showsHandles; self.showsOutlines = showsOutlines
         self.isLocked = isLocked; self.objectID = objectID; self.objectBounds = objectBounds; self.moveObject = moveObject; self.nudgeObject = nudgeObject
         self.surfaceID = surfaceID
         self.corners = corners
-        self.activeCorner = activeCorner
+        self.activeCorner = showsHandles ? activeCorner : nil
         self.select = select; self.move = move; self.nudge = nudge; self.deselect = deselect; self.selectFace = selectFace
         setAccessibilityValue(isLocked ? "Output geometry locked; select or unlock in inspector" : objectID != nil ? "Drag object center handle or use arrows to move all faces" : activeCorner.map { "\($0.title) selected" } ?? "Click a corner to edit")
         needsDisplay = true
@@ -78,7 +84,8 @@ final class CornerOverlayView: NSView {
             let frame = CGRect(x: topLeft.x,y: topLeft.y,width: bottomRight.x-topLeft.x,height: bottomRight.y-topLeft.y)
             let outline = NSBezierPath(rect: frame); outline.lineWidth = 1.5
             outline.setLineDash([5,3],count: 2,phase: 0)
-            (isLocked ? NSColor.systemGray : NSColor.systemPurple).setStroke(); outline.stroke()
+            if showsOutlines { (isLocked ? NSColor.systemGray : NSColor.systemPurple).setStroke(); outline.stroke() }
+            guard showsHandles else { return }
             let handle = NSBezierPath(rect: CGRect(x: frame.midX-7,y: frame.midY-7,width: 14,height: 14))
             (isLocked ? NSColor.systemGray : NSColor.systemPurple).setFill(); handle.fill()
             return
@@ -87,7 +94,8 @@ final class CornerOverlayView: NSView {
         let points = SurfaceCorner.allCases.map { SurfaceCoordinates.position(corners[$0], in: previewRect) }
         let outline = NSBezierPath()
         outline.move(to: points[0]); points.dropFirst().forEach { outline.line(to: $0) }; outline.close()
-        (isLocked ? NSColor.systemGray : NSColor.systemPurple).setStroke(); outline.lineWidth = 1.5; outline.stroke()
+        if showsOutlines { (isLocked ? NSColor.systemGray : NSColor.systemPurple).setStroke(); outline.lineWidth = 1.5; outline.stroke() }
+        guard showsHandles else { return }
         for (corner, point) in zip(SurfaceCorner.allCases, points) {
             let circle = NSBezierPath(ovalIn: CGRect(x: point.x - 6, y: point.y - 6, width: 12, height: 12))
             (isLocked ? NSColor.systemGray : corner == activeCorner ? NSColor.systemPurple : NSColor.white).setFill(); circle.fill()
@@ -97,7 +105,7 @@ final class CornerOverlayView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        if objectID != nil, let box = objectBounds,previewRect.width > 0,previewRect.height > 0 {
+        if showsHandles, objectID != nil, let box = objectBounds,previewRect.width > 0,previewRect.height > 0 {
             let center = SurfaceCoordinates.position((box.topLeft+box.bottomRight)*0.5,in: previewRect)
             if distance(point,center) <= 12 {
                 dragging = nil; objectDragPoint = isLocked ? nil : point
@@ -113,7 +121,7 @@ final class CornerOverlayView: NSView {
             distance(point, SurfaceCoordinates.position(corners[$0], in: previewRect)) <
             distance(point, SurfaceCoordinates.position(corners[$1], in: previewRect))
         }
-        guard surfaceID != nil, previewRect.width > 0, previewRect.height > 0, let corner = nearest,
+        guard showsHandles, surfaceID != nil, previewRect.width > 0, previewRect.height > 0, let corner = nearest,
               distance(point, SurfaceCoordinates.position(corners[corner], in: previewRect)) <= 12 else {
             dragging = nil; activeCorner = nil; select(nil)
             if let selectFace {
@@ -127,7 +135,7 @@ final class CornerOverlayView: NSView {
         select(corner); window?.makeFirstResponder(self); needsDisplay = true
     }
     override func mouseDragged(with event: NSEvent) {
-        guard !isLocked else { return }
+        guard showsHandles, !isLocked else { return }
         let point = convert(event.locationInWindow, from: nil)
         if let previous = objectDragPoint,previewRect.width > 0,previewRect.height > 0 {
             objectDragPoint = point
@@ -155,7 +163,7 @@ final class CornerOverlayView: NSView {
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 { activeCorner = nil; dragging = nil; objectDragPoint = nil; select(nil); needsDisplay = true; return }
         if let direction = Self.direction(keyCode: event.keyCode, modifiers: event.modifierFlags), objectID != nil || activeCorner != nil {
-            guard !isLocked else { return }
+            guard showsHandles, !isLocked else { return }
             if objectID != nil { nudgeObject?(direction,event.modifierFlags.contains(.shift)) }
             else { nudge(direction, event.modifierFlags.contains(.shift)) }
         } else { super.keyDown(with: event) }

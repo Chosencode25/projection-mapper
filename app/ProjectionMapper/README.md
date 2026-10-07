@@ -1,4 +1,4 @@
-# Projection Mapper — v1.11 Surface Controls
+# Projection Mapper — v1.12 Mapping Tools
 
 A native, entirely code-based Mac editor skeleton. Built for **Xcode 27.0 beta 5 (27A5237l)**. Minimum deployment target: **macOS 15.0**.
 
@@ -29,7 +29,7 @@ Projects save/open as .projectionmap packages through the File menu. Save As, re
 
 ## Planned direction
 
-The [remaining V1 plan](../../docs/V1_REMAINING_PLAN.md) builds on implemented connected object faces and layout/content separation with deterministic effect time/seek, generator presets, reusable looks/palettes, master brightness/fades, polygon masks, editor-only house photos, explicit video-audio controls and readiness checks. Looks/palettes and subsequent controls/media remain planned; animations and persistence are now implemented.
+The [remaining V1 plan](../../docs/V1_REMAINING_PLAN.md) builds on implemented connected object faces and layout/content separation with deterministic effect time/seek, generator presets, reusable looks/palettes, master brightness/fades, polygon masks, editor-only house photos, explicit video-audio controls and readiness checks. Looks/palettes, master controls, calibration and masks are implemented; editor/join tools and media remain planned.
 
 The [V2 roadmap](../../docs/V2_ROADMAP.md) and [detailed steps](../../docs/V2_IMPLEMENTATION_PLAN.md) cover music timelines, holiday choreography and show operation. Fullscreen projector implementation/physical checks are scheduled for v2.01 with the hardware deferral preserved.
 
@@ -74,3 +74,17 @@ Current Debug/Release evidence: 105 correctness tests pass; four opt-in benchmar
 The inspector Effect Presets section saves/applies/updates/deletes named effect settings and resets current effect parameters/colors. It preserves mapping and phase. Presets remain in memory with the project until v1.10 saving. Playback offers numeric seek (0–3600 seconds), first-minute scrubbing and elapsed readout. Owner pause/restart controls affect the selected standalone face or every linked face in its object. Global Restart resets all phases; seek updates frozen times too.
 
 Current product: ../../builds/v1.09.3/ProjectionMapper.app and ../ProjectionMapper.app. All 111 correctness tests pass in Debug/Release; profiling is recorded in ../../docs/V1.09.3_VERIFICATION.md. Visual acceptance belongs to the user. Bundle remains 1.08/build 5 pending full v1.09 acceptance; no GitHub delivery.
+
+Local calibration preview: Grid/Checkerboard/Crosshair/White/Black patterns cover visible mapped faces temporarily. Inspector/toolbar/Show menu controls; Control-Command-C toggles Grid/Normal. Master brightness/fades/blackout retain priority, saved content/layout remains intact, and generators retain logical phase. 202 Debug/Release correctness tests passed; product/evidence in builds/v1.12.1/ and app installed at app/ProjectionMapper.app. Bundle stays 1.11/build 8; schema stays 5; source remains local/uncommitted. User visuals pending. See [calibration verification](../../docs/V1.12.1_VERIFICATION.md).
+
+## Current local preview: masks and cutouts
+
+1.12.2 adds face-local polygon boundaries and up to seven holes. Choose Add Face Mask in the face inspector; click Draw Boundary/Draw Hole, place points in the preview or local square, and Finish. Drag/select points, split an edge with Add Point, delete points or use X/Y fields. Mask clipping precedes all content and calibration. Invalid enabled masks suppress their face with a repair warning; disabled masks retain the draft. Grouping, content/looks, input sampling, geometry locks and resets preserve masks.
+
+Final Debug/Release builds passed 217 offscreen correctness tests each, with four opt-in benchmarks skipped and two visible-window tests excluded. Product/evidence: builds/v1.12.2/; installed app: app/ProjectionMapper.app; previous preview preserved. Bundle remains 1.11/build 8; saves use format 6 and migrate formats 1–5. Older app copies cannot open new format 6 packages. User visuals pending. Source remains local/uncommitted. See [current verification](../../docs/V1.12.2_VERIFICATION.md). Next: 1.12.3 editor visibility/join tools and full milestone verification.
+
+## Completed v1.12 Mapping Tools
+
+Bundle 1.12/build 9 is installed at app/ProjectionMapper.app and archived at builds/v1.12/ProjectionMapper.app, with evidence under builds/v1.12.3/. All 225 offscreen correctness checks passed in both Debug/Release; four benchmarks skipped and two visible-window tests excluded. Exact Xcode 27A5237l, universal slices and strict signing verified. Previous preview preserved; user visuals pending. Completed source backup is pending; no release/tag/assets authorized.
+
+The toolbar eye menu and View > Editor Guides show/hide corner/object handles, mask handles, outlines, names and selected edges. Control-Command-H toggles both handle sets; Control-Command-L toggles names; Restore Editor Guides restores defaults. Object inspector stripe/checker actions reveal names/edges for checking Continuous/Repeat mapping. Edge traversal arrows follow output geometry; green joined, cyan deliberate seam, orange mismatch. Temporary guides/patterns are excluded from projects and labels stay out of Test Window output. New/Open/recovery restore runtime defaults. See [milestone verification](../../docs/V1.12.3_VERIFICATION.md). Next: v1.13 Image Import.

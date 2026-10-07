@@ -1,6 +1,6 @@
 # Remaining V1 milestones — ordered implementation plan
 
-Status: v1.08 accepted; v1.09/v1.10 implemented and automatically verified, with v1.10 saved on GitHub main at 55d242c. v1.11.1 appearance/crop/flip is implemented locally and automatically verified; v1.11.2 locks/movement/resets are implemented and automatically verified; v1.11.3 and v1.12–v1.15 remain planned. Routine visuals belong to the user. See [v1.11 three-slice plan](V1.11_PLAN.md) and [current evidence](V1.11.2_VERIFICATION.md). Intermediate slices remain uncommitted/off GitHub. This document does not authorize all future milestones or releases.
+Status: v1.08 accepted; v1.09–v1.12 implemented and automatically verified. Full v1.12 Mapping Tools app is delivered locally at 1.12/build 9; all 225 offscreen Debug/Release correctness tests passed. Completed-milestone source backup is pending, with last confirmed v1.11 source at 87459a8 and notes 03c9a45. Routine user visuals remain pending. See [current verification](V1.12.3_VERIFICATION.md). Next: v1.13–v1.15; future intermediate work stays local under the milestone-only Git policy. This document does not authorize future milestones or releases.
 
 Use Xcode 27.0 beta 5 (27A5237l), verified before implementation, and code-only SwiftUI/programmatic AppKit. Preserve Test Mode and shared preview/output rendering. Work on feature branches; use files/automated checks first and screen only for vital final acceptance. Each completed x.xx app milestone ends with appropriate Debug/Release checks, progress/verification records, recoverable GitHub history and the requested local app copy. Intermediate planning edits, fixes and x.xx.x slices stay local; no commits/pushes or uploads until that boundary unless explicitly requested. Keep builds/caches out of commits; preserve prior source, tags and assets. Releases are separate milestone decisions, with final package/upload planned for v1.15.
 
@@ -90,6 +90,8 @@ Approved as three local slices; see [slice plan](V1.09_PLAN.md). v1.09.1 adds gl
 13. Verify blended GPU pixels/order, brightness extremes, crop/flip coordinates, lock enforcement across mouse/keyboard paths, reset scope and saved round trips. Visually check overlapping animated surfaces, then deliver.
 
 ## v1.12 — Mapping Tools
+
+All three slices are implemented and automatically verified: calibration, masks/cutouts and editor/join tools. See [staged plan](V1.12_PLAN.md) and [milestone verification](V1.12.3_VERIFICATION.md).
 
 1. Introduce editor/output calibration state with explicit scope. Calibration temporarily overrides normal content without overwriting the project. Per-surface diagnostic grid content remains distinct from global calibration.
 2. Add selectable grid, checkerboard and crosshair calibration patterns. Preserve mapping and fitted output coordinates; expose only useful pattern settings.

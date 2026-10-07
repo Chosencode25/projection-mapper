@@ -200,6 +200,12 @@ struct MetalRendererTests {
         encoder.setFragmentBytes(&contentKind,length: MemoryLayout<UInt32>.stride,index: 2)
         encoder.setFragmentBytes(&appearance,length: MemoryLayout<SIMD2<Float>>.stride,index: 9)
         encoder.setFragmentBytes(&masterGain,length: MemoryLayout<Float>.stride,index: 10)
+        var calibration = CalibrationState().shaderParameters
+        encoder.setFragmentBytes(&calibration,length: MemoryLayout<SIMD4<Float>>.stride,index: 11)
+        let rings = [SIMD2<UInt32>](repeating: .zero,count: 8)
+        var point = SIMD2<Float>.zero
+        rings.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!,length: $0.count,index: 12) }
+        encoder.setFragmentBytes(&point,length: MemoryLayout<SIMD2<Float>>.stride,index: 13)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: positions.count)
         encoder.endEncoding()
         command.commit()

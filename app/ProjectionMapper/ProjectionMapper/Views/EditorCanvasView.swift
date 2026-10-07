@@ -20,6 +20,10 @@ struct EditorCanvasView: View {
                 .frame(width: width, height: height)
                 .overlay {
                     let surface = session.selectedSurface
+                    if session.isMaskEditing, session.editorDisplay.maskHandles, let face = surface, face.mask != nil {
+                        MaskCanvas(session: session,face: face,projected: true)
+                            .frame(width: width,height: height).id(face.id)
+                    } else {
                     CornerOverlay(surfaceID: surface?.id, corners: surface?.corners ?? .diagnostic,
                                   activeCorner: session.selectedCorner,
                                   select: { session.selectCorner($0) },
@@ -29,11 +33,22 @@ struct EditorCanvasView: View {
                                   nudge: { session.nudgeSelectedCorner(direction: $0, larger: $1) },
                                   selectFace: { session.selectSurface(at: $0) },
                                   isLocked: surface.map { session.project.isGeometryLocked($0) } ?? session.selectedObject.map { !session.project.canMoveObject($0.id) } ?? false,
+                                  showsHandles: session.editorDisplay.cornerHandles,
+                                  showsOutlines: session.editorDisplay.outlines,
                                   objectID: session.selectedObjectID,
                                   objectBounds: session.selectedObjectID.flatMap { session.project.outputBounds(forObject: $0) },
                                   moveObject: { delta in if let id = session.selectedObjectID { session.moveObject(id,by: delta) } },
                                   nudgeObject: { session.nudgeSelectedObject(direction: $0,larger: $1) })
                         .frame(width: width + 24, height: height + 24)
+                    }
+                }
+                .overlay {
+                    ZStack {
+                        if session.isMaskEditing, !session.editorDisplay.maskHandles, session.editorDisplay.outlines, let face = session.selectedSurface, face.mask != nil {
+                            MaskCanvas(session: session,face: face,projected: true).allowsHitTesting(false)
+                        }
+                        EditorLabelsOverlay(session: session)
+                    }.frame(width: width,height: height).allowsHitTesting(false)
                 }
                 Text("\(output.selectedName) · \(output.renderSizeText) · Editor preview").font(.caption).foregroundStyle(.secondary)
                     .lineLimit(2).multilineTextAlignment(.center)
@@ -42,7 +57,7 @@ struct EditorCanvasView: View {
                 // Reserve warning space so validation changes cannot move the canvas during a drag.
                 Group {
                     if session.scene.invalidCount > 0 || !session.project.joinWarnings.isEmpty {
-                        Label("Check invalid shapes or input joins in the inspector", systemImage: "exclamationmark.triangle")
+                        Label("Check shapes, masks or input joins in the inspector", systemImage: "exclamationmark.triangle")
                             .font(.caption).foregroundStyle(.orange).multilineTextAlignment(.center)
                     } else {
                         Color.clear.accessibilityHidden(true)

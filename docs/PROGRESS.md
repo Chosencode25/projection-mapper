@@ -1,10 +1,12 @@
 # Project Progress
 
-Last updated: October 6, 2026.
+Last updated: October 7, 2026.
 
 ## Current state
 
-v1.11 Surface Controls is implemented and automatically verified: all **184 correctness tests passed in Debug and Release**, with four optional benchmarks skipped. Bundle **1.11/build 8** is installed at app/ProjectionMapper.app; tested universal product is under builds/v1.11/, evidence under builds/v1.11.3/. The previous preview is preserved. Looks, palettes and master brightness/fade/blackout complete all three slices. v1.11 source backup was successfully pushed to GitHub main at **87459a8**; prior v1.10 history at 55d242c is preserved. Routine visuals belong to the user and remain pending; no screen control was used. Latest published release remains v1.04.2. Next development milestone: v1.12 Mapping Tools.
+**v1.12 Mapping Tools is complete and automatically verified.** All three slices include temporary calibration, face-local masks/cutouts, editor guide visibility/names/edge labels and shared-canvas stripe/join inspection. **225 offscreen correctness tests passed in Debug and Release**, with four optional benchmarks skipped and two legacy visible-window tests excluded. Tested universal **1.12/build 9** app is installed at app/ProjectionMapper.app and archived under builds/v1.12/, with evidence under builds/v1.12.3/ and the previous preview preserved. Packages use format 6.
+
+Completed-milestone source backup is pending from codex/v1.12-mapping-tools to main/GitHub. Last confirmed source backup remains v1.11 at 87459a8 with notes 03c9a45. No release/tag/assets are authorized; latest published release remains v1.04.2. Routine user visuals remain pending. No screen automation or visible-window tests were used for 1.12.3. Next: **v1.13 Image Import**; physical projector output remains deferred.
 
 ## Completed
 
@@ -24,13 +26,13 @@ v1.11 Surface Controls is implemented and automatically verified: all **184 corr
 
 ## Current acceptance and next milestone
 
-v1.11.2 adds output-geometry locks, bounded whole-object translation and explicit reset scopes while preserving content/layout identities and clocks. See [slice verification](V1.11.2_VERIFICATION.md) and [three-slice plan](V1.11_PLAN.md). User save/recovery/appearance and locking/movement/reset visuals remain pending. v1.11.3 is now implemented; see [final slice verification](V1.11.3_VERIFICATION.md). Next: v1.12 Mapping Tools.
+The installed v1.12 adds editor guide controls in the toolbar eye menu/View menu, optional object/face/edge labels, and object inspector vertical/horizontal stripe/checker join inspection. Existing masks and calibration retain master fade/blackout and playback priorities. See [milestone verification](V1.12.3_VERIFICATION.md) and [staged plan](V1.12_PLAN.md). User mapping-tools and earlier control/save visuals remain pending; no new acceptance has been reported. No new feature work is authorized beyond this milestone by its plan.
 
 ## Scope and limitations
 
-Projects can be saved/opened as portable .projectionmap packages. Output selection/preferences, a separate resizable Test Window, editable perspective surfaces and static connected-object mapping are implemented. Six built-in effects and shared playback are implemented; generator presets/seeking and scoped runtime playback are implemented; saving/recovery are implemented; appearance/crop/flip are implemented; locks/group movement/scoped resets are implemented; looks/palettes, master controls, masks and imports remain later work. Physical projector output remains deferred. Runtime verification used Apple Silicon on the development Mac running macOS 27.0; Intel and older macOS runtime compatibility are unverified. Release includes arm64 and x86_64 slices.
+Projects can be saved/opened as portable .projectionmap packages. Output selection/preferences, a separate resizable Test Window, editable perspective surfaces and static connected-object mapping are implemented. Six built-in effects and shared playback are implemented; generator presets/seeking and scoped runtime playback are implemented; saving/recovery are implemented; appearance/crop/flip are implemented; locks/group movement/scoped resets are implemented; looks/palettes and master brightness/fade/blackout are implemented; temporary calibration patterns and face-local polygon masks/cutouts are implemented locally; editor visibility/labels and shared-canvas join tools are implemented; imports remain later work. Physical projector output remains deferred. Runtime verification used Apple Silicon on the development Mac running macOS 27.0; Intel and older macOS runtime compatibility are unverified. Release includes arm64 and x86_64 slices.
 
-See [V1.11.2_VERIFICATION.md](V1.11.2_VERIFICATION.md) for current evidence and [BUILD_AND_RUN.md](BUILD_AND_RUN.md) for instructions.
+See [V1.12.3_VERIFICATION.md](V1.12.3_VERIFICATION.md) for current evidence and [BUILD_AND_RUN.md](BUILD_AND_RUN.md) for instructions.
 
 ## GitHub version history
 
@@ -407,3 +409,50 @@ The user explicitly requested saving v1.09 to GitHub before implementing v1.10 l
 - Next: v1.12 calibration tools and basic face-local polygon masks, extending the existing global output controls.
 
 Milestone source delivery confirmed October 6, 2026 by successful push output; no routine GitHub browse/fetch was needed. A documentation-only delivery record follows the tested source commit.
+
+## v1.12.1 planning — October 7, 2026
+
+- [x] Wrote the [three-slice v1.12 plan](V1.12_PLAN.md) and [detailed calibration contract](V1.12.1_PLAN.md).
+- [x] Defined mapped-face scope, pattern coordinates, temporary appearance bypass, existing master/blackout priority, playback/idle behavior and acceptance checks.
+- [ ] Implement/verify/deliver 1.12.1 locally; masks and editor/join tools remain later slices.
+- Planning changes remain local. Installed app is still v1.11/build 8; no new visual acceptance has been reported.
+
+## v1.12.1 implementation in progress — October 7, 2026
+
+- [x] Implemented session-only calibration patterns/settings, shared shader/snapshot integration, controls and fade-aware idle scheduling.
+- [x] Added eighteen correctness checks for calibration state, lifecycle/persistence isolation, GPU patterns/joins/appearance bypass/master priority and unshown native scheduling/output reopen.
+- [ ] Finish final Debug/Release checks and deliver the verified local app; [verification draft](V1.12.1_VERIFICATION.md).
+- No version bump, commit/push, release or screen control. Installed app remains v1.11 until tested replacement.
+
+## v1.12.1 verified local delivery — October 7, 2026
+
+- [x] Implemented calibration from the detailed plan; saved project schema remains 5 and runtime-only controls do not dirty/save/recover.
+- [x] Exact Xcode 27.0 beta 5 (27A5237l) checked; final Debug/Release each passed 202 correctness tests, zero failures, four optional benchmarks skipped.
+- [x] Delivered universal locally signed preview to app/ and builds/v1.12.1/; previous app preserved and all tested-product hashes match.
+- [x] Recorded actual evidence in [verification](V1.12.1_VERIFICATION.md); updated plans/changelog/build instructions.
+- [ ] User calibration visuals and prior v1.11 checks remain pending. No screen control or app launch used.
+- Bundle stays 1.11/build 8; HEAD remains 03c9a45. No intermediate commits/pushes/tags/releases/assets.
+- Next: 1.12.2 face-local polygon masks and cutout holes, including saved migrations and fail-closed clipping under calibration.
+
+## v1.12.2 local masks and cutouts — October 7, 2026
+
+- [x] Face-owned boundary and holes with bounded coordinates, concavity/winding support, intersection/containment validation and recoverable invalid-mask suppression.
+- [x] Editor/inspector drawing, handle dragging, point insertion/deletion/numeric edits, enable/disable/remove and invalid-geometry local fallback.
+- [x] Shared Metal clipping before every normal/calibration branch; cache bounded ring/point data and preserve output layering, sampling, fades and clocks.
+- [x] Format 6 migration/save/recovery/dirty state; masks preserved by membership changes, duplicates, looks and scoped resets.
+- [x] 217 correctness checks passed in each final Debug/Release run; four benchmarks skipped, two visible-window checks excluded. Exact Xcode 27A5237l; strict signing/universal slices and complete file hashes verified.
+- [x] Tested app delivered locally, previous preview preserved, no intermediate commit/upload. Bundle 1.11/build 8.
+- [ ] User mask/calibration visual acceptance; see [verification](V1.12.2_VERIFICATION.md).
+- [ ] v1.12.3 editor visibility/labels, join inspection and full milestone verification/delivery.
+
+## v1.12.3 and full v1.12 delivery — October 7, 2026
+
+- [x] Session-only corner/object/mask handle and outline controls, optional names/edge labels, toolbar/menu access and shortcuts with safe reset defaults.
+- [x] Cancel hidden-handle drag/key manipulation while preserving picking and typing focus; labels stay out of clean output and saved state.
+- [x] Shared-canvas vertical/horizontal stripes and checker join inspection, projected traversal arrows and seam/mismatch status, preserving geometry/maps/content/clocks/masks.
+- [x] 225 offscreen correctness checks passed in Debug/Release; four benchmarks skipped, two visible-window tests excluded. Exact Xcode 27A5237l, universal slices, strict signing and complete file hashes verified.
+- [x] Bundle 1.12/build 9 delivered to app/ and builds/v1.12/; previous preview preserved.
+- [ ] Completed milestone source backup to main/GitHub; delivery confirmation pending.
+- [ ] User mapping-tools visual acceptance. See [verification](V1.12.3_VERIFICATION.md).
+
+Next planned build: v1.13 Image Import. No release publication requested.

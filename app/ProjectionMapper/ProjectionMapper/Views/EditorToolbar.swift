@@ -20,6 +20,18 @@ struct EditorToolbar: View {
                 Text(session.project.name).font(.headline).lineLimit(1)
             }
             Spacer()
+            Menu { EditorDisplayMenu(session: session) } label: { Image(systemName: "eye") }
+                .help("Editor guides: handles, outlines and labels")
+                .accessibilityLabel("Editor guide visibility")
+            Menu {
+                CalibrationPatternMenu(session: session)
+            } label: {
+                Image(systemName: "square.grid.3x3")
+                    .foregroundStyle(session.calibration.pattern.isActive ? Color.accentColor : Color.primary)
+            }
+            .help("Calibration: " + session.calibration.pattern.title + " (Control-Command-C toggles Grid/Normal)")
+            .accessibilityLabel("Calibration patterns")
+            .accessibilityValue(session.calibration.pattern.title)
             Button("Blackout", systemImage: "lightbulb.slash.fill") { session.blackoutOutput() }
                 .foregroundStyle(session.showOutput.isBlackout ? Color.orange : Color.primary)
                 .help("Immediately black out all rendered content (Command-Shift-B)")

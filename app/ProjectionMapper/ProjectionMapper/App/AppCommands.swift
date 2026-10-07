@@ -26,6 +26,11 @@ struct AppCommands: Commands {
             Button("About Projection Mapper") { coordinator.showAbout() }
         }
         CommandMenu("Show") {
+            Menu("Calibration") { CalibrationPatternMenu(session: coordinator.session) }
+            Button(coordinator.session.calibration.pattern.isActive ? "Exit Calibration" : "Enter Calibration (Grid)") {
+                coordinator.session.toggleCalibration()
+            }.keyboardShortcut("c", modifiers: [.control, .command])
+            Divider()
             Button("Immediate Blackout") { coordinator.session.blackoutOutput() }
                 .keyboardShortcut("b", modifiers: [.command, .shift])
             Button("Fade to Black") { coordinator.session.fadeToBlack() }
@@ -43,6 +48,14 @@ struct AppCommands: Commands {
                 .disabled(!coordinator.session.testOutput.isOpen)
         }
         CommandGroup(after: .sidebar) {
+            Menu("Editor Guides") { EditorDisplayMenu(session: coordinator.session) }
+            Button(coordinator.session.editorDisplay.hasHandles ? "Hide All Editor Handles" : "Show All Editor Handles") {
+                coordinator.session.toggleEditorHandles()
+            }.keyboardShortcut("h",modifiers: [.control,.command])
+            Button(coordinator.session.editorDisplay.faceLabels ? "Hide Face and Object Names" : "Show Face and Object Names") {
+                coordinator.session.toggleEditorLabels()
+            }.keyboardShortcut("l",modifiers: [.control,.command])
+            Divider()
             Button(coordinator.session.isSidebarVisible ? "Hide Sidebar" : "Show Sidebar") {
                 coordinator.session.isSidebarVisible.toggle()
             }

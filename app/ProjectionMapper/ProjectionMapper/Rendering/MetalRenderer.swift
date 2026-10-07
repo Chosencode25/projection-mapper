@@ -28,7 +28,14 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     let commandQueue: any MTLCommandQueue
     let rectanglePipeline: any MTLRenderPipelineState
     let diagnosticTexture: any MTLTexture
-    private var prepared: [(RenderSurface, PerspectiveTransform)] = []
+    private var prepared: [(RenderSurface, PerspectiveTransform, [SIMD2<UInt32>], [SIMD2<Float>])] = []
+    private static func prepare(_ scene: RenderScene) -> [(RenderSurface, PerspectiveTransform, [SIMD2<UInt32>], [SIMD2<Float>])] {
+        scene.effectiveSurfaces.compactMap { item in
+            guard let perspective = item.perspective else { return nil }
+            let mask = item.mask ?? FaceMask(isEnabled: false)
+            return (item,perspective,mask.shaderRings,mask.isEnabled ? mask.shaderPoints : [.zero])
+        }
+    }
     private var hasVisibleSurface = false
     private var hasRunningAnimation = false
     static let pixelFormat: MTLPixelFormat = .bgra8Unorm
@@ -56,7 +63,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         self.diagnostics = diagnostics
         self.device = device
         self.scene = scene
-        prepared = scene.surfaces.compactMap { item in item.perspective.map { (item, $0) } }
+        prepared = Self.prepare(scene)
         hasVisibleSurface = prepared.contains { $0.0.appearance.opacity > 0 }
         hasRunningAnimation = prepared.contains { $0.0.appearance.opacity > 0 && $0.0.content.isAnimated && !$0.0.playback.isPaused }
         guard let texture = DiagnosticTexture.make(device: device) else {
@@ -107,7 +114,9 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         let seconds = evaluationTime ?? scene.transport.elapsed(at: uptime)
         var masterGain = scene.effectiveGain(at: uptime)
         encoder.setFragmentBytes(&masterGain, length: MemoryLayout<Float>.stride, index: 10)
-        for (item, perspective) in prepared {
+        var calibration = scene.calibration.shaderParameters
+        encoder.setFragmentBytes(&calibration, length: MemoryLayout<SIMD4<Float>>.stride, index: 11)
+        for (item, perspective, rings, points) in prepared {
             guard masterGain > 0, item.appearance.opacity > 0 else { continue }
             encoder.setRenderPipelineState(rectanglePipeline)
             let positions = item.geometry.trianglePositions
@@ -135,6 +144,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             encoder.setFragmentBytes(&secondary, length: MemoryLayout<SIMD4<Float>>.stride, index: 5)
             var appearance = SIMD2(item.appearance.opacity,item.appearance.brightness)
             encoder.setFragmentBytes(&appearance,length: MemoryLayout<SIMD2<Float>>.stride,index: 9)
+            rings.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 12) }
+            points.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 13) }
             encoder.setFragmentTexture(diagnosticTexture, index: 0)
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: positions.count)
         }
@@ -159,7 +170,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     func setScene(_ scene: RenderScene) {
         self.scene = scene
         lastContinuousDemand = nil
-        prepared = scene.surfaces.compactMap { item in item.perspective.map { (item, $0) } }
+        prepared = Self.prepare(scene)
         hasVisibleSurface = prepared.contains { $0.0.appearance.opacity > 0 }
         hasRunningAnimation = prepared.contains { $0.0.appearance.opacity > 0 && $0.0.content.isAnimated && !$0.0.playback.isPaused }
     }

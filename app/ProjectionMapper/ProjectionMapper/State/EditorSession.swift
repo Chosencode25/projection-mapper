@@ -11,13 +11,14 @@ final class EditorSession {
     private(set) var sourcePlayback: [UUID:SourcePlayback] = [:]
     var selectedPlayback: SourcePlayback { selectedSource.flatMap { sourcePlayback[$0.id] } ?? SourcePlayback() }
     private(set) var showOutput = ShowOutputState()
+    private(set) var calibration = CalibrationState()
     private(set) var lastLookReport: String?
     var scene: RenderScene {
         let faces = project.renderScene.surfaces.map { face in
             var face = face; face.playback = face.sourceID.flatMap { sourcePlayback[$0] } ?? SourcePlayback(); return face
         }
         var result = RenderScene(surfaces: faces, transport: transport)
-        result.masterBrightness = project.masterOutput.brightness; result.showOutput = showOutput
+        result.masterBrightness = project.masterOutput.brightness; result.showOutput = showOutput; result.calibration = calibration
         return result
     }
     func seekPlayback(to seconds: Double, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
@@ -60,6 +61,103 @@ final class EditorSession {
     private(set) var selectedObjectID: UUID?
     private(set) var selectedCorner: SurfaceCorner?
     private(set) var groupingSelection: Set<UUID> = []
+    private(set) var editorDisplay = EditorDisplayState.defaults
+    var editorLabels: [EditorFaceLabel] { EditorDecorations.labels(project: project,selectedFace: selectedSurfaceID,selectedObject: selectedObjectID) }
+    func setEditorDisplay(_ value: EditorDisplayState) {
+        guard editorDisplay != value else { return }
+        if !value.cornerHandles { selectedCorner = nil }
+        if !value.maskHandles { selectedMaskVertex = nil; cancelMaskDrawing() }
+        editorDisplay = value
+    }
+    func toggleEditorHandles() {
+        var value = editorDisplay; let show = !value.hasHandles
+        value.cornerHandles = show; value.maskHandles = show; setEditorDisplay(value)
+    }
+    func toggleEditorLabels() { var value = editorDisplay; value.faceLabels.toggle(); setEditorDisplay(value) }
+    func resetEditorDisplay() { setEditorDisplay(.defaults) }
+    func inspectJoins(objectID: UUID, pattern: CalibrationPattern) {
+        guard project.objects.contains(where: { $0.id == objectID }) else { return }
+        selectObject(objectID)
+        var value = editorDisplay; value.faceLabels = true; value.edgeLabels = true; setEditorDisplay(value)
+        setCalibrationPattern(pattern)
+    }
+    var isMaskEditing = false
+    var selectedMaskRingID: UUID?
+    var selectedMaskVertex: Int?
+    private(set) var maskDraft: [SIMD2<Float>]?
+    private(set) var maskDrawingHole = false
+    func cancelMaskDrawing() { maskDraft = nil }
+    private func clearMaskEditing() {
+        isMaskEditing = false; selectedMaskRingID = nil; selectedMaskVertex = nil; maskDraft = nil
+    }
+    func setMask(_ mask: FaceMask?, faceID: UUID) {
+        guard let i = project.surfaces.firstIndex(where: { $0.id == faceID }), mask?.isBounded ?? true,
+              project.surfaces[i].mask != mask else { return }
+        project.surfaces[i].mask = mask; changed()
+        if mask == nil { clearMaskEditing() }
+    }
+    func createMask(faceID: UUID) {
+        guard project.surfaces.first(where: { $0.id == faceID })?.mask == nil else { return }
+        let mask = FaceMask(); setMask(mask,faceID: faceID)
+        selectedMaskRingID = mask.boundary.id; selectedMaskVertex = nil; isMaskEditing = true
+    }
+    func selectMaskRing(_ id: UUID) {
+        guard selectedSurface?.mask?.rings.contains(where: { $0.id == id }) == true else { return }
+        selectedMaskRingID = id; selectedMaskVertex = nil; cancelMaskDrawing()
+    }
+    func beginMaskDrawing(hole: Bool) {
+        guard let mask = selectedSurface?.mask, !hole || mask.holes.count < FaceMask.maxHoles else { return }
+        var display = editorDisplay; display.maskHandles = true; setEditorDisplay(display)
+        isMaskEditing = true; maskDrawingHole = hole; maskDraft = []; selectedMaskVertex = nil
+    }
+    func appendMaskDraft(_ point: SIMD2<Float>, faceID: UUID) {
+        guard selectedSurfaceID == faceID, let draft = maskDraft, draft.count < FaceMask.maxPoints,
+              point.x.isFinite, point.y.isFinite, (0...1).contains(point.x), (0...1).contains(point.y) else { return }
+        maskDraft = draft + [point]
+    }
+    func removeLastMaskDraftPoint() { if maskDraft?.isEmpty == false { maskDraft?.removeLast() } }
+    func finishMaskDrawing() {
+        guard let face = selectedSurface, var mask = face.mask, let points = maskDraft else { return }
+        if maskDrawingHole {
+            guard mask.holes.count < FaceMask.maxHoles else { return }
+            let ring = MaskPolygon(points: points); mask.holes.append(ring)
+        } else { mask.boundary.points = points }
+        if let message = mask.validationMessage { editMessage = message; return }
+        selectedMaskRingID = maskDrawingHole ? mask.holes.last?.id : mask.boundary.id
+        maskDraft = nil; selectedMaskVertex = nil; setMask(mask,faceID: face.id)
+    }
+    func editMaskRing(faceID: UUID, ringID: UUID, edit: (inout [SIMD2<Float>]) -> Void) {
+        guard selectedSurfaceID == faceID, var mask = selectedSurface?.mask else { return }
+        if mask.boundary.id == ringID { edit(&mask.boundary.points) }
+        else if let i = mask.holes.firstIndex(where: { $0.id == ringID }) { edit(&mask.holes[i].points) }
+        else { return }
+        setMask(mask,faceID: faceID)
+    }
+    func moveMaskPoint(_ point: SIMD2<Float>, faceID: UUID, ringID: UUID, index: Int) {
+        guard point.x.isFinite, point.y.isFinite else { return }
+        editMaskRing(faceID: faceID,ringID: ringID) { points in
+            guard points.indices.contains(index) else { return }
+            points[index] = SIMD2(min(1,max(0,point.x)),min(1,max(0,point.y)))
+        }
+    }
+    func insertMaskPoint() {
+        guard let face = selectedSurface, let ring = face.mask?.rings.first(where: { $0.id == selectedMaskRingID }),
+              !ring.points.isEmpty, ring.points.count < FaceMask.maxPoints else { return }
+        let i = min(max(0,selectedMaskVertex ?? 0),ring.points.count-1)
+        editMaskRing(faceID: face.id,ringID: ring.id) { $0.insert((ring.points[i]+ring.points[(i+1)%ring.points.count])/2,at: i+1) }
+        selectedMaskVertex = i+1
+    }
+    func deleteMaskPoint() {
+        guard let face = selectedSurface, let ring = face.mask?.rings.first(where: { $0.id == selectedMaskRingID }),
+              let i = selectedMaskVertex, ring.points.indices.contains(i), ring.points.count > 3 else { return }
+        editMaskRing(faceID: face.id,ringID: ring.id) { $0.remove(at: i) }; selectedMaskVertex = nil
+    }
+    func removeSelectedMaskHole() {
+        guard let face = selectedSurface, var mask = face.mask, mask.holes.contains(where: { $0.id == selectedMaskRingID }) else { return }
+        mask.holes.removeAll { $0.id == selectedMaskRingID }; setMask(mask,faceID: face.id)
+        selectedMaskRingID = mask.boundary.id; selectedMaskVertex = nil; cancelMaskDrawing()
+    }
+
     var selectedSurface: MappingSurface? { project.surfaces.first { $0.id == selectedSurfaceID } }
     var selectedObject: MappingObject? { project.objects.first { $0.id == selectedObjectID } }
     var selectedSource: SurfaceSource? {
@@ -118,7 +216,7 @@ final class EditorSession {
             if let saved = try? store.read(original), saved.project.id == project.id { documentURL = original; savedBaseline = saved.project }
         }
         output.restoreProjectPreference(document.output.destination,resolution: document.output.resolution)
-        sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
+        clearMaskEditing(); resetEditorDisplay(); sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil
         testOutput.setResolution(output.testResolution); testOutput.destinationDidChange(output.destination); testOutput.setScene(scene)
         fileMessage = isRecovered ? "Recovered unsaved project — Save to keep it" : "Opened \(url.lastPathComponent)"
@@ -158,7 +256,7 @@ final class EditorSession {
     func finishNameEditing(now: Date = .now) { renameProject(cleanName(project.name, fallback: MappingProject.defaultName), now: now) }
     func selectSurface(_ id: UUID?) {
         guard id == nil || project.surfaces.contains(where: { $0.id == id }) else { return }
-        if id != selectedSurfaceID { selectedCorner = nil }
+        if id != selectedSurfaceID { selectedCorner = nil; clearMaskEditing() }
         selectedSurfaceID = id; selectedObjectID = nil; editMessage = nil
     }
     /// Pick the frontmost rendered face. Selection never changes project content.
@@ -178,7 +276,7 @@ final class EditorSession {
     }
     func selectObject(_ id: UUID) {
         guard project.objects.contains(where: { $0.id == id }) else { return }
-        selectedObjectID = id; selectedSurfaceID = nil; selectedCorner = nil; editMessage = nil
+        clearMaskEditing(); selectedObjectID = id; selectedSurfaceID = nil; selectedCorner = nil; editMessage = nil
     }
     func selectCorner(_ corner: SurfaceCorner?) { selectedCorner = selectedSurface == nil ? nil : corner }
     func toggleGrouping(_ id: UUID) {
@@ -217,7 +315,7 @@ final class EditorSession {
         let original = project.surfaces[i]
         var face = MappingSurface(name: uniqueCopyName(original.name, names: project.surfaces.map(\.name)))
         face.layout = original.layout; face.tags = original.tags; face.source = original.source.independentCopy()
-        face.appearance = original.appearance; face.appearanceOverride = original.appearanceOverride
+        face.appearance = original.appearance; face.appearanceOverride = original.appearanceOverride; face.mask = original.mask?.independentCopy()
         copyPlayback(from: original.source.id, to: face.source.id)
         project.surfaces.insert(face, at: i); selectSurface(face.id); changed()
     }
@@ -473,7 +571,7 @@ final class EditorSession {
         for original in originals {
             var copy = MappingSurface(name: uniqueCopyName(original.name, names: project.surfaces.map(\.name) + copies.map(\.name)))
             copy.layout = original.layout; copy.layout.objectID = object.id; copy.source = original.source.independentCopy(); copy.tags = original.tags
-            copy.appearance = original.appearance; copy.appearanceOverride = original.appearanceOverride
+            copy.appearance = original.appearance; copy.appearanceOverride = original.appearanceOverride; copy.mask = original.mask?.independentCopy()
             ids[original.id] = copy.id; copies.append(copy)
         }
         object.links = object.links.compactMap { link in
@@ -535,7 +633,7 @@ final class EditorSession {
     }
     func resetProject(now: Date = .now) {
         clearRecovery(); documentURL = nil; assetSourceURL = nil; isRecovered = false; fileMessage = nil
-        sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
+        clearMaskEditing(); resetEditorDisplay(); sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil; testOutput.setScene(scene)
     }
 }
@@ -717,4 +815,29 @@ extension EditorSession {
         showOutput.restore(duration: project.masterOutput.fadeDuration, at: uptime); testOutput.setScene(scene)
     }
     func blackoutOutput() { showOutput.blackout(); testOutput.setScene(scene) }
+}
+
+extension EditorSession {
+    private func setCalibration(_ value: CalibrationState) {
+        guard value.isValid else { editMessage = "Calibration requires 2–64 rows/columns and a 1–4 pixel line width."; return }
+        editMessage = nil
+        guard value != calibration else { return }
+        calibration = value; testOutput.setScene(scene)
+    }
+    func setCalibrationPattern(_ pattern: CalibrationPattern) { var value = calibration; value.pattern = pattern; setCalibration(value) }
+    func setCalibrationColumns(_ columns: Int) { var value = calibration; value.columns = columns; setCalibration(value) }
+    func setCalibrationRows(_ rows: Int) { var value = calibration; value.rows = rows; setCalibration(value) }
+    func setCalibrationLineWidth(_ width: Float) { var value = calibration; value.lineWidth = width; setCalibration(value) }
+    func toggleCalibration() { setCalibrationPattern(calibration.pattern.isActive ? .normal : .grid) }
+    func calibrationStatus(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) -> String {
+        let count = scene.effectiveSurfaces.filter { $0.perspective != nil }.count
+        var text = "\(calibration.pattern.title) · \(count) mapped face(s)"
+        if count == 0 { text += " · No visible valid mapped faces" }
+        if showOutput.isBlackout { text += " · Blackout overrides output" }
+        else if calibration.pattern == .black { text += " · Black test selected" }
+        else if project.masterOutput.brightness == 0 { text += " · Master brightness is zero" }
+        else if showOutput.isFading(at: uptime) { text += showOutput.targetGain == 0 ? " · Fading to black" : " · Restoring brightness" }
+        else if showOutput.gain(at: uptime) == 0 { text += " · Faded to black" }
+        return text
+    }
 }

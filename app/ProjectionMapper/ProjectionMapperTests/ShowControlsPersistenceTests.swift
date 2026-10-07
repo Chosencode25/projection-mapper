@@ -33,7 +33,7 @@ struct ShowControlsPersistenceTests {
         let original = document()
         let decoded = try ProjectCodec.decode(ProjectCodec.encode(original))
         #expect(decoded == original)
-        #expect(decoded.formatVersion == 5)
+        #expect(decoded.formatVersion == ProjectDocument.currentVersion)
         #expect(decoded.project.renderScene == original.project.renderScene)
         let raw = decoded.project.source(for: decoded.project.surfaces[0])
         #expect(raw.color == SIMD4(1, 0.25, 0, 1))
@@ -65,7 +65,7 @@ struct ShowControlsPersistenceTests {
             if version == 1 { project.removeValue(forKey: "generatorPresets"); json.removeValue(forKey: "output") }
             json["project"] = project
             let decoded = try ProjectCodec.decode(JSONSerialization.data(withJSONObject: json))
-            #expect(decoded.formatVersion == 5 && decoded.project.palettes.isEmpty && decoded.project.looks.isEmpty)
+            #expect(decoded.formatVersion == ProjectDocument.currentVersion && decoded.project.palettes.isEmpty && decoded.project.looks.isEmpty)
             #expect(decoded.project.masterOutput == .defaults)
             #expect(decoded.project.id == original.project.id)
             #expect(decoded.project.surfaces.map(\.id) == original.project.surfaces.map(\.id))

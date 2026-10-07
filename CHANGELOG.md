@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.12 — Mapping Tools — October 7, 2026
+
+- Complete temporary calibration, hard polygon face masks/cutout holes and format 6 saves/migration/recovery. Preserve layout/content owners, sampling, clocks and master fade/blackout priorities.
+- Add temporary editor handles/outlines/names/edge visibility controls with reachable toolbar/View menu actions and safe defaults. Hide handles without enabling invisible drag/nudge; retain face picking and text focus.
+- Add shared-canvas vertical/horizontal stripe and checker join inspection, projected edge traversal arrows and joined/seam/mismatch labels. Decorations stay out of clean output and saved projects.
+- All 225 offscreen correctness checks passed in Debug/Release; four benchmarks skipped and two visible-window tests excluded. Exact Xcode 27A5237l; universal signed 1.12/build 9 app delivered locally, previous preview preserved.
+- Completed source backup pending; user visuals pending. No new release/tag/assets authorized. Next: v1.13 Image Import.
+
+## Local preview — v1.12.2 Face Masks and Cutouts — October 7, 2026
+
+- Add face-local polygon boundaries and up to seven hard cutout holes, drawing and drag/numeric point editing, edge insertion/deletion and enable/remove controls.
+- Clip before every content/calibration branch in the shared renderer; preserve lower layers, projective mapping, source sampling, owner clocks, masks under looks/resets and master output priorities.
+- Validate bounded polygons, crossings and hole containment; enabled invalid drafts suppress the face with recoverable diagnostics. Format 6 saves/recovery include masks and migrate formats 1–5.
+- Final Debug/Release runs each passed 217 offscreen correctness tests; four opt-in benchmarks skipped and two visible-window tests excluded. Exact Xcode 27A5237l; tested signed universal preview delivered with previous app preserved. User visuals pending. Bundle stays 1.11/build 8; no intermediate commit/upload.
+
+## Local preview — v1.12.1 Calibration Patterns — October 7, 2026
+
+- Add temporary mapped-face Grid, Checkerboard, Crosshair, White/Black Test and Normal Content controls in inspector/toolbar/Show menu; Control-Command-C toggles Grid/Normal.
+- Preserve geometry, input maps, visibility, locks, sources/libraries and clocks; opaque patterns bypass source appearance while existing master brightness/fades/blackout still apply.
+- Share owner-canvas patterns across Continuous/Repeat faces; face-local crosshairs and bounded antialiased line widths support resize. Static calibration idles; fades complete and output reopen retains elapsed state.
+- Keep calibration runtime-only and schema 5 unchanged. All 202 correctness tests pass in Debug/Release; universal signed local preview delivered, user visuals pending. Bundle stays 1.11/build 8; no intermediate commit/upload.
+
 ## v1.11 — Surface Controls milestone — October 6, 2026
 
 - Complete appearance/crop/flips, object/face overrides, geometry locks, bounded object movement and scoped resets from the first two local slices.

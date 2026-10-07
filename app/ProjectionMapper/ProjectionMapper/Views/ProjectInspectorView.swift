@@ -19,6 +19,8 @@ struct ProjectInspectorView: View {
                 PlaybackControls(session: session)
                 Divider()
                 ProjectShowControls(session: session)
+                Divider()
+                CalibrationControls(session: session)
                 if let message = session.editMessage {
                     Text(message).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
                 }
@@ -248,7 +250,11 @@ private struct FaceInspector: View {
                 ForEach(SurfaceCorner.allCases) { Text($0.title).tag(Optional($0)) }
             }
             .disabled(session.project.isGeometryLocked(face))
+            MaskControls(session: session,face: face).id(face.id)
             FaceResetControls(session: session,face: face).id(face.id)
+            if !session.editorDisplay.cornerHandles {
+                Text("Corner handles are hidden. Restore them from Editor Guides in the toolbar or View menu.").font(.caption).foregroundStyle(.secondary)
+            }
             Text(session.project.isGeometryLocked(face) ? "Output geometry is locked; select or unlock this face." : "Drag handles or use arrows; Shift nudges 1%.").font(.caption).foregroundStyle(.secondary)
             if PerspectiveTransform(face.corners) == nil {
                 Text("Invalid output shape. Move a corner to restore this face.").font(.caption).foregroundStyle(.orange)
@@ -327,6 +333,7 @@ private struct ObjectInspector: View {
                 Button("Edit \(face.name)") { session.selectSurface(face.id) }
             }
             Divider()
+            JoinInspectionControls(session: session,object: object)
             EdgeLinkEditor(session: session, object: object).id(object.id)
         }
     }
@@ -460,7 +467,7 @@ private struct FaceResetControls: View {
         .confirmationDialog("Reset face controls and output?",isPresented: $confirmFull,titleVisibility: .visible) {
             Button("Reset face controls and output",role: .destructive) { session.resetFace(face.id,scope: .fullFace) }
         } message: {
-            Text("Restores this face's output corners, visibility and appearance. Independent content returns to defaults; grouped faces return to object appearance. IDs, names/tags, input regions, membership and links are kept. Shared object content is kept.")
+            Text("Restores this face's output corners, visibility and appearance. Independent content returns to defaults; grouped faces return to object appearance. IDs, names/tags, masks, input regions, membership and links are kept. Shared object content is kept.")
         }
     }
 }

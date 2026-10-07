@@ -91,12 +91,13 @@ struct RenderSurface: Equatable, Sendable {
     var generator: GeneratorSettings = .defaults
     var sourceID: UUID?
     var appearance = SurfaceAppearance.defaults
+    var mask: FaceMask?
     var playback = SourcePlayback()
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.geometry == rhs.geometry && lhs.color == rhs.color && lhs.content == rhs.content &&
-        lhs.inputMap == rhs.inputMap && lhs.generator == rhs.generator && lhs.playback == rhs.playback && lhs.appearance == rhs.appearance
+        lhs.inputMap == rhs.inputMap && lhs.generator == rhs.generator && lhs.playback == rhs.playback && lhs.appearance == rhs.appearance && lhs.mask == rhs.mask
     }
-    var perspective: PerspectiveTransform? { inputMap.isValid && appearance.isValid ? PerspectiveTransform(geometry) : nil }
+    var perspective: PerspectiveTransform? { inputMap.isValid && appearance.isValid && (mask?.allowsRendering ?? true) ? PerspectiveTransform(geometry) : nil }
 }
 
 /// Immutable collection shared by preview/output; items already in back-to-front draw order.
@@ -105,6 +106,15 @@ struct RenderScene: Equatable, Sendable {
     var transport = AnimationTransport()
     var masterBrightness: Float = 1
     var showOutput = ShowOutputState()
+    var calibration = CalibrationState()
+    /// Calibration appearance is a render-only copy, retaining maps, source IDs and clocks.
+    var effectiveSurfaces: [RenderSurface] {
+        guard calibration.isValid else { return [] }
+        guard calibration.pattern.isActive else { return surfaces }
+        return surfaces.map { original in
+            var copy = original; copy.appearance = .defaults; return copy
+        }
+    }
     var hasAnimation: Bool { surfaces.contains { $0.content.isAnimated && $0.appearance.opacity > 0 && $0.perspective != nil } }
     var needsContinuousRendering: Bool { needsContinuousRendering(at: ProcessInfo.processInfo.systemUptime) }
     func effectiveGain(at uptime: TimeInterval) -> Float {
@@ -112,20 +122,21 @@ struct RenderScene: Equatable, Sendable {
         return brightness * showOutput.gain(at: uptime)
     }
     func needsContinuousRendering(at uptime: TimeInterval) -> Bool {
-        let visible = surfaces.filter { $0.appearance.opacity > 0 && $0.perspective != nil }
+        let visible = effectiveSurfaces.filter { $0.appearance.opacity > 0 && $0.perspective != nil }
         return needsContinuousRendering(at: uptime, hasVisibleSurface: !visible.isEmpty,
                                         hasRunningAnimation: visible.contains { $0.content.isAnimated && !$0.playback.isPaused })
     }
     /// The renderer supplies eligibility cached alongside its prepared geometry.
     func needsContinuousRendering(at uptime: TimeInterval, hasVisibleSurface: Bool, hasRunningAnimation: Bool) -> Bool {
-        guard masterBrightness.isFinite, masterBrightness > 0, !showOutput.isBlackout else { return false }
+        guard calibration.isValid, calibration.pattern != .black, masterBrightness.isFinite, masterBrightness > 0, !showOutput.isBlackout else { return false }
         if showOutput.isFading(at: uptime), hasVisibleSurface { return true }
-        return effectiveGain(at: uptime) > 0 && transport.isPlaying && hasRunningAnimation
+        return !calibration.pattern.isActive && effectiveGain(at: uptime) > 0 && transport.isPlaying && hasRunningAnimation
     }
     init(surfaces: [RenderSurface], transport: AnimationTransport = AnimationTransport(),
-         masterBrightness: Float = 1, showOutput: ShowOutputState = ShowOutputState()) {
+         masterBrightness: Float = 1, showOutput: ShowOutputState = ShowOutputState(),
+         calibration: CalibrationState = CalibrationState()) {
         self.surfaces = surfaces; self.transport = transport
-        self.masterBrightness = masterBrightness; self.showOutput = showOutput
+        self.masterBrightness = masterBrightness; self.showOutput = showOutput; self.calibration = calibration
     }
     init(geometry: NormalizedRectangle, color: SIMD4<Float>, content: SurfaceContent = .solid) {
         surfaces = [RenderSurface(geometry: geometry, color: color, content: content)]

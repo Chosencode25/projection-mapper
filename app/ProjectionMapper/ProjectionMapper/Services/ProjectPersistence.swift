@@ -11,7 +11,7 @@ struct RecoveryMetadata: Codable, Equatable {
     var savedAt: Date = .now
 }
 struct ProjectDocument: Codable, Equatable {
-    static let currentVersion = 5
+    static let currentVersion = 6
     var formatVersion = currentVersion
     var project: MappingProject
     var output = ProjectOutputSettings()
@@ -79,6 +79,11 @@ enum ProjectCodec {
                 project["masterOutput"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(MasterOutputSettings.defaults))
                 json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
             }
+            if version <= 5 {
+                guard var project = json["project"] as? [String:Any], let faces = project["surfaces"] as? [[String:Any]] else { throw ProjectFileError.invalid("missing faces") }
+                project["surfaces"] = faces.map { face in var face = face; face.removeValue(forKey: "mask"); return face }
+                json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
+            }
             let migrated = try JSONSerialization.data(withJSONObject: json)
             let document = try JSONDecoder().decode(ProjectDocument.self, from: migrated)
             try validate(document); return document
@@ -132,6 +137,7 @@ enum ProjectCodec {
         for face in p.surfaces {
             try check(!face.name.isEmpty && face.name.count <= 80 && tags(face.tags), "face name/tags")
             try check(face.layout.inputMap.isValid, "input map")
+            try check(face.mask?.isBounded ?? true, "mask coordinates, IDs or collection limits")
             try check(face.appearance.isValid && (face.appearanceOverride?.isValid ?? true) && (face.appearanceOverride == nil || face.layout.objectID != nil), "face appearance")
             let corners = [face.corners.topLeft,face.corners.topRight,face.corners.bottomRight,face.corners.bottomLeft]
             try check(corners.allSatisfy { $0.x.isFinite && $0.y.isFinite && (0...1).contains($0.x) && (0...1).contains($0.y) }, "output coordinates")

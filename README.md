@@ -28,9 +28,9 @@ The planned app maps images, videos and built-in animations onto independent sur
 
 Required toolchain: **Xcode 27.0 beta 5 (27A5237l)**.
 
-Created October 5, 2026. The v1.11 Surface Controls milestone is implemented and automatically verified: appearance/crop/flips, locks/object movement/scoped resets, reusable looks/palettes and master brightness/fade/blackout. All 184 correctness tests passed in Debug/Release. Routine visual acceptance belongs to the user and remains pending. Projector output and physical checks remain deferred.
+Created October 5, 2026. **v1.12 Mapping Tools is implemented and automatically verified:** appearance/looks/palettes and master output controls from v1.11, plus calibration, polygon masks/cutouts, editor guide visibility/labels and shared-canvas join inspection. All **225 offscreen correctness tests passed in Debug and Release**; four optional benchmarks skipped and two visible-window tests excluded. User visual acceptance remains pending. Physical projector output remains deferred.
 
-Open app/ProjectionMapper/ProjectionMapper.xcodeproj in required Xcode-beta and press Command–R. The tested 1.11/build 8 app is delivered at app/ProjectionMapper.app, with product under builds/v1.11/ and evidence under builds/v1.11.3/. File > Save/Open keeps schema 5 .projectionmap projects; older schemas migrate and loads start paused. See [current verification](docs/V1.11.3_VERIFICATION.md) and [progress](docs/PROGRESS.md). Quit/reopen an already running app to pick up the new binary.
+Open app/ProjectionMapper/ProjectionMapper.xcodeproj in required Xcode-beta and press Command–R, or use the tested **1.12/build 9** app at app/ProjectionMapper.app. Archived app: builds/v1.12/ProjectionMapper.app; evidence: builds/v1.12.3/. Quit/reopen a running older app to use the new binary. The toolbar eye menu controls handles/outlines/names/edge labels; the object inspector offers stripe/checker join inspection. Masks and calibration remain shared between preview and Test Window. Save/Open uses format 6 .projectionmap packages, migrates formats 1–5, and restores safe runtime defaults. Older app copies cannot open new format 6 packages. See [current verification](docs/V1.12.3_VERIFICATION.md) and [progress](docs/PROGRESS.md).
 
 The original ChatGPT project mirror at `/Users/keith/.codex/.chatgpt-projects/g-p-6ac32a4ca5b08191bfcf6bd28eb66008` remains a reference location. Do not edit its synced files.
 
@@ -40,4 +40,4 @@ Private repository: [Chosencode25/projection-mapper](https://github.com/Chosenco
 
 The first milestone is `v1.01`. Follow [GitHub workflow](docs/GITHUB_WORKFLOW.md) for branches, commits, milestone tags, and release downloads. See [Changelog](CHANGELOG.md) for completed version changes.
 
-v1.11 tested source is backed up on GitHub main at 87459a8, preserving v1.10 at 55d242c; its intermediate slices remained local. No new release/tag/assets are requested. Next: v1.12 Mapping Tools.
+Completed v1.12 milestone source backup to GitHub main is pending. Last confirmed backup is v1.11 at 87459a8 with notes 03c9a45, preserving v1.10 at 55d242c. No new release/tag/assets are authorized. Next: v1.13 Image Import.

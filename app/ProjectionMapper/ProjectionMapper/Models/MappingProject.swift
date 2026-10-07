@@ -64,7 +64,7 @@ struct MappingProject: Equatable, Codable {
             guard face.layout.isVisible, object(for: face)?.isVisible != false else { return nil }
             let owner = resolvedSource(source(for: face))
             let map = object(for: face)?.mode == .repeatContent ? .full : face.layout.inputMap
-            return RenderSurface(geometry: face.corners, color: owner.color, content: owner.content, inputMap: map, generator: owner.generator, sourceID: owner.id, appearance: appearance(for: face))
+            return RenderSurface(geometry: face.corners, color: owner.color, content: owner.content, inputMap: map, generator: owner.generator, sourceID: owner.id, appearance: appearance(for: face), mask: face.mask)
         }, masterBrightness: masterOutput.brightness)
     }
     func joinMessage(_ link: FaceEdgeLink, objectID: UUID) -> String? {

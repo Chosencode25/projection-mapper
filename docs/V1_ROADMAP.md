@@ -2,7 +2,7 @@
 
 V1 targets a native Mac mapping workspace for images, videos and built-in animations on multiple surfaces. Faces can form objects with shared content coordinates so content continues across joined faces. Reusable looks/palettes, masks, time-based playback, an editor-only house photo and portable projects prepare it for musical shows. V1 acceptance remains Test Mode; fullscreen projector implementation and physical acceptance are scheduled for v2.01.
 
-See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). v1.08 is implemented and locally accepted; v1.09 is implemented and automatically verified with user visual acceptance pending; v1.10 Save & Load is implemented locally and automatically verified; v1.11 Surface Controls is implemented and automatically verified, with user visuals pending; v1.12 onward remains planned. See [V2 music/show roadmap](V2_ROADMAP.md) and [detailed V2 implementation steps](V2_IMPLEMENTATION_PLAN.md) for the next major version.
+See [ordered implementation steps for every remaining milestone](V1_REMAINING_PLAN.md). v1.08 is implemented and locally accepted; v1.09 is implemented and automatically verified with user visual acceptance pending; v1.10 Save & Load is implemented locally and automatically verified; v1.11 Surface Controls is implemented and automatically verified, with user visuals pending; v1.12.1 calibration is implemented locally and automatically verified; the remaining v1.12 slices and v1.13 onward remain planned. See [V2 music/show roadmap](V2_ROADMAP.md) and [detailed V2 implementation steps](V2_IMPLEMENTATION_PLAN.md) for the next major version.
 
 | Stage | Scope |
 |---|---|
@@ -134,3 +134,19 @@ Locks, bounded object translation and scoped resets are implemented locally. All
 ## v1.11 completed implementation — October 6, 2026
 
 All three slices are implemented; all 184 Debug/Release correctness tests passed. The 1.11/build 8 universal app is delivered locally; tested source backup was successfully pushed to main at 87459a8. See [verification](V1.11.3_VERIFICATION.md). User visuals remain pending. Next: v1.12 Mapping Tools, extending the same global blackout to calibration and face-local masks. No new release/tag/assets requested.
+
+## v1.12 staged plan — October 7, 2026
+
+1.12.1 adds temporary calibration patterns; 1.12.2 adds face masks/cutouts; 1.12.3 adds editor visibility/join tools and completes verification. See [staged plan](V1.12_PLAN.md) and [calibration plan](V1.12.1_PLAN.md). Intermediate work stays local with bundle 1.11/build 8; routine visuals belong to the user.
+
+## v1.12.1 local calibration delivery — October 7, 2026
+
+All 202 correctness tests passed in Debug/Release; tested universal preview installed locally with bundle 1.11/build 8. See [verification](V1.12.1_VERIFICATION.md). No intermediate Git delivery or screen control. User visuals pending. Next: v1.12.2 face masks/cutouts, then v1.12.3 editor/join tools and milestone verification.
+
+## v1.12.2 local mask delivery — October 7, 2026
+
+Face-local polygon boundaries and holes, drawing/dragging/numeric editing, validation/suppression and format 6 save/recovery are implemented. Final Debug/Release runs each passed 217 offscreen correctness tests; four benchmarks skipped and two visible-window tests excluded. Tested universal preview installed locally with bundle 1.11/build 8; previous app preserved. See [verification](V1.12.2_VERIFICATION.md). No intermediate Git delivery. User visuals pending. Next: v1.12.3 editor visibility/join tools and milestone verification.
+
+## v1.12 Mapping Tools completed — October 7, 2026
+
+All three slices are implemented: temporary calibration including shared stripes/checkers, saved face-local polygon boundaries/holes, editor guide visibility/names/edge labels and connected-face inspection. All 225 offscreen correctness checks passed in Debug/Release; four benchmarks skipped and two visible-window tests excluded. Tested signed universal 1.12/build 9 app installed; previous preview preserved. See [verification](V1.12.3_VERIFICATION.md). Completed-milestone source backup pending; user visuals pending. No release/tag/assets authorized. Next: v1.13 Image Import.
