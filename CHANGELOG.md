@@ -5,7 +5,7 @@
 - Import PNG/JPEG onto independent faces or shared objects; explicit detach import, drag/drop, Fit/Fill/Stretch, replace/remove and relink. Normalize orientation/sRGB/alpha with bounded image allocations.
 - Reuse image textures across linked faces; preserve masks, input maps, crop/flips, projective output, fades and calibration. Include image assets in portable format 7 saves/recovery with migrations and last-good-file protection.
 - Add an editor-only house/reference photo with placement, position, scale, opacity, lock and temporary visibility. Clean output and surface coordinates remain independent.
-- Include the local top-bar menus, focused inspector tabs and collapsible controls. Final Debug/Release each passed 239 correctness checks; universal signed 1.13/build 10 installed locally with previous app preserved. User visuals pending; no release publication requested.
+- Include the local top-bar menus, focused inspector tabs and collapsible controls. Final Debug/Release each passed 239 correctness checks; universal signed 1.13/build 10 installed locally with previous app preserved. Completed source backed up on GitHub main at 6dfd076. User visuals pending; no release published.
 
 ## Local UI usability polish — October 7, 2026
 

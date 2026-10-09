@@ -58,3 +58,8 @@ v1.11 Surface Controls (bundle 1.11/build 8) is tested and backed up on main at 
 ## Latest confirmed source milestone — October 7, 2026
 
 v1.12 Mapping Tools (bundle 1.12/build 9, package format 6) is tested and backed up on main at **b786f55**, successfully pushed from 03c9a45 after fast-forwarding codex/v1.12-mapping-tools. All 225 offscreen correctness tests passed in Debug/Release; four benchmarks skipped and two visible-window tests excluded. Tested universal signed app installed locally and previous preview preserved. User visuals remain pending. A documentation-only delivery record follows the tested source commit; no release/tag/assets published. Latest published release remains v1.04.2. Next milestone is v1.13 Image Import; start a codex/ feature branch before implementing it, retaining the milestone-only Git cadence.
+
+
+## Latest confirmed source milestone — October 9, 2026
+
+v1.13 Image Import (bundle 1.13/build 10, package format 7), including the earlier local UI improvements, is tested and backed up on main at **6dfd076**, successfully pushed from 4e92123 after fast-forwarding codex/v1.13-image-import. All 239 correctness tests passed in Debug/Release; four optional benchmarks skipped and two legacy visible-window checks excluded. Tested universal signed app installed locally; prior installed app preserved. User visuals remain pending. Documentation-only delivery notes follow the tested source commit. No new release/tag/assets published; latest published release remains v1.04.2. Next milestone: v1.14 Video Import, on a new codex/ feature branch.

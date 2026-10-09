@@ -37,3 +37,6 @@ Agent performed these checks under the user's explicit request; this does not co
 - Reviewed at the normal 1200-point window and a larger zoomed window. Border-drag attempts did not change window size, so the minimum-width compact toolbar fallback is implemented but not claimed as visually verified.
 
 All UI interactions used Computer Use. All code/build/file work used filesystem tools. No commit, push, tag, release or GitHub upload was performed. Local branch: codex/ui-usability-polish, based on 4e92123. The next roadmap milestone remains v1.13 Image Import.
+
+
+October 9, 2026 delivery update: these formerly local changes are included in the completed v1.13 milestone source at 6dfd076 and backed up on GitHub. The tested UI-polish binary remains preserved as builds/v1.13/Previous-installed.app. Current app is v1.13/build 10; this document retains the October 7 review history.

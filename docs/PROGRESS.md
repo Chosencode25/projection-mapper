@@ -479,4 +479,4 @@ Next planned build: v1.13 Image Import. No release publication requested.
 - [x] Previous local usability improvements included. Final Debug/Release each passed 239 correctness tests; four benchmarks skipped, two legacy visible-window checks excluded. Exact Xcode 27A5237l, universal slices, strict signatures and all delivered file hashes verified.
 - [x] Version 1.13/build 10 installed in app/ and archived in builds/v1.13/; previous v1.12 UI-polish app preserved. See [verification](V1.13_VERIFICATION.md) and [image guide](IMAGE_IMPORT_GUIDE.md).
 - [ ] User visual acceptance of picker/drop, image placement and reference compositing. No screen control/app launch used.
-- Completed-milestone source backup pending confirmation; no release/tag/assets requested. Next build: v1.14 Video Import.
+- Completed-milestone source backup successfully pushed to GitHub main at **6dfd076** (from 4e92123), including the prior UI polish. No release/tag/assets published. Next build: v1.14 Video Import.
