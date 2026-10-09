@@ -36,6 +36,24 @@ struct EditorDisplayTests {
         bytes.withUnsafeMutableBytes { texture.getBytes($0.baseAddress!,bytesPerRow: 192*4,from: MTLRegionMake2D(0,0,192,128),mipmapLevel: 0) }
         return bytes
     }
+    @Test func inspectorNavigationIsTemporaryAndSelectionReturnsToEdit() throws {
+        let s = EditorSession(presentOutput: { _ in })
+        let saved = try ProjectCodec.encode(s.document)
+        let scene = s.scene
+        s.inspectorTab = .show
+        s.selectSurface(s.project.surfaces[0].id)
+        #expect(s.inspectorTab == .edit)
+        s.inspectorTab = .project
+        #expect(try ProjectCodec.encode(s.document) == saved)
+        #expect(s.scene == scene && !s.hasUserChanges)
+        s.selectSurface(UUID())
+        #expect(s.inspectorTab == .project)
+        s.resetProject()
+        #expect(s.inspectorTab == .edit)
+        s.inspectorTab = .show
+        try s.load(s.document, from: URL(fileURLWithPath: "/tmp/UI-navigation.projectionmap"))
+        #expect(s.inspectorTab == .edit && !s.hasUserChanges)
+    }
     @Test func displayAndLabelsNeverDirtySaveOrChangeOutputAndResetOnOpenNew() throws {
         let s = EditorSession(presentOutput: { _ in }); let original = s.project, scene = s.scene
         let data = try ProjectCodec.encode(s.document)

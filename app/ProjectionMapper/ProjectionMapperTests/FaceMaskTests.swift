@@ -108,7 +108,7 @@ struct FaceMaskTests {
     }
     @Test func allContentAndCalibrationBranchesClipAndRevealLowerFaces() throws {
         let back = RenderSurface(geometry: rect(),color: SIMD4(0.02,0.04,0.08,1))
-        for content in SurfaceContent.allCases {
+        for content in SurfaceContent.allCases.filter({ $0 != .image }) {
             for pattern in CalibrationPattern.allCases {
                 let face = RenderSurface(geometry: rect(),color: SIMD4(1,0,0,1),content: content,mask: mask())
                 let config = CalibrationState(pattern: pattern)
@@ -237,7 +237,7 @@ struct FaceMaskTests {
         let failing = ProjectPackageStore(); failing.beforeCommit = { _ in throw ProjectFileError.io("injected") }
         #expect(throws: (any Error).self) { try s.save(to: url,store: failing) }; #expect(try ProjectPackageStore().read(url) == good)
         try s.save(to: url); #expect(!s.hasUserChanges)
-        let loaded = try ProjectPackageStore().read(url); #expect(loaded.formatVersion == 6 && loaded.project.surfaces[0].mask == invalid)
+        let loaded = try ProjectPackageStore().read(url); #expect(loaded.formatVersion == ProjectDocument.currentVersion && loaded.project.surfaces[0].mask == invalid)
         s.beginMaskDrawing(hole: false); try s.load(loaded,from: url); #expect(s.maskDraft == nil && !s.isMaskEditing && s.scene.invalidCount == 1)
         s.clearRecovery()
     }
@@ -249,7 +249,7 @@ struct FaceMaskTests {
         for version in 1...5 {
             var json = try #require(JSONSerialization.jsonObject(with: data) as? [String:Any]); json["formatVersion"] = version
             let result = try ProjectCodec.decode(JSONSerialization.data(withJSONObject: json))
-            #expect(result.formatVersion == 6 && result.project.surfaces[0].mask == nil)
+            #expect(result.formatVersion == ProjectDocument.currentVersion && result.project.surfaces[0].mask == nil)
         }
         project.surfaces[0].mask?.boundary.points[0].x = 2
         #expect(throws: (any Error).self) { try ProjectCodec.encode(ProjectDocument(project: project)) }

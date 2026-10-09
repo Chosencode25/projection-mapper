@@ -2,6 +2,9 @@
 
 Status: v1.08 accepted; v1.09–v1.12 implemented and automatically verified. Full v1.12 Mapping Tools app is delivered locally at 1.12/build 9; all 225 offscreen Debug/Release correctness tests passed. Completed-milestone source backup successfully pushed to GitHub main at b786f55, preserving v1.11 at 87459a8 and prior delivery notes 03c9a45. Routine user visuals remain pending. See [current verification](V1.12.3_VERIFICATION.md). Next: v1.13–v1.15; future intermediate work stays local under the milestone-only Git policy. This document does not authorize future milestones or releases.
 
+October 9 update: complete v1.13 Image Import is implemented and automatically verified in one pass, including prior UI polish. All 239 offscreen Debug/Release correctness tests passed; 1.13/build 10 delivered locally, visuals pending. See [verification](V1.13_VERIFICATION.md). Source backup pending confirmation; next is v1.14 Video Import. Historical milestone records below remain preserved.
+
+
 Use Xcode 27.0 beta 5 (27A5237l), verified before implementation, and code-only SwiftUI/programmatic AppKit. Preserve Test Mode and shared preview/output rendering. Work on feature branches; use files/automated checks first and screen only for vital final acceptance. Each completed x.xx app milestone ends with appropriate Debug/Release checks, progress/verification records, recoverable GitHub history and the requested local app copy. Intermediate planning edits, fixes and x.xx.x slices stay local; no commits/pushes or uploads until that boundary unless explicitly requested. Keep builds/caches out of commits; preserve prior source, tags and assets. Releases are separate milestone decisions, with final package/upload planned for v1.15.
 
 ## Connected object faces — approved October 5, 2026

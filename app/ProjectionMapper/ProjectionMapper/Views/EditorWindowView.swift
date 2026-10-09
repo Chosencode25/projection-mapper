@@ -7,9 +7,12 @@ struct EditorWindowView: View {
     let refreshDisplays: () -> Void
     let openOutput: () -> Void
 
+    var openProject: () -> Void = {}
+    var saveProject: () -> Void = {}
+
     var body: some View {
         VStack(spacing: 0) {
-            EditorToolbar(session: session, newProject: newProject, openOutput: openOutput)
+            EditorToolbar(session: session, newProject: newProject, openOutput: openOutput, openProject: openProject, saveProject: saveProject)
             Divider()
             HStack(spacing: 0) {
                 if session.isSidebarVisible {
@@ -19,7 +22,7 @@ struct EditorWindowView: View {
                 EditorCanvasView(session: session).frame(maxWidth: .infinity, maxHeight: .infinity)
                 if session.isInspectorVisible {
                     Divider()
-                    ProjectInspectorView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput).frame(width: 260)
+                    ProjectInspectorView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput).frame(width: 310)
                 }
             }
             Divider()

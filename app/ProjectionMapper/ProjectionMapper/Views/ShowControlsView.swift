@@ -15,7 +15,7 @@ struct ProjectShowControls: View {
     }
 }
 
-private struct MasterOutputControls: View {
+struct MasterOutputControls: View {
     let session: EditorSession
     @State private var statusClockActive = false
 
@@ -70,7 +70,7 @@ private struct MasterOutputControls: View {
     }
 }
 
-private struct LookLibraryControls: View {
+struct LookLibraryControls: View {
     let session: EditorSession
     @State private var newName = ""
     @State private var selectedID: UUID?
@@ -133,7 +133,7 @@ private struct LookLibraryControls: View {
     }
 }
 
-private struct PaletteLibraryControls: View {
+struct PaletteLibraryControls: View {
     let session: EditorSession
     @State private var newName = ""
     @State private var newSlotName = ""

@@ -36,7 +36,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                 newProject: { [weak self] in self?.newProject() },
                 projectChanged: { [weak self] in self?.updateWindowTitle() },
                 refreshDisplays: { [weak self] in self?.displayDiscovery.refresh() },
-                openOutput: { [weak self] in self?.openOutput() }
+                openOutput: { [weak self] in self?.openOutput() },
+                openProject: { [weak self] in self?.openProject() },
+                saveProject: { [weak self] in self?.saveProject() }
             ))
             window.center()
             editorWindow = window
@@ -174,12 +176,22 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
             _ = try ProjectPackageStore().read(url)
             confirmSaveChanges(action: "open another project") { [weak self] proceed in
                 guard let self, proceed else { return }
-                do {
-                    // A Save in the prompt may have written this very URL; reread its final contents.
-                    let document = try ProjectPackageStore().read(url)
-                    try self.session.load(document, from: url); self.remember(url); self.updateWindowTitle()
+                self.isPrompting = true
+                Task { @MainActor in
+                    defer { self.isPrompting = false }
+                    do {
+                        // Reread after any Save. Decode large image assets off the main thread.
+                        let document = try ProjectPackageStore().read(url)
+                        let baseline = self.session.project
+                        let assets = document.project.imageAssets
+                        let media = await Task.detached(priority: .userInitiated) { ImageImportService.loadAssets(assets,package: url) }.value
+                        guard baseline == self.session.project else {
+                            self.session.fileMessage = "The current mapping changed while images loaded. Open the project again."; return
+                        }
+                        try self.session.load(document,from: url,loadedMedia: media)
+                        self.remember(url); self.updateWindowTitle()
+                    } catch { self.showFileError(error) }
                 }
-                catch { self.showFileError(error) }
             }
         } catch { showFileError(error) }
     }

@@ -36,6 +36,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             return (item,perspective,mask.shaderRings,mask.isEnabled ? mask.shaderPoints : [.zero])
         }
     }
+    private var imageTextures: [UUID:any MTLTexture] = [:]
+    private var loadedImages: [UUID:ImagePixels] = [:]
     private var hasVisibleSurface = false
     private var hasRunningAnimation = false
     static let pixelFormat: MTLPixelFormat = .bgra8Unorm
@@ -93,6 +95,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         do { rectanglePipeline = try pipelineProvider(device, descriptor) }
         catch { throw MetalInitializationError.renderPipelineUnavailable(error.localizedDescription) }
         super.init()
+        updateImageTextures()
     }
 
     /// Shared by drawable presentation and offscreen GPU verification.
@@ -102,7 +105,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         let encodeStart = diagnostics == nil ? nil : ProcessInfo.processInfo.systemUptime
         descriptor.colorAttachments[0].loadAction = .clear
         descriptor.colorAttachments[0].storeAction = .store
-        descriptor.colorAttachments[0].clearColor = Self.backgroundColor
+        descriptor.colorAttachments[0].clearColor = scene.editorTransparentBackground ? MTLClearColorMake(0,0,0,0) : Self.backgroundColor
         guard let command = commandQueue.makeCommandBuffer(),
               let encoder = command.makeRenderCommandEncoder(descriptor: descriptor) else {
             diagnostics?.skipped("encoding-unavailable")
@@ -146,7 +149,13 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             encoder.setFragmentBytes(&appearance,length: MemoryLayout<SIMD2<Float>>.stride,index: 9)
             rings.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 12) }
             points.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 13) }
-            encoder.setFragmentTexture(diagnosticTexture, index: 0)
+            var imageScale = SIMD2<Float>(1,1)
+            if item.content == .image, !scene.calibration.pattern.isActive {
+                guard let content = item.image, let pixels = scene.images[content.assetID], let texture = imageTextures[content.assetID] else { continue }
+                imageScale = content.placement.scale(imageAspect: Float(pixels.width)/Float(pixels.height),canvasAspect: content.canvasAspect)
+                encoder.setFragmentTexture(texture,index: 0)
+            } else { encoder.setFragmentTexture(diagnosticTexture,index: 0) }
+            encoder.setFragmentBytes(&imageScale,length: MemoryLayout<SIMD2<Float>>.stride,index: 14)
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: positions.count)
         }
         encoder.endEncoding()
@@ -169,11 +178,34 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
     func setScene(_ scene: RenderScene) {
         self.scene = scene
+        updateImageTextures()
         lastContinuousDemand = nil
         prepared = Self.prepare(scene)
         hasVisibleSurface = prepared.contains { $0.0.appearance.opacity > 0 }
         hasRunningAnimation = prepared.contains { $0.0.appearance.opacity > 0 && $0.0.content.isAnimated && !$0.0.playback.isPaused }
     }
+
+    private func updateImageTextures() {
+        let ids = Set(scene.surfaces.compactMap { $0.image?.assetID })
+        imageTextures = imageTextures.filter { ids.contains($0.key) && scene.images[$0.key] != nil }
+        loadedImages = loadedImages.filter { ids.contains($0.key) && scene.images[$0.key] != nil }
+        var changed: [any MTLTexture] = []
+        for id in ids {
+            guard let pixels = scene.images[id], loadedImages[id] != pixels else { continue }
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,width: pixels.width,height: pixels.height,mipmapped: true)
+            descriptor.storageMode = .shared; descriptor.usage = .shaderRead
+            guard let texture = device.makeTexture(descriptor: descriptor) else { imageTextures.removeValue(forKey: id); loadedImages.removeValue(forKey: id); continue }
+            pixels.bytes.withUnsafeBytes { buffer in
+                texture.replace(region: MTLRegionMake2D(0,0,pixels.width,pixels.height),mipmapLevel: 0,withBytes: buffer.baseAddress!,bytesPerRow: pixels.width*4)
+            }
+            imageTextures[id] = texture; loadedImages[id] = pixels; changed.append(texture)
+        }
+        if !changed.isEmpty, let command = commandQueue.makeCommandBuffer(), let blit = command.makeBlitCommandEncoder() {
+            for texture in changed { blit.generateMipmaps(for: texture) }
+            blit.endEncoding(); command.commit()
+        }
+    }
+    var cachedImageTextureCount: Int { imageTextures.count }
 
     func updateRenderingDemand(at uptime: TimeInterval) {
         let continuous = isDrawingEnabled && scene.needsContinuousRendering(at: uptime,

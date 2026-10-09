@@ -58,6 +58,7 @@ fragment float4 rectangleFragment(RectangleVertexOutput input [[stage_in]],
                                  constant float4 &calibration [[buffer(11)]],
                                  constant uint2 *maskRings [[buffer(12)]],
                                  constant float2 *maskPoints [[buffer(13)]],
+                                 constant float2 &imageScale [[buffer(14)]],
                                  texture2d<float> grid [[texture(0)]]) {
     // Clip in original face UV before EVERY content/calibration branch.
     if (maskRings[0].y > 0) {
@@ -108,6 +109,15 @@ fragment float4 rectangleFragment(RectangleVertexOutput input [[stage_in]],
     float3 homogeneous = inverse * float3(input.surfacePosition, 1.0);
     if (!all(isfinite(homogeneous)) || abs(homogeneous.z) < 1e-8) return float4(0, 0, 0, 1);
     float2 uv = (inputMap * float3(homogeneous.xy / homogeneous.z, 1.0)).xy;
+    if (textured == 8) {
+        float2 imageUV = (uv - 0.5) * imageScale + 0.5;
+        if (any(imageUV < 0.0) || any(imageUV > 1.0)) discard_fragment();
+        constexpr sampler imageSampler(coord::normalized,address::clamp_to_edge,filter::linear,mip_filter::linear);
+        float4 sample = grid.sample(imageSampler,imageUV);
+        // Interpolate premultiplied pixels, then convert for the existing straight-alpha blend.
+        if (sample.a > 1e-6) sample.rgb /= sample.a;
+        return applyAppearance(sample,appearance,masterGain);
+    }
     float scale = parameters.x;
     float2 oriented = float2(dot(uv,motion), dot(uv,float2(-motion.y,motion.x)));
     if (textured == 2) {

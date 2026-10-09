@@ -6,38 +6,75 @@ struct ProjectInspectorView: View {
     let openOutput: () -> Void
     @FocusState private var nameIsFocused: Bool
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Text("PROJECT").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                TextField("Project name", text: Binding(get: { session.project.name }, set: { session.renameProject($0) }))
-                    .textFieldStyle(.roundedBorder).accessibilityLabel("Project name").focused($nameIsFocused)
-                    .onSubmit { session.finishNameEditing(); nameIsFocused = false }
-                    .onChange(of: nameIsFocused) { _, focused in if !focused { session.finishNameEditing() } }
-                LabeledContent("Surfaces", value: "\(session.project.surfaces.count)")
-                LabeledContent("Objects", value: "\(session.project.objects.count)")
-                Divider()
-                PlaybackControls(session: session)
-                Divider()
-                ProjectShowControls(session: session)
-                Divider()
-                CalibrationControls(session: session)
-                if let message = session.editMessage {
-                    Text(message).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
-                }
-                Divider()
-                if let face = session.selectedSurface {
-                    FaceInspector(session: session, face: face)
-                } else if let object = session.selectedObject {
-                    ObjectInspector(session: session, object: object)
-                } else {
-                    Text("Select a face or object in the sidebar.").font(.caption).foregroundStyle(.secondary)
-                }
-                Divider()
-                OutputDetailsView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput)
-                Label("Save and open projects from the File menu.", systemImage: "info.circle")
-                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }.font(.subheadline).padding(16)
+        VStack(spacing: 0) {
+            Picker("Inspector section", selection: $session.inspectorTab) {
+                ForEach(InspectorTab.allCases) { Text($0.rawValue).tag($0) }
+            }.pickerStyle(.segmented).labelsHidden().accessibilityLabel("Inspector section").padding(12)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if let message = session.editMessage {
+                        Text(message).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                    }
+                    switch session.inspectorTab {
+                    case .edit:
+                        if let face = session.selectedSurface {
+                            FaceInspector(session: session, face: face).id(face.id)
+                        } else if let object = session.selectedObject {
+                            ObjectInspector(session: session, object: object).id(object.id)
+                        } else {
+                            Label("Select a surface", systemImage: "cursorarrow.click").font(.headline)
+                            Text("Click a face in the canvas or choose a surface or object in the left sidebar.")
+                                .foregroundStyle(.secondary)
+                            Button("Add surface", systemImage: "plus") { session.addSurface() }
+                        }
+                    case .show:
+                        PlaybackControls(session: session)
+                        Divider()
+                        MasterOutputControls(session: session)
+                        Divider()
+                        InspectorSection("Calibration") { CalibrationControls(session: session) }
+                        InspectorSection("Output destination & resolution") {
+                            OutputDetailsView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput)
+                        }
+                    case .project:
+                        Text("PROJECT").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        TextField("Project name", text: Binding(get: { session.project.name }, set: { session.renameProject($0) }))
+                            .textFieldStyle(.roundedBorder).accessibilityLabel("Project name").focused($nameIsFocused)
+                            .onSubmit { session.finishNameEditing(); nameIsFocused = false }
+                            .onChange(of: nameIsFocused) { _, focused in if !focused { session.finishNameEditing() } }
+                        LabeledContent("Surfaces", value: "\(session.project.surfaces.count)")
+                        LabeledContent("Objects", value: "\(session.project.objects.count)")
+                        Divider()
+                        InspectorSection("Reference photo") { ReferencePhotoControls(session: session) }
+                        Divider()
+                        LookLibraryControls(session: session).id(session.project.id)
+                        Divider()
+                        PaletteLibraryControls(session: session).id(session.project.id)
+                        Label("Use Project in the top bar to save or open a mapping.", systemImage: "info.circle")
+                            .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                }.font(.subheadline).padding(16).frame(maxWidth: .infinity, alignment: .leading)
+            }.id(session.inspectorTab)
         }.frame(maxHeight: .infinity).background(Color(nsColor: .controlBackgroundColor).opacity(0.45))
+    }
+}
+
+/// Keep infrequent controls reachable without making every task a long scroll.
+private struct InspectorSection<Content: View>: View {
+    let title: String
+    @State private var expanded: Bool
+    let content: Content
+    init(_ title: String, expanded: Bool = false, @ViewBuilder content: () -> Content) {
+        self.title = title
+        _expanded = State(initialValue: expanded)
+        self.content = content()
+    }
+    var body: some View {
+        DisclosureGroup(title, isExpanded: $expanded) {
+            VStack(alignment: .leading, spacing: 10) { content }
+                .padding(.top, 10).frame(maxWidth: .infinity, alignment: .leading)
+        }.padding(10).background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -52,8 +89,9 @@ private struct SourceInspector: View {
         if let selectedSource = session.selectedSource {
             let source = session.project.resolvedSource(selectedSource)
             Picker("Content", selection: Binding(get: { source.content }, set: { session.setSurfaceContent($0) })) {
-                ForEach(SurfaceContent.allCases) { Text($0.title).tag($0) }
+                ForEach(SurfaceContent.allCases.filter { $0 != .image || source.image != nil }) { Text($0.title).tag($0) }
             }
+            ImageContentControls(session: session)
             if source.content == .solid || source.content.isAnimated {
                 ColorPicker(source.content.isAnimated ? "Color 1" : "Fill color", selection: Binding(get: {
                     Color(.sRGB, red: Double(source.color.x), green: Double(source.color.y), blue: Double(source.color.z), opacity: 1)
@@ -92,7 +130,7 @@ private struct SourceInspector: View {
                 Text("Uses shared project playback. An object shares these colors across its faces.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            GeneratorPresetControls(session: session).id(source.id)
+            InspectorSection("Effect presets") { GeneratorPresetControls(session: session).id(source.id) }
         }
     }
 }
@@ -205,64 +243,67 @@ private struct FaceInspector: View {
     let face: MappingSurface
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("FACE · OUTPUT GEOMETRY").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text("SURFACE").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             NameEditor(name: face.name, title: "Surface name", apply: { session.renameSurface(face.id, $0) }).id(face.id)
-            TagsEditor(tags: face.tags, apply: { session.setTags($0, faceID: face.id) }).id(face.id)
-            Toggle("Lock this face's output geometry",isOn: Binding(get: { face.layout.isGeometryLocked },set: { session.setGeometryLocked($0,faceID: face.id) }))
-            if session.project.object(for: face)?.isGeometryLocked == true {
-                Text("Also locked by its object. Unlock the object to edit output corners.").font(.caption).foregroundStyle(.orange)
-            }
-            Text("Geometry locks protect corners and deletion; content and appearance remain editable.").font(.caption).foregroundStyle(.secondary)
             Toggle("Visible", isOn: Binding(get: { face.layout.isVisible }, set: { session.setVisible($0, faceID: face.id) }))
-            HStack {
-                Button("Duplicate") { session.duplicateSurface(face.id) }
-                Button("Delete") { session.deleteSurface(face.id) }.disabled(session.project.isGeometryLocked(face))
+            Toggle("Lock output corners",isOn: Binding(get: { face.layout.isGeometryLocked },set: { session.setGeometryLocked($0,faceID: face.id) }))
+            if session.project.object(for: face)?.isGeometryLocked == true {
+                Text("Corners locked by this object. Unlock the object to edit them.").font(.caption).foregroundStyle(.orange)
             }
-            HStack {
-                Button("Forward") { session.moveSurface(face.id, offset: -1) }
-                    .disabled(session.project.surfaces.first?.id == face.id)
-                Button("Backward") { session.moveSurface(face.id, offset: 1) }
-                    .disabled(session.project.surfaces.last?.id == face.id)
-            }
-            if let object = session.project.object(for: face) {
-                Text("Content shared with \(object.name). Changes affect every linked face.").font(.caption).foregroundStyle(.secondary)
-                Button("Inspect object") { session.selectObject(object.id) }
-                Button("Detach to independent content") { session.detachSurface(face.id) }
-            }
-            Menu(face.layout.objectID == nil ? "Attach to object" : "Move to object") {
-                ForEach(session.project.objects) { object in
-                    Button(object.name) { session.attachSurface(face.id, to: object.id) }
-                }
-            }.disabled(session.project.objects.isEmpty)
-            Divider()
-            if let object = session.project.object(for: face) {
-                Toggle("Override object appearance on this face",isOn: Binding(get: { face.appearanceOverride != nil },set: { session.setAppearanceOverride($0,faceID: face.id) }))
-                Text(face.appearanceOverride == nil ? "Inherited from \(object.name). Inspect the object to change all faces." : "Face override · crop, flips or appearance may break continuity at joined edges.")
-                    .font(.caption).foregroundStyle(face.appearanceOverride == nil ? Color.secondary : Color.orange)
-            }
-            AppearanceEditor(value: session.project.appearance(for: face),scope: face.layout.objectID == nil ? "Face appearance" : "Face appearance override",apply: { session.setAppearance($0,faceID: face.id) })
-                .disabled(face.layout.objectID != nil && face.appearanceOverride == nil)
-            SourceInspector(session: session)
-            InputMapEditor(session: session, face: face)
-            Divider()
-            Picker("Edit corner", selection: Binding<SurfaceCorner?>(get: { session.selectedCorner }, set: { session.selectCorner($0) })) {
-                Text("None").tag(Optional<SurfaceCorner>.none)
-                ForEach(SurfaceCorner.allCases) { Text($0.title).tag(Optional($0)) }
-            }
-            .disabled(session.project.isGeometryLocked(face))
-            MaskControls(session: session,face: face).id(face.id)
-            FaceResetControls(session: session,face: face).id(face.id)
-            if !session.editorDisplay.cornerHandles {
-                Text("Corner handles are hidden. Restore them from Editor Guides in the toolbar or View menu.").font(.caption).foregroundStyle(.secondary)
-            }
-            Text(session.project.isGeometryLocked(face) ? "Output geometry is locked; select or unlock this face." : "Drag handles or use arrows; Shift nudges 1%.").font(.caption).foregroundStyle(.secondary)
             if PerspectiveTransform(face.corners) == nil {
-                Text("Invalid output shape. Move a corner to restore this face.").font(.caption).foregroundStyle(.orange)
+                Text("Invalid output shape. Expand Output corners or drag a corner to restore it.").font(.caption).foregroundStyle(.orange)
             }
-            ForEach(SurfaceCorner.allCases) { corner in
-                LabeledContent(corner.title, value: String(format: "%.3f, %.3f", face.corners[corner].x, face.corners[corner].y))
-                    .font(.caption).monospacedDigit()
+            Menu("Surface actions") {
+                Button("Duplicate") { session.duplicateSurface(face.id) }
+                Button("Bring forward") { session.moveSurface(face.id, offset: -1) }.disabled(session.project.surfaces.first?.id == face.id)
+                Button("Send backward") { session.moveSurface(face.id, offset: 1) }.disabled(session.project.surfaces.last?.id == face.id)
+                Button("Delete", role: .destructive) { session.deleteSurface(face.id) }.disabled(session.project.isGeometryLocked(face))
             }
+            InspectorSection("Content", expanded: true) { SourceInspector(session: session) }
+            InspectorSection("Object membership & tags") {
+                TagsEditor(tags: face.tags, apply: { session.setTags($0, faceID: face.id) }).id(face.id)
+                if let object = session.project.object(for: face) {
+                    Text("Content shared with \(object.name). Changes affect every linked face.").font(.caption).foregroundStyle(.secondary)
+                    Button("Inspect object") { session.selectObject(object.id) }
+                    Button("Detach to independent content") { session.detachSurface(face.id) }
+                }
+                Menu(face.layout.objectID == nil ? "Attach to object" : "Move to object") {
+                    ForEach(session.project.objects) { object in
+                        Button(object.name) { session.attachSurface(face.id, to: object.id) }
+                    }
+                }.disabled(session.project.objects.isEmpty)
+            }
+            InspectorSection("Appearance") {
+                if let object = session.project.object(for: face) {
+                    Toggle("Override object appearance on this face",isOn: Binding(get: { face.appearanceOverride != nil },set: { session.setAppearanceOverride($0,faceID: face.id) }))
+                    Text(face.appearanceOverride == nil ? "Inherited from \(object.name). Inspect the object to change all faces." : "Face override · crop, flips or appearance may break continuity at joined edges.")
+                        .font(.caption).foregroundStyle(face.appearanceOverride == nil ? Color.secondary : Color.orange)
+                }
+                AppearanceEditor(value: session.project.appearance(for: face),scope: face.layout.objectID == nil ? "Face appearance" : "Face appearance override",apply: { session.setAppearance($0,faceID: face.id) })
+                    .disabled(face.layout.objectID != nil && face.appearanceOverride == nil)
+            }
+            InspectorSection("Input mapping") { InputMapEditor(session: session, face: face) }
+            InspectorSection("Masks", expanded: face.mask != nil) { MaskControls(session: session,face: face).id(face.id) }
+            InspectorSection("Output corners") {
+                Picker("Edit corner", selection: Binding<SurfaceCorner?>(get: { session.selectedCorner }, set: { session.selectCorner($0) })) {
+                    Text("None").tag(Optional<SurfaceCorner>.none)
+                    ForEach(SurfaceCorner.allCases) { Text($0.title).tag(Optional($0)) }
+                }
+                .disabled(session.project.isGeometryLocked(face))
+
+                if !session.editorDisplay.cornerHandles {
+                    Text("Corner handles are hidden. Restore them from Editor Guides in the toolbar or View menu.").font(.caption).foregroundStyle(.secondary)
+                }
+                Text(session.project.isGeometryLocked(face) ? "Output geometry is locked; select or unlock this face." : "Drag handles or use arrows; Shift nudges 1%.").font(.caption).foregroundStyle(.secondary)
+                if PerspectiveTransform(face.corners) == nil {
+                    Text("Invalid output shape. Move a corner to restore this face.").font(.caption).foregroundStyle(.orange)
+                }
+                ForEach(SurfaceCorner.allCases) { corner in
+                    LabeledContent(corner.title, value: String(format: "%.3f, %.3f", face.corners[corner].x, face.corners[corner].y))
+                        .font(.caption).monospacedDigit()
+                }
+            }
+            FaceResetControls(session: session,face: face).id(face.id)
         }
     }
 }
@@ -310,31 +351,38 @@ private struct ObjectInspector: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("OBJECT · SHARED CONTENT").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             NameEditor(name: object.name, title: "Object name", apply: { session.renameObject(object.id, $0) }).id(object.id)
-            TagsEditor(tags: object.tags, apply: { session.setTags($0, objectID: object.id) }).id(object.id)
-            Toggle("Lock all member output geometry",isOn: Binding(get: { object.isGeometryLocked },set: { session.setGeometryLocked($0,objectID: object.id) }))
-            Text("Unlocking the object preserves each face's own lock.").font(.caption).foregroundStyle(.secondary)
-            ObjectMoveControls(session: session,objectID: object.id).id(object.id)
-            ObjectResetControls(session: session,objectID: object.id).id(object.id)
-            Toggle("Object visible", isOn: Binding(get: { object.isVisible }, set: { session.setVisible($0, objectID: object.id) }))
-            Picker("Mapping", selection: Binding(get: { object.mode }, set: { session.setObjectMode($0, id: object.id) })) {
-                ForEach(ObjectContentMode.allCases) { Text($0.title).tag($0) }
+            InspectorSection("Content", expanded: true) { SourceInspector(session: session) }
+            InspectorSection("Object geometry & tags") {
+                TagsEditor(tags: object.tags, apply: { session.setTags($0, objectID: object.id) }).id(object.id)
+                Toggle("Lock all member output geometry",isOn: Binding(get: { object.isGeometryLocked },set: { session.setGeometryLocked($0,objectID: object.id) }))
+                Text("Unlocking the object preserves each face's own lock.").font(.caption).foregroundStyle(.secondary)
+                ObjectMoveControls(session: session,objectID: object.id).id(object.id)
+                ObjectResetControls(session: session,objectID: object.id).id(object.id)
+                Toggle("Object visible", isOn: Binding(get: { object.isVisible }, set: { session.setVisible($0, objectID: object.id) }))
+                Picker("Mapping", selection: Binding(get: { object.mode }, set: { session.setObjectMode($0, id: object.id) })) {
+                    ForEach(ObjectContentMode.allCases) { Text($0.title).tag($0) }
+                }
             }
-            AppearanceEditor(value: object.appearance,scope: "Object appearance · inherited by faces",apply: { session.setAppearance($0,objectID: object.id) })
-            Text("Shared crop and flips preserve joined sampling. Faces with overrides keep their own controls.").font(.caption).foregroundStyle(.secondary)
-            SourceInspector(session: session)
-            HStack {
-                Button("Duplicate object") { session.duplicateObject(object.id) }
-                Button("Ungroup") { session.ungroupObject(object.id) }
+            InspectorSection("Appearance") {
+                AppearanceEditor(value: object.appearance,scope: "Object appearance · inherited by faces",apply: { session.setAppearance($0,objectID: object.id) })
+                Text("Shared crop and flips preserve joined sampling. Faces with overrides keep their own controls.").font(.caption).foregroundStyle(.secondary)
             }
-            Button("Delete object and faces") { session.deleteObject(object.id) }.disabled(!session.project.canMoveObject(object.id))
-            Text("Faces keep independent output corners. Grouping arranges input regions side by side using the frontmost checked face's content.")
-                .font(.caption).foregroundStyle(.secondary)
-            ForEach(session.project.surfaces.filter { $0.layout.objectID == object.id }) { face in
-                Button("Edit \(face.name)") { session.selectSurface(face.id) }
+            InspectorSection("Members & object actions") {
+                HStack {
+                    Button("Duplicate object") { session.duplicateObject(object.id) }
+                    Button("Ungroup") { session.ungroupObject(object.id) }
+                }
+                Button("Delete object and faces") { session.deleteObject(object.id) }.disabled(!session.project.canMoveObject(object.id))
+                Text("Faces keep independent output corners. Grouping arranges input regions side by side using the frontmost checked face's content.")
+                    .font(.caption).foregroundStyle(.secondary)
+                ForEach(session.project.surfaces.filter { $0.layout.objectID == object.id }) { face in
+                    Button("Edit \(face.name)") { session.selectSurface(face.id) }
+                }
             }
-            Divider()
-            JoinInspectionControls(session: session,object: object)
-            EdgeLinkEditor(session: session, object: object).id(object.id)
+            InspectorSection("Edge joins & inspection") {
+                JoinInspectionControls(session: session,object: object)
+                EdgeLinkEditor(session: session, object: object).id(object.id)
+            }
         }
     }
 }

@@ -1,10 +1,17 @@
 import AppKit
+import UniformTypeIdentifiers
 import Observation
 import simd
 
 @MainActor
 @Observable
 final class EditorSession {
+    private(set) var imagePixels: [UUID:ImagePixels] = [:]
+    private var imageFiles: [UUID:Data] = [:]
+    private(set) var imageProblems: [UUID:String] = [:]
+    private var mediaGeneration = UUID()
+    private(set) var isImportingImage = false
+    var referencePhotoVisible = true
     private(set) var project: MappingProject
     let output: OutputSelectionState
     private(set) var transport = AnimationTransport()
@@ -19,6 +26,7 @@ final class EditorSession {
         }
         var result = RenderScene(surfaces: faces, transport: transport)
         result.masterBrightness = project.masterOutput.brightness; result.showOutput = showOutput; result.calibration = calibration
+        result.images = imagePixels
         return result
     }
     func seekPlayback(to seconds: Double, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
@@ -167,6 +175,7 @@ final class EditorSession {
     let testOutput: TestOutputCoordinator
     var isSidebarVisible = true
     var isInspectorVisible = true
+    var inspectorTab: InspectorTab = .edit
     private var savedBaseline: MappingProject
     private(set) var documentURL: URL?
     private var assetSourceURL: URL?
@@ -196,19 +205,22 @@ final class EditorSession {
     }
     func flushRecovery() throws {
         guard hasUserChanges, let recoveryStore else { return }
-        try recoveryStore.save(document,original: documentURL,assetsFrom: assetSourceURL)
+        try recoveryStore.save(document,original: documentURL,assetsFrom: assetSourceURL, imageFiles: imageFiles)
     }
     func clearRecovery() {
         autosaveTask?.cancel(); autosaveTask = nil; recoveryStore?.remove(projectID: project.id)
     }
     func save(to url: URL, store: ProjectPackageStore = ProjectPackageStore()) throws {
-        try store.write(document,to: url,assetsFrom: assetSourceURL)
+        try store.write(document,to: url,assetsFrom: assetSourceURL, imageFiles: imageFiles)
         documentURL = url; assetSourceURL = url; savedBaseline = project; isRecovered = false
         clearRecovery(); fileMessage = "Saved \(url.lastPathComponent)"
     }
-    func load(_ document: ProjectDocument, from url: URL, recovering: Bool = false, store: ProjectPackageStore = ProjectPackageStore()) throws {
+    func load(_ document: ProjectDocument, from url: URL, recovering: Bool = false, store: ProjectPackageStore = ProjectPackageStore(), loadedMedia: (pixels: [UUID:ImagePixels], files: [UUID:Data], problems: [UUID:String])? = nil) throws {
         try ProjectCodec.validate(document)
         if !recovering || project.id != document.project.id { clearRecovery() }
+        let media = loadedMedia ?? ImageImportService.loadAssets(document.project,package: url)
+        imagePixels = media.pixels; imageFiles = media.files; imageProblems = media.problems; referencePhotoVisible = true
+        mediaGeneration = UUID()
         project = document.project; savedBaseline = project; isRecovered = recovering || document.recovery != nil
         documentURL = isRecovered ? nil : url; assetSourceURL = url
         if isRecovered, let path = document.recovery?.originalPath {
@@ -216,10 +228,11 @@ final class EditorSession {
             if let saved = try? store.read(original), saved.project.id == project.id { documentURL = original; savedBaseline = saved.project }
         }
         output.restoreProjectPreference(document.output.destination,resolution: document.output.resolution)
-        clearMaskEditing(); resetEditorDisplay(); sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
+        clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil
         testOutput.setResolution(output.testResolution); testOutput.destinationDidChange(output.destination); testOutput.setScene(scene)
         fileMessage = isRecovered ? "Recovered unsaved project — Save to keep it" : "Opened \(url.lastPathComponent)"
+        if !imageProblems.isEmpty { fileMessage = (fileMessage ?? "") + " · \(imageProblems.count) missing/damaged image(s), relink in the inspector" }
         scheduleRecovery()
     }
     var editMessage: String?
@@ -234,6 +247,7 @@ final class EditorSession {
     private func changed(now: Date = .now) {
         let active = Set(project.surfaces.map { project.source(for: $0).id })
         sourcePlayback = sourcePlayback.filter { active.contains($0.key) }
+        collectImages()
         project.modifiedAt = now; editMessage = nil; testOutput.setScene(scene); scheduleRecovery()
     }
     private func cleanName(_ name: String, fallback: String) -> String {
@@ -256,6 +270,7 @@ final class EditorSession {
     func finishNameEditing(now: Date = .now) { renameProject(cleanName(project.name, fallback: MappingProject.defaultName), now: now) }
     func selectSurface(_ id: UUID?) {
         guard id == nil || project.surfaces.contains(where: { $0.id == id }) else { return }
+        if id != nil { inspectorTab = .edit }
         if id != selectedSurfaceID { selectedCorner = nil; clearMaskEditing() }
         selectedSurfaceID = id; selectedObjectID = nil; editMessage = nil
     }
@@ -276,6 +291,7 @@ final class EditorSession {
     }
     func selectObject(_ id: UUID) {
         guard project.objects.contains(where: { $0.id == id }) else { return }
+        inspectorTab = .edit
         clearMaskEditing(); selectedObjectID = id; selectedSurfaceID = nil; selectedCorner = nil; editMessage = nil
     }
     func selectCorner(_ corner: SurfaceCorner?) { selectedCorner = selectedSurface == nil ? nil : corner }
@@ -447,7 +463,10 @@ final class EditorSession {
         let effective = project.appearance(for: project.surfaces[i])
         project.surfaces[i].appearanceOverride = enabled ? effective : nil; changed()
     }
-    func setSurfaceContent(_ content: SurfaceContent, now: Date = .now) { updateSource(now: now) { $0.content = content } }
+    func setSurfaceContent(_ content: SurfaceContent, now: Date = .now) {
+        guard content != .image || selectedSource?.image != nil else { return }
+        updateSource(now: now) { $0.content = content }
+    }
     func setSourceColor(_ color: SIMD4<Float>) {
         guard (0..<4).allSatisfy({ color[$0].isFinite && (0...1).contains(color[$0]) }) else { return }
         updateSource { $0.color = color; $0.primaryBinding = nil }
@@ -632,8 +651,9 @@ final class EditorSession {
         project.objects[i].links.removeAll { $0.id == linkID }; changed()
     }
     func resetProject(now: Date = .now) {
+        imagePixels.removeAll(); imageFiles.removeAll(); imageProblems.removeAll(); mediaGeneration = UUID(); referencePhotoVisible = true
         clearRecovery(); documentURL = nil; assetSourceURL = nil; isRecovered = false; fileMessage = nil
-        clearMaskEditing(); resetEditorDisplay(); sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
+        clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil; testOutput.setScene(scene)
     }
 }
@@ -839,5 +859,138 @@ extension EditorSession {
         else if showOutput.isFading(at: uptime) { text += showOutput.targetGain == 0 ? " · Fading to black" : " · Restoring brightness" }
         else if showOutput.gain(at: uptime) == 0 { text += " · Faded to black" }
         return text
+    }
+}
+
+
+enum ImageImportTarget: Equatable, Sendable {
+    case owner(UUID), detach(UUID), newFace, reference, relink(UUID)
+}
+
+extension EditorSession {
+    var selectedImageTarget: ImageImportTarget? { selectedSource.map { .owner($0.id) } }
+    var selectedImageName: String? {
+        guard let id = selectedSource?.image?.assetID else { return nil }
+        return project.imageAssets.first { $0.id == id }?.name
+    }
+    private func collectImages() {
+        for i in project.surfaces.indices where project.surfaces[i].layout.objectID != nil {
+            project.surfaces[i].source.image = nil
+            if project.surfaces[i].source.content == .image { project.surfaces[i].source.content = .diagnosticGrid }
+        }
+        let ids = project.referencedImageIDs
+        project.imageAssets.removeAll { !ids.contains($0.id) }
+        imagePixels = imagePixels.filter { ids.contains($0.key) }
+        imageFiles = imageFiles.filter { ids.contains($0.key) }
+        imageProblems = imageProblems.filter { ids.contains($0.key) }
+    }
+    private func sourceForImageTarget(_ target: ImageImportTarget) -> SurfaceSource? {
+        switch target {
+        case .owner(let id): return (project.objects.map(\.source) + project.surfaces.filter { $0.layout.objectID == nil }.map(\.source)).first { $0.id == id }
+        case .detach(let id): return project.surfaces.first { $0.id == id }.map { project.source(for: $0) }
+        default: return nil
+        }
+    }
+    /// Capture the owner before a picker or drop; async completion never follows a new selection.
+    func chooseImage(target: ImageImportTarget) {
+        guard !isImportingImage else { return }
+        let token = mediaGeneration, expected = sourceForImageTarget(target)
+        let panel = NSOpenPanel(); panel.allowedContentTypes = [.png,.jpeg]
+        panel.allowsMultipleSelection = false; panel.canChooseDirectories = false
+        panel.message = target == .reference ? "Choose an editor-only reference photo" : "Choose an image for this content owner"
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor [weak self] in
+                guard let self, token == self.mediaGeneration, expected == self.sourceForImageTarget(target) else { return }
+                await self.importImage(from: url,target: target)
+            }
+        }
+    }
+    func importImage(from url: URL, target: ImageImportTarget,
+                     decode: @Sendable (URL) async throws -> ImportedImage = { url in
+                         try await Task.detached(priority: .userInitiated) { try ImageImportService.read(url) }.value
+                     }) async {
+        guard !isImportingImage else { editMessage = "Wait for the current image import to finish."; return }
+        let generation = mediaGeneration, expected = sourceForImageTarget(target)
+        isImportingImage = true
+        defer { isImportingImage = false }
+        do {
+            let imported = try await decode(url)
+            guard generation == mediaGeneration, expected == sourceForImageTarget(target) else {
+                editMessage = "The target changed during import. Choose the image again."; return
+            }
+            try installImage(imported,target: target)
+        } catch { editMessage = error.localizedDescription }
+    }
+    /// Validate before publishing, including memory limits; failed imports preserve the old content.
+    func installImage(_ imported: ImportedImage, target: ImageImportTarget) throws {
+        var candidate = project, asset = imported.asset
+        guard asset.isValid, imported.pixels.width == asset.width, imported.pixels.height == asset.height,
+              imported.pixels.bytes.count == asset.width*asset.height*4, !imported.png.isEmpty else {
+            throw ImageImportError.invalid("Invalid prepared image data.")
+        }
+        var ownerID: UUID?
+        switch target {
+        case .owner(let id):
+            guard sourceForImageTarget(target) != nil else { throw ImageImportError.invalid("That content owner no longer exists.") }
+            ownerID = id
+        case .detach(let id):
+            guard let i = candidate.surfaces.firstIndex(where: { $0.id == id }), let object = candidate.object(for: candidate.surfaces[i]) else { throw ImageImportError.invalid("That grouped face no longer exists.") }
+            candidate.surfaces[i].layout.isGeometryLocked = candidate.isGeometryLocked(candidate.surfaces[i])
+            candidate.surfaces[i].appearance = candidate.appearance(for: candidate.surfaces[i]); candidate.surfaces[i].appearanceOverride = nil
+            candidate.surfaces[i].layout.isVisible = candidate.surfaces[i].layout.isVisible && object.isVisible
+            candidate.surfaces[i].source = object.source.independentCopy()
+            candidate.surfaces[i].layout.objectID = nil
+            for j in candidate.objects.indices { candidate.objects[j].links.removeAll { $0.firstFace == id || $0.secondFace == id } }
+            candidate.objects.removeAll { object in !candidate.surfaces.contains { $0.layout.objectID == object.id } }
+            ownerID = candidate.surfaces[i].source.id
+        case .newFace:
+            guard candidate.surfaces.count < 1000 else { throw ImageImportError.invalid("The project already has 1000 surfaces.") }
+            let face = MappingSurface(name: "Image \(candidate.surfaces.count+1)")
+            candidate.surfaces.insert(face,at: 0); ownerID = face.source.id
+        case .reference: candidate.referencePhoto = ReferencePhoto(assetID: asset.id)
+        case .relink(let id):
+            guard let existing = candidate.imageAssets.first(where: { $0.id == id }) else { throw ImageImportError.invalid("That asset no longer exists.") }
+            asset.id = existing.id
+            candidate.imageAssets.removeAll { $0.id == id }
+        }
+        if let ownerID {
+            let image = ImageContent(assetID: asset.id,canvasAspect: Float(output.aspectRatio))
+            if let i = candidate.objects.firstIndex(where: { $0.source.id == ownerID }) {
+                candidate.objects[i].source.content = .image; candidate.objects[i].source.image = image
+            } else if let i = candidate.surfaces.firstIndex(where: { $0.source.id == ownerID }) {
+                candidate.surfaces[i].source.content = .image; candidate.surfaces[i].source.image = image
+            }
+        }
+        if let existing = candidate.imageAssets.first(where: { $0.id == asset.id }), target != .relink(asset.id) {
+            guard existing == asset && imagePixels[asset.id] == imported.pixels else { throw ImageImportError.invalid("Image asset identity conflict.") }
+        }
+        candidate.imageAssets.removeAll { $0.id == asset.id }
+        candidate.imageAssets.append(asset)
+        let ids = candidate.referencedImageIDs
+        candidate.imageAssets.removeAll { !ids.contains($0.id) }
+        let encoded = imageFiles.filter { ids.contains($0.key) && $0.key != asset.id }.values.reduce(0) { $0+$1.count } + imported.png.count
+        guard encoded <= ImageImportService.maximumEncodedBytes else { throw ImageImportError.invalid("Project images exceed the 256 MB packaged-image limit.") }
+        try ProjectCodec.validate(ProjectDocument(project: candidate))
+        project = candidate; imagePixels[asset.id] = imported.pixels; imageFiles[asset.id] = imported.png; imageProblems.removeValue(forKey: asset.id)
+        if case .newFace = target { selectSurface(project.surfaces.first?.id) }
+        if case .detach(let id) = target { selectSurface(id) }
+        if case .reference = target { referencePhotoVisible = true }
+        changed()
+    }
+    func removeSelectedImage() { updateSource { $0.content = .diagnosticGrid; $0.image = nil } }
+    func setImagePlacement(_ value: ImagePlacement) { updateSource { $0.image?.placement = value } }
+    func setImageCanvasAspect(_ value: Float) {
+        guard value.isFinite, (0.01...100).contains(value) else { return }
+        updateSource { $0.image?.canvasAspect = value }
+    }
+    func setReferencePhoto(_ value: ReferencePhoto?) {
+        guard value?.isValid ?? true, value != project.referencePhoto else { return }
+        project.referencePhoto = value; changed()
+    }
+    var editorScene: RenderScene {
+        var copy = scene
+        copy.editorTransparentBackground = referencePhotoVisible && project.referencePhoto.flatMap { imagePixels[$0.assetID] } != nil
+        return copy
     }
 }

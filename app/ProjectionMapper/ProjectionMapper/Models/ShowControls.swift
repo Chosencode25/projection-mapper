@@ -41,6 +41,7 @@ struct SourceLook: Equatable, Sendable, Codable {
     var content: SurfaceContent
     var generator: GeneratorSettings
     var color: SIMD4<Float>
+    var image: ImageContent?
     var primaryBinding: ColorBinding?
     var secondaryBinding: ColorBinding?
     var isValid: Bool {
@@ -48,12 +49,12 @@ struct SourceLook: Equatable, Sendable, Codable {
     }
 
     init(source: SurfaceSource) {
-        content = source.content; generator = source.generator; color = source.color
+        image = source.image; content = source.content; generator = source.generator; color = source.color
         primaryBinding = source.primaryBinding; secondaryBinding = source.secondaryBinding
     }
     func applying(to source: SurfaceSource) -> SurfaceSource {
         var copy = source
-        copy.content = content; copy.generator = generator; copy.color = color
+        copy.image = image; copy.content = content; copy.generator = generator; copy.color = color
         copy.primaryBinding = primaryBinding; copy.secondaryBinding = secondaryBinding
         return copy
     }

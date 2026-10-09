@@ -11,7 +11,7 @@ struct RecoveryMetadata: Codable, Equatable {
     var savedAt: Date = .now
 }
 struct ProjectDocument: Codable, Equatable {
-    static let currentVersion = 6
+    static let currentVersion = 7
     var formatVersion = currentVersion
     var project: MappingProject
     var output = ProjectOutputSettings()
@@ -84,6 +84,11 @@ enum ProjectCodec {
                 project["surfaces"] = faces.map { face in var face = face; face.removeValue(forKey: "mask"); return face }
                 json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
             }
+            if version <= 6 {
+                guard var project = json["project"] as? [String:Any] else { throw ProjectFileError.invalid("missing project") }
+                project["imageAssets"] = []; project.removeValue(forKey: "referencePhoto")
+                json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
+            }
             let migrated = try JSONSerialization.data(withJSONObject: json)
             let document = try JSONDecoder().decode(ProjectDocument.self, from: migrated)
             try validate(document); return document
@@ -98,6 +103,11 @@ enum ProjectCodec {
         try check(p.createdAt.timeIntervalSince1970.isFinite && p.modifiedAt.timeIntervalSince1970.isFinite, "timestamps")
         try check(p.surfaces.count <= 1000 && p.objects.count <= 1000 && p.generatorPresets.count <= 100 && p.palettes.count <= 100 && p.looks.count <= 100 && p.objects.reduce(0, { $0 + $1.links.count }) <= 10000, "collection limits")
         try check(Set(p.surfaces.map(\.id)).count == p.surfaces.count && Set(p.objects.map(\.id)).count == p.objects.count && Set(p.generatorPresets.map(\.id)).count == p.generatorPresets.count && Set(p.palettes.map(\.id)).count == p.palettes.count && Set(p.looks.map(\.id)).count == p.looks.count, "duplicate IDs")
+        try check(p.imageAssets.count <= 64 && Set(p.imageAssets.map(\.id)).count == p.imageAssets.count && p.imageAssets.allSatisfy(\.isValid), "image asset metadata")
+        try check(p.imageAssets.reduce(Int64(0), { $0 + Int64($1.width)*Int64($1.height)*4 }) <= ImageImportService.maximumDecodedBytes, "image memory limit")
+        let assetIDs = Set(p.imageAssets.map(\.id))
+        try check(p.referencedImageIDs.isSubset(of: assetIDs), "missing asset identity")
+        try check(p.referencePhoto?.isValid ?? true, "reference photo settings")
         let sources = p.surfaces.map(\.source) + p.objects.map(\.source)
         try check(Set(sources.map(\.id)).count == sources.count, "duplicate content-owner IDs")
         func color(_ value: SIMD4<Float>) -> Bool { (0..<4).allSatisfy { value[$0].isFinite && (0...1).contains(value[$0]) } }
@@ -114,7 +124,7 @@ enum ProjectCodec {
             return p.paletteColor(for: value) != nil
         }
         for source in sources {
-            try check(source.generator.isValid && color(source.color), "content settings")
+            try check(source.generator.isValid && color(source.color) && (source.image?.isValid ?? true) && (source.content != .image || source.image != nil), "content settings")
             try check(binding(source.primaryBinding) && binding(source.secondaryBinding), "missing palette reference")
         }
         for look in p.looks {
@@ -130,7 +140,7 @@ enum ProjectCodec {
                 }
                 try check(entry.appearance?.isValid ?? true, "look appearance")
                 if let source = entry.source {
-                    try check(source.isValid && binding(source.primaryBinding) && binding(source.secondaryBinding), "look content/palette reference")
+                    try check(source.isValid && (source.image?.isValid ?? true) && (source.content != .image || source.image != nil) && binding(source.primaryBinding) && binding(source.secondaryBinding), "look content/palette reference")
                 }
             }
         }
@@ -175,7 +185,7 @@ final class ProjectPackageStore {
         guard info.isRegularFile == true, info.isSymbolicLink != true, (info.fileSize ?? Int.max) <= 16*1024*1024 else { throw ProjectFileError.invalid("manifest is unavailable or unsafe") }
         return try ProjectCodec.decode(Data(contentsOf: manifest))
     }
-    func write(_ document: ProjectDocument, to destination: URL, assetsFrom source: URL? = nil) throws {
+    func write(_ document: ProjectDocument, to destination: URL, assetsFrom source: URL? = nil, imageFiles: [UUID:Data] = [:]) throws {
         let data = try ProjectCodec.encode(document)
         let parent = destination.deletingLastPathComponent()
         let stage = parent.appendingPathComponent(".\(destination.lastPathComponent).\(UUID().uuidString).staging",isDirectory: true)
@@ -193,6 +203,23 @@ final class ProjectPackageStore {
             }
             try files.copyItem(at: oldAssets,to: assets)
         } else { try files.createDirectory(at: assets,withIntermediateDirectories: false) }
+        // UUID-derived paths cannot escape the package. Remove only known orphaned assets.
+        if let source = source ?? (files.fileExists(atPath: destination.path) ? destination : nil), let old = try? read(source) {
+            let live = Set(document.project.imageAssets.map(\.id))
+            for asset in old.project.imageAssets where !live.contains(asset.id) {
+                let item = assets.appendingPathComponent(asset.fileName)
+                if files.fileExists(atPath: item.path) { try files.removeItem(at: item) }
+            }
+        }
+        for asset in document.project.imageAssets {
+            let target = assets.appendingPathComponent(asset.fileName)
+            if let bytes = imageFiles[asset.id] {
+                guard bytes.count <= ImageImportService.maximumFileBytes else { throw ProjectFileError.invalid("image file size") }
+                try bytes.write(to: target,options: .atomic)
+            }
+            let decoded = try ImageImportService.read(target)
+            guard decoded.pixels.width == asset.width, decoded.pixels.height == asset.height else { throw ProjectFileError.invalid("image dimensions") }
+        }
         try data.write(to: stage.appendingPathComponent("manifest.json"),options: .atomic)
         _ = try read(stage)
         try beforeCommit?(stage)
@@ -224,10 +251,10 @@ final class ProjectRecoveryStore {
             guard let doc = try? packages.read(url), doc.recovery != nil else { return nil }; return Entry(url: url,document: doc)
         }.sorted { ($0.document.recovery?.savedAt ?? .distantPast) > ($1.document.recovery?.savedAt ?? .distantPast) }
     }
-    func save(_ document: ProjectDocument, original: URL?, assetsFrom: URL? = nil) throws {
+    func save(_ document: ProjectDocument, original: URL?, assetsFrom: URL? = nil, imageFiles: [UUID:Data] = [:]) throws {
         try FileManager.default.createDirectory(at: directory,withIntermediateDirectories: true)
         var copy = document; copy.recovery = RecoveryMetadata(originalPath: original?.path)
-        try packages.write(copy,to: directory.appendingPathComponent("\(copy.project.id).projectionmap"),assetsFrom: assetsFrom ?? original)
+        try packages.write(copy,to: directory.appendingPathComponent("\(copy.project.id).projectionmap"),assetsFrom: assetsFrom ?? original, imageFiles: imageFiles)
         for entry in entries().dropFirst(10) { try? FileManager.default.removeItem(at: entry.url) }
     }
     func remove(projectID: UUID) { try? FileManager.default.removeItem(at: directory.appendingPathComponent("\(projectID).projectionmap")) }

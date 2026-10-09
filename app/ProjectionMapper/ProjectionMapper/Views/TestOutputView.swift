@@ -68,7 +68,7 @@ class MetalSceneView: NSView {
         setAccessibilityValue("\(TestResolution.hd.dimensions) px")
     }
     required init?(coder: NSCoder) { fatalError("MetalSceneView is created in code") }
-    override var isOpaque: Bool { true }
+    override var isOpaque: Bool { renderer?.scene.editorTransparentBackground != true }
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         needsLayout = true
@@ -152,6 +152,10 @@ class MetalSceneView: NSView {
     func setScene(_ scene: RenderScene) {
         guard let renderer, renderer.scene != scene else { return }
         renderer.setScene(scene)
+        let background = scene.editorTransparentBackground ? NSColor.clear.cgColor : NSColor.black.cgColor
+        layer?.backgroundColor = background; surface.layer?.backgroundColor = background
+        surface.layer?.isOpaque = !scene.editorTransparentBackground
+        layer?.isOpaque = !scene.editorTransparentBackground
         setRenderingActive(isRenderingActive)
     }
 

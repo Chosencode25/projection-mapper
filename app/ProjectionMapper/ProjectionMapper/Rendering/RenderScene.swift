@@ -1,7 +1,7 @@
 import Foundation
 
 enum SurfaceContent: String, CaseIterable, Identifiable, Sendable, Codable {
-    case diagnosticGrid, solid, gradient, movingLines, movingCheckers, plasma, noise, particles
+    case diagnosticGrid, solid, gradient, movingLines, movingCheckers, plasma, noise, particles, image
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -13,11 +13,12 @@ enum SurfaceContent: String, CaseIterable, Identifiable, Sendable, Codable {
         case .plasma: "Plasma"
         case .noise: "Animated noise"
         case .particles: "Particles"
+        case .image: "Image"
         }
     }
-    var isAnimated: Bool { self != .solid && self != .diagnosticGrid }
+    var isAnimated: Bool { self != .solid && self != .diagnosticGrid && self != .image }
     var shaderKind: UInt32 {
-        switch self { case .solid: 0; case .diagnosticGrid: 1; case .gradient: 2; case .movingLines: 3; case .movingCheckers: 4; case .plasma: 5; case .noise: 6; case .particles: 7 }
+        switch self { case .solid: 0; case .diagnosticGrid: 1; case .gradient: 2; case .movingLines: 3; case .movingCheckers: 4; case .plasma: 5; case .noise: 6; case .particles: 7; case .image: 8 }
     }
 }
 
@@ -92,10 +93,11 @@ struct RenderSurface: Equatable, Sendable {
     var sourceID: UUID?
     var appearance = SurfaceAppearance.defaults
     var mask: FaceMask?
+    var image: ImageContent?
     var playback = SourcePlayback()
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.geometry == rhs.geometry && lhs.color == rhs.color && lhs.content == rhs.content &&
-        lhs.inputMap == rhs.inputMap && lhs.generator == rhs.generator && lhs.playback == rhs.playback && lhs.appearance == rhs.appearance && lhs.mask == rhs.mask
+        lhs.inputMap == rhs.inputMap && lhs.generator == rhs.generator && lhs.playback == rhs.playback && lhs.appearance == rhs.appearance && lhs.mask == rhs.mask && lhs.image == rhs.image
     }
     var perspective: PerspectiveTransform? { inputMap.isValid && appearance.isValid && (mask?.allowsRendering ?? true) ? PerspectiveTransform(geometry) : nil }
 }
@@ -103,6 +105,8 @@ struct RenderSurface: Equatable, Sendable {
 /// Immutable collection shared by preview/output; items already in back-to-front draw order.
 struct RenderScene: Equatable, Sendable {
     let surfaces: [RenderSurface]
+    var images: [UUID:ImagePixels] = [:]
+    var editorTransparentBackground = false
     var transport = AnimationTransport()
     var masterBrightness: Float = 1
     var showOutput = ShowOutputState()

@@ -7,13 +7,13 @@ Required Xcode: **27.0 beta 5 (27A5237l)** at `/Applications/Xcode-beta.app`.
 1. Open `app/ProjectionMapper/ProjectionMapper.xcodeproj` with Xcode-beta.
 2. Select **ProjectionMapper** and **My Mac**.
 3. Press **Command–R** to build and run.
-4. Press **Command–U** for the full suite, including two legacy tests that present native windows. The current offscreen verification subset passes 225 correctness tests; four optional benchmark declarations are skipped unless explicitly enabled. Use the exclusions below for checks without visible windows.
+4. Press **Command–U** for the full suite, including two legacy tests that present native windows. The current offscreen verification subset passes 239 correctness tests; four optional benchmark declarations are skipped unless explicitly enabled. Use the exclusions below for checks without visible windows.
 
 The interface uses SwiftUI and programmatic AppKit, without storyboards/XIBs. Minimum deployment target: macOS 15.0. Local ad-hoc signing needs no paid developer account. Review proposed Xcode settings migrations against the pinned toolchain.
 
 ## Standalone local build
 
-Open `app/ProjectionMapper.app` or `builds/v1.12/ProjectionMapper.app` for the completed Mapping Tools milestone. Bundle is 1.12/build 9. This is a universal arm64/x86_64, ad-hoc signed local development build; runtime verification was on Apple Silicon. Previous previews and published release products remain preserved. See [current verification](V1.12.2_VERIFICATION.md). Quit/reopen a running older instance to use the replacement binary.
+Open `app/ProjectionMapper.app` or `builds/v1.13/ProjectionMapper.app` for the completed Image Import milestone. Bundle is 1.13/build 10. This is a universal arm64/x86_64, ad-hoc signed local development build; runtime verification was on Apple Silicon. Previous previews and published release products remain preserved. See [current verification](V1.13_VERIFICATION.md). Quit/reopen a running older instance to use the replacement binary.
 
 ## Build and test commands
 
@@ -26,20 +26,20 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
 xcodebuild -project app/ProjectionMapper/ProjectionMapper.xcodeproj \
   -scheme ProjectionMapper -configuration Release \
   -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath builds/v1.12.3/DerivedData \
+  -derivedDataPath builds/v1.13/DerivedData \
   'ARCHS=arm64 x86_64' ONLY_ACTIVE_ARCH=NO build
 ```
 
-Replace `build` with `test` to run checks; use `-configuration Debug` for Debug. Both final configurations passed 225 offscreen correctness tests, with the two exclusions below and four opt-in benchmarks skipped. The system-wide developer directory stays unchanged.
+Replace `build` with `test` to run checks; use `-configuration Debug` for Debug. Both final configurations passed 239 offscreen correctness tests, with the two exclusions below and four opt-in benchmarks skipped. The system-wide developer directory stays unchanged.
 
-For the current 225-test correctness subset without presenting windows, append these before `test`:
+For the current 239-test correctness subset without presenting windows, append these before `test`:
 
 ```sh
 '-skip-testing:ProjectionMapperTests/TestOutputCoordinatorTests/normalFrameRestoresAcrossCloseAndNewCoordinator()' \
 '-skip-testing:ProjectionMapperTests/MetalRendererTests/nativeMetalOutputSurvivesPresetsResizeAndReopen()'
 ```
 
-The excluded tests exercise minimize/zoom/frame persistence and native Metal drawable behavior. The optional benchmarks below remain disabled in normal runs. Current evidence: `builds/v1.12.3/Debug-third.xcresult` and `Release-final.xcresult` with their respective logs and JSON summaries. Historical sections below describe earlier deliveries.
+The excluded tests exercise minimize/zoom/frame persistence and native Metal drawable behavior. The optional benchmarks below remain disabled in normal runs. Current evidence: `builds/v1.13/Debug-final.xcresult` and `Release-final.xcresult` with their respective logs and JSON summaries. Historical sections below describe earlier deliveries.
 
 ## Opt-in benchmarks
 

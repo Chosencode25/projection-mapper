@@ -11,6 +11,12 @@ struct EditorDisplayState: Equatable, Sendable {
     var hasHandles: Bool { cornerHandles || maskHandles }
 }
 
+/// Navigation is temporary editor state, never part of a saved mapping.
+enum InspectorTab: String, CaseIterable, Identifiable {
+    case edit = "Edit", show = "Show", project = "Project"
+    var id: String { rawValue }
+}
+
 enum EditorEdgeStatus: String, Sendable { case unlinked, joined, seam, warning }
 struct EditorEdgeLabel: Identifiable, Equatable, Sendable {
     let id: String

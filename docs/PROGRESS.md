@@ -456,3 +456,27 @@ Milestone source delivery confirmed October 6, 2026 by successful push output; n
 - [ ] User mapping-tools visual acceptance. See [verification](V1.12.3_VERIFICATION.md).
 
 Next planned build: v1.13 Image Import. No release publication requested.
+
+
+## Local v1.12 UI usability polish — October 7, 2026
+
+- [x] Reviewed and used the running app via Computer Use at the user's explicit request; preserved the user's unsaved mapping before review.
+- [x] Focused Edit/Show/Project tabs, content-first surface editing, collapsible advanced face/object controls, wider inspector, Project/Add/Guides/Calibrate/Show dropdowns and quick Play/Pause.
+- [x] Selection returns to Edit; navigation remains temporary and does not dirty/save/render. Emergency Blackout stays directly reachable.
+- [x] Final Debug/Release each passed 226 correctness tests; four benchmarks skipped and two legacy visible-window checks excluded. Pinned Xcode 27A5237l, universal slices, strict signing and full delivered file hashes verified.
+- [x] Final Release installed locally and exercised for project reopening, grouping, blackout/restore and clean Test Output. Preview checks also exercised animated content and mask creation. Original user quad reopened clean at the end.
+- [x] Previous installed app and original v1.12 milestone archive preserved. Bundle stays 1.12/build 9; see [UI polish verification](UI_USABILITY_POLISH.md).
+- [ ] User-reported approval of the new UI. Minimum-width compact toolbar fallback is not visually verified; normal and enlarged window layouts reviewed.
+- Local changes remain uncommitted on codex/ui-usability-polish. No GitHub upload; main/GitHub retain the completed v1.12 milestone. Next roadmap milestone remains v1.13 Image Import.
+
+
+## v1.13 Image Import — October 9, 2026
+
+- [x] Implemented in one complete pass: PNG/JPEG picker/drop, explicit shared-object/face-detach targets, Fit/Fill/Stretch, replace/remove/relink and bounded orientation/sRGB/alpha decoding.
+- [x] Shared cached image textures across connected faces; preserve geometry, masks, crop/flips, clocks, calibration and output priorities. Collect unreferenced media while preserving duplicate/look references.
+- [x] Portable format 7 saves/recovery with assets, migration, missing/damaged media recovery and atomic last-good-file preservation.
+- [x] Editor-only reference photo with saved placement/position/scale/opacity/lock and temporary visibility, separate from clean output and mapping coordinates.
+- [x] Previous local usability improvements included. Final Debug/Release each passed 239 correctness tests; four benchmarks skipped, two legacy visible-window checks excluded. Exact Xcode 27A5237l, universal slices, strict signatures and all delivered file hashes verified.
+- [x] Version 1.13/build 10 installed in app/ and archived in builds/v1.13/; previous v1.12 UI-polish app preserved. See [verification](V1.13_VERIFICATION.md) and [image guide](IMAGE_IMPORT_GUIDE.md).
+- [ ] User visual acceptance of picker/drop, image placement and reference compositing. No screen control/app launch used.
+- Completed-milestone source backup pending confirmation; no release/tag/assets requested. Next build: v1.14 Video Import.

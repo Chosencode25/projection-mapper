@@ -41,3 +41,8 @@ Private repository: [Chosencode25/projection-mapper](https://github.com/Chosenco
 The first milestone is `v1.01`. Follow [GitHub workflow](docs/GITHUB_WORKFLOW.md) for branches, commits, milestone tags, and release downloads. See [Changelog](CHANGELOG.md) for completed version changes.
 
 Completed v1.12 tested source is backed up on GitHub main at b786f55, successfully pushed from 03c9a45. Delivery documentation follows that source commit. Earlier v1.11 at 87459a8 and v1.10 at 55d242c remain preserved. No new release/tag/assets are authorized. Next: v1.13 Image Import.
+
+
+## Current app — v1.13 Image Import
+
+Open app/ProjectionMapper.app (version 1.13/build 10). Quit/reopen an older running instance to use it. PNG/JPEG imports, linked-face image placement, portable image saves and the editor-only reference photo are implemented, alongside the improved top bar and Edit/Show/Project inspector. All 239 offscreen correctness tests passed in Debug/Release; user visual checks remain pending. See [image instructions](docs/IMAGE_IMPORT_GUIDE.md), [verification](docs/V1.13_VERIFICATION.md) and [milestone plan](docs/V1.13_PLAN.md). Next: v1.14 Video Import. No new release requested.
