@@ -40,4 +40,4 @@ Private repository: [Chosencode25/projection-mapper](https://github.com/Chosenco
 
 The first milestone is `v1.01`. Follow [GitHub workflow](docs/GITHUB_WORKFLOW.md) for branches, commits, milestone tags, and release downloads. See [Changelog](CHANGELOG.md) for completed version changes.
 
-Completed v1.14 milestone source backup is pending. No new release/tag/app asset publication is included. Earlier milestone history is preserved.
+Completed v1.14 tested milestone source was successfully pushed to GitHub main at **ccb5df2**, from 7c84178. Delivery notes follow that source commit. No new release/tag/app asset publication is included. Earlier milestone history is preserved.

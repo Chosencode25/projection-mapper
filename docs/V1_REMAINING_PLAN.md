@@ -2,7 +2,7 @@
 
 Status updated October 9, 2026: v1.01–v1.14 are implemented, including the existing bottom object timeline extended to video. Installed app: **1.14/build 11**, portable format **9**. **258 correctness tests passed in each Debug/Release run**; final dedicated video/profile run passed 13 tests. User visual/listening acceptance is pending. See [v1.14 verification](V1.14_VERIFICATION.md).
 
-**Remaining V1 implementation: v1.15 undo/redo, readiness, polish and packaging.** Completed v1.14 source backup is pending; no release publication is included. Historical milestone records below preserve their original state.
+**Remaining V1 implementation: v1.15 undo/redo, readiness, polish and packaging.** Completed v1.14 source backup was successfully pushed to GitHub main at **ccb5df2**; no release publication is included. Historical milestone records below preserve their original state.
 
 Use Xcode 27.0 beta 5 (27A5237l), verified before implementation, and code-only SwiftUI/programmatic AppKit. Preserve Test Mode and shared preview/output rendering. Work on feature branches; use files/automated checks first and routine visual checks by the user; screen control only for a specific expected bug. Each completed x.xx app milestone ends with appropriate Debug/Release checks, progress/verification records, recoverable GitHub history and the requested local app copy. Intermediate planning edits, fixes and x.xx.x slices stay local; no commits/pushes or uploads until that boundary unless explicitly requested. Keep builds/caches out of commits; preserve prior source, tags and assets. Releases are separate milestone decisions, with final package/upload planned for v1.15.
 

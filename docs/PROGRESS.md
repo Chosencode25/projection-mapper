@@ -8,7 +8,7 @@ Last updated: October 9, 2026.
 
 Tested signed app installed at app/ProjectionMapper.app and archived in builds/v1.14/. All files match the tested Release product. Previous installed timeline app preserved in builds/v1.14/Previous-installed.app; historical archives remain intact. No app launch or screen control used. User visual/listening acceptance is pending, including real audio routing/unplug and perceived sync/pitch. Runtime tests used Apple Silicon/macOS 27; Intel and older-macOS execution remain unverified. Physical projector operation remains deferred to v2.01.
 
-Completed x.xx source backup, including prior local timeline/planning edits, is pending Git delivery on codex/v1.14-video-timeline. No release/tag/app asset publication is included. **Next implementation: v1.15 undo/redo, readiness, UI/error/accessibility polish and final packaging.** Music, waveforms, advanced show sequencing and projector hardware retain their V2 scope.
+Completed x.xx source backup, including prior local timeline/planning edits, was successfully pushed to GitHub main at **ccb5df2**, from 7c84178 after fast-forwarding codex/v1.14-video-timeline. No release/tag/app asset publication is included. **Next implementation: v1.15 undo/redo, readiness, UI/error/accessibility polish and final packaging.** Music, waveforms, advanced show sequencing and projector hardware retain their V2 scope.
 
 ## GitHub version history
 
@@ -483,4 +483,4 @@ Seven work stages planned: safe video import/model, existing timeline source-ran
 - [x] Signed universal 1.14/build 11 app delivered to app/ and builds/v1.14/; previous installed app preserved; hashes/architecture/signatures verified.
 - [x] Self-generated portable mixed video/effect/image demo, mask and editor reference saved under assets/demos/.
 - [ ] User visual/listening acceptance and physical audio-device unplug/routing checks.
-- Completed milestone source backup pending; no release/tag/assets publication. Next v1.15.
+- Completed milestone source backup successfully pushed at **ccb5df2**; no release/tag/assets publication. Next v1.15.

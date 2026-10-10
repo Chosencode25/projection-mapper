@@ -2,7 +2,7 @@
 
 V1 targets a native Mac mapping workspace for images, videos and built-in animations on multiple surfaces. Faces can form objects with shared content coordinates so content continues across joined faces. Reusable looks/palettes, masks, time-based playback, an editor-only house photo and portable projects prepare it for musical shows. V1 acceptance remains Test Mode; fullscreen projector implementation and physical acceptance are scheduled for v2.01.
 
-See [ordered implementation steps](V1_REMAINING_PLAN.md). **Current October 9, 2026 state:** v1.01–v1.14 implemented, including video in the existing object timeline. Installed 1.14/build 11 uses portable format 9; 258 correctness tests passed in each Debug/Release run. User visual/listening checks are pending. **Next is v1.15 undo/redo, readiness, polish and packaging.** See [video verification](V1.14_VERIFICATION.md). Completed milestone source backup is pending; no release publication is included. Earlier chronological entries below are historical.
+See [ordered implementation steps](V1_REMAINING_PLAN.md). **Current October 9, 2026 state:** v1.01–v1.14 implemented, including video in the existing object timeline. Installed 1.14/build 11 uses portable format 9; 258 correctness tests passed in each Debug/Release run. User visual/listening checks are pending. **Next is v1.15 undo/redo, readiness, polish and packaging.** See [video verification](V1.14_VERIFICATION.md). Completed milestone source backup was successfully pushed at **ccb5df2**; no release publication is included. Earlier chronological entries below are historical.
 
 | Stage | Scope |
 |---|---|
