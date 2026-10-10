@@ -11,7 +11,7 @@ struct RecoveryMetadata: Codable, Equatable {
     var savedAt: Date = .now
 }
 struct ProjectDocument: Codable, Equatable {
-    static let currentVersion = 7
+    static let currentVersion = 9
     var formatVersion = currentVersion
     var project: MappingProject
     var output = ProjectOutputSettings()
@@ -89,6 +89,16 @@ enum ProjectCodec {
                 project["imageAssets"] = []; project.removeValue(forKey: "referencePhoto")
                 json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
             }
+            if version <= 7 {
+                guard var project = json["project"] as? [String:Any] else { throw ProjectFileError.invalid("missing project") }
+                project["timelineClips"] = []; json["project"] = project
+                json["formatVersion"] = ProjectDocument.currentVersion
+            }
+            if version <= 8 {
+                guard var project = json["project"] as? [String:Any] else { throw ProjectFileError.invalid("missing project") }
+                project["videoAssets"] = []; project["videoAudio"] = ["volume":1]
+                json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
+            }
             let migrated = try JSONSerialization.data(withJSONObject: json)
             let document = try JSONDecoder().decode(ProjectDocument.self, from: migrated)
             try validate(document); return document
@@ -105,9 +115,18 @@ enum ProjectCodec {
         try check(Set(p.surfaces.map(\.id)).count == p.surfaces.count && Set(p.objects.map(\.id)).count == p.objects.count && Set(p.generatorPresets.map(\.id)).count == p.generatorPresets.count && Set(p.palettes.map(\.id)).count == p.palettes.count && Set(p.looks.map(\.id)).count == p.looks.count, "duplicate IDs")
         try check(p.imageAssets.count <= 64 && Set(p.imageAssets.map(\.id)).count == p.imageAssets.count && p.imageAssets.allSatisfy(\.isValid), "image asset metadata")
         try check(p.imageAssets.reduce(Int64(0), { $0 + Int64($1.width)*Int64($1.height)*4 }) <= ImageImportService.maximumDecodedBytes, "image memory limit")
+        try check(p.videoAudio.isValid && p.videoAssets.count <= 64 && Set(p.videoAssets.map(\.id)).count == p.videoAssets.count && p.videoAssets.allSatisfy(\.isValid), "video asset/audio metadata")
+        try check(p.videoAssets.reduce(Int64(0), { $0+$1.byteCount }) <= VideoImportService.maximumProjectBytes, "project video bytes")
+        try check(p.referencedVideoIDs.isSubset(of: Set(p.videoAssets.map(\.id))), "missing video asset identity")
+        let allVideos = (p.surfaces.map(\.source)+p.objects.map(\.source)).compactMap(\.video) + p.timelineClips.compactMap { $0.source.video } + p.looks.flatMap(\.entries).compactMap { $0.source?.video }
+        try check(allVideos.allSatisfy { !p.videoProblem($0) }, "video source range")
+        try check(p.timelineClips.allSatisfy { !p.videoProblem($0.source.video) }, "video clip range")
         let assetIDs = Set(p.imageAssets.map(\.id))
         try check(p.referencedImageIDs.isSubset(of: assetIDs), "missing asset identity")
         try check(p.referencePhoto?.isValid ?? true, "reference photo settings")
+        try check(EffectClip.validSequence(p.timelineClips), "timeline clips or overlaps")
+        let activeOwners = Set(p.timelineTracks.map(\.id))
+        try check(p.timelineClips.allSatisfy { activeOwners.contains($0.sourceID) }, "missing timeline target")
         let sources = p.surfaces.map(\.source) + p.objects.map(\.source)
         try check(Set(sources.map(\.id)).count == sources.count, "duplicate content-owner IDs")
         func color(_ value: SIMD4<Float>) -> Bool { (0..<4).allSatisfy { value[$0].isFinite && (0...1).contains(value[$0]) } }
@@ -124,7 +143,7 @@ enum ProjectCodec {
             return p.paletteColor(for: value) != nil
         }
         for source in sources {
-            try check(source.generator.isValid && color(source.color) && (source.image?.isValid ?? true) && (source.content != .image || source.image != nil), "content settings")
+            try check(source.generator.isValid && color(source.color) && (source.image?.isValid ?? true) && (source.content != .image || source.image != nil) && (source.content != .video || source.video != nil), "content settings")
             try check(binding(source.primaryBinding) && binding(source.secondaryBinding), "missing palette reference")
         }
         for look in p.looks {
@@ -140,7 +159,7 @@ enum ProjectCodec {
                 }
                 try check(entry.appearance?.isValid ?? true, "look appearance")
                 if let source = entry.source {
-                    try check(source.isValid && (source.image?.isValid ?? true) && (source.content != .image || source.image != nil) && binding(source.primaryBinding) && binding(source.secondaryBinding), "look content/palette reference")
+                    try check(source.isValid && (source.image?.isValid ?? true) && (source.content != .image || source.image != nil) && (source.content != .video || source.video != nil) && binding(source.primaryBinding) && binding(source.secondaryBinding), "look content/palette reference")
                 }
             }
         }
@@ -164,7 +183,7 @@ enum ProjectCodec {
             }
         }
         for preset in p.generatorPresets {
-            try check(!preset.name.isEmpty && preset.name.count <= 80 && preset.content.isAnimated && preset.settings.isValid && color(preset.color), "generator preset")
+            try check(!preset.name.isEmpty && preset.name.count <= 80 && preset.content.isProceduralAnimation && preset.settings.isValid && color(preset.color), "generator preset")
         }
         try check((document.output.destination.displayUUID?.count ?? 0) <= 256 && (document.output.destination.displayName?.count ?? 0) <= 256, "output identity")
         if let recovery = document.recovery { try check((recovery.originalPath?.count ?? 0) <= 4096 && recovery.savedAt.timeIntervalSince1970.isFinite, "recovery metadata") }
@@ -185,7 +204,7 @@ final class ProjectPackageStore {
         guard info.isRegularFile == true, info.isSymbolicLink != true, (info.fileSize ?? Int.max) <= 16*1024*1024 else { throw ProjectFileError.invalid("manifest is unavailable or unsafe") }
         return try ProjectCodec.decode(Data(contentsOf: manifest))
     }
-    func write(_ document: ProjectDocument, to destination: URL, assetsFrom source: URL? = nil, imageFiles: [UUID:Data] = [:]) throws {
+    func write(_ document: ProjectDocument, to destination: URL, assetsFrom source: URL? = nil, imageFiles: [UUID:Data] = [:], videoFiles: [UUID:URL] = [:]) throws {
         let data = try ProjectCodec.encode(document)
         let parent = destination.deletingLastPathComponent()
         let stage = parent.appendingPathComponent(".\(destination.lastPathComponent).\(UUID().uuidString).staging",isDirectory: true)
@@ -201,7 +220,14 @@ final class ProjectPackageStore {
                     guard try item.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true else { throw ProjectFileError.invalid("linked asset file") }
                 }
             }
-            try files.copyItem(at: oldAssets,to: assets)
+            try files.createDirectory(at: assets,withIntermediateDirectories: false)
+            var videoNames = Set(document.project.videoAssets.map(\.fileName))
+            if let old = try? read(oldAssets.deletingLastPathComponent()) { videoNames.formUnion(old.project.videoAssets.map(\.fileName)) }
+            // Videos always use cancellable chunked I/O below, including Save As/recovery.
+            for item in try files.contentsOfDirectory(at: oldAssets,includingPropertiesForKeys: nil) where !videoNames.contains(item.lastPathComponent) {
+                try Task.checkCancellation()
+                try files.copyItem(at: item,to: assets.appendingPathComponent(item.lastPathComponent))
+            }
         } else { try files.createDirectory(at: assets,withIntermediateDirectories: false) }
         // UUID-derived paths cannot escape the package. Remove only known orphaned assets.
         if let source = source ?? (files.fileExists(atPath: destination.path) ? destination : nil), let old = try? read(source) {
@@ -210,6 +236,21 @@ final class ProjectPackageStore {
                 let item = assets.appendingPathComponent(asset.fileName)
                 if files.fileExists(atPath: item.path) { try files.removeItem(at: item) }
             }
+        }
+        if let source = source ?? (files.fileExists(atPath: destination.path) ? destination : nil), let old = try? read(source) {
+            let live = Set(document.project.videoAssets.map(\.id))
+            for asset in old.project.videoAssets where !live.contains(asset.id) {
+                let item = assets.appendingPathComponent(asset.fileName)
+                if files.fileExists(atPath: item.path) { try files.removeItem(at: item) }
+            }
+        }
+        for asset in document.project.videoAssets {
+            let target = assets.appendingPathComponent(asset.fileName)
+            guard let video = videoFiles[asset.id] ?? oldAssets?.appendingPathComponent(asset.fileName) else {
+                throw ProjectFileError.invalid("missing video; relink before saving")
+            }
+            try VideoImportService.copy(video,to: target)
+            guard try VideoImportService.safeFile(target) == asset.byteCount else { throw ProjectFileError.invalid("video size changed; relink it") }
         }
         for asset in document.project.imageAssets {
             let target = assets.appendingPathComponent(asset.fileName)
@@ -222,6 +263,7 @@ final class ProjectPackageStore {
         }
         try data.write(to: stage.appendingPathComponent("manifest.json"),options: .atomic)
         _ = try read(stage)
+        try Task.checkCancellation()
         try beforeCommit?(stage)
         if files.fileExists(atPath: destination.path) {
             _ = try read(destination) // Never replace an unrelated folder or malformed project.
@@ -251,10 +293,10 @@ final class ProjectRecoveryStore {
             guard let doc = try? packages.read(url), doc.recovery != nil else { return nil }; return Entry(url: url,document: doc)
         }.sorted { ($0.document.recovery?.savedAt ?? .distantPast) > ($1.document.recovery?.savedAt ?? .distantPast) }
     }
-    func save(_ document: ProjectDocument, original: URL?, assetsFrom: URL? = nil, imageFiles: [UUID:Data] = [:]) throws {
+    func save(_ document: ProjectDocument, original: URL?, assetsFrom: URL? = nil, imageFiles: [UUID:Data] = [:], videoFiles: [UUID:URL] = [:]) throws {
         try FileManager.default.createDirectory(at: directory,withIntermediateDirectories: true)
         var copy = document; copy.recovery = RecoveryMetadata(originalPath: original?.path)
-        try packages.write(copy,to: directory.appendingPathComponent("\(copy.project.id).projectionmap"),assetsFrom: assetsFrom ?? original, imageFiles: imageFiles)
+        try packages.write(copy,to: directory.appendingPathComponent("\(copy.project.id).projectionmap"),assetsFrom: assetsFrom ?? original, imageFiles: imageFiles, videoFiles: videoFiles)
         for entry in entries().dropFirst(10) { try? FileManager.default.removeItem(at: entry.url) }
     }
     func remove(projectID: UUID) { try? FileManager.default.removeItem(at: directory.appendingPathComponent("\(projectID).projectionmap")) }

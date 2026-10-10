@@ -1,6 +1,10 @@
 # V2 — Ordered Implementation and Acceptance Plan
 
-Status: planned only, October 5, 2026. See [V2 roadmap](V2_ROADMAP.md) for scope and research, and [V1 foundations](V1_REMAINING_PLAN.md) for prerequisites. No V2 implementation has started. Each milestone can be split into smaller implementation slices before coding; keep its number and acceptance contract consistent across documents.
+Status: show milestones planned, October 5, 2026; early timeline foundation added October 9, 2026. See [V2 roadmap](V2_ROADMAP.md) for scope and research, and [V1 foundations](V1_REMAINING_PLAN.md) for prerequisites. No numbered V2 milestone is complete; the early timeline foundation below is already implemented in V1. Each milestone can be split into smaller implementation slices before coding; keep its number and acceptance contract consistent across documents.
+
+## Early timeline foundation — October 9, 2026
+
+The user requested bottom video-editor-style playback controls before the remaining V1 work. A local enhancement now supplies object/standalone-owner rows, captured effect/image clips, move/trim/duplicate/delete, ruler scrubbing, zoom/snap/follow and shared-clock rendering. The initial format 8 timeline supplied effect/image blocks; v1.14 extends it to portable format 9 video ranges, shared-owner playback and explicit embedded-video audio. It remains one active block per owner with dark gaps. See [timeline plan](TIMELINE_PLAN.md) and [guide](TIMELINE_GUIDE.md). Reuse/migrate this foundation in v2.02–v2.03; song/waveform models, audio authority, layered overlaps, curves, markers, crossfades and coherent undo remain planned. This does not complete v2.03 or physical output acceptance.
 
 ## Common contracts
 
@@ -30,8 +34,8 @@ Simulation tests use known beats/cue timestamps, frame-number video and determin
 
 ## v2.03 — Timeline and Cues
 
-1. Define tracks targeting stable face/object IDs or named target sets. Clips contain effect/media/look references, start/duration/offset and bounded parameters; tracks do not copy geometry. Define overlap/compositing priority, end-state and missing/deleted-target handling.
-2. Build waveform timeline selection, zoom, trim/move/copy/delete, snapping and coherent undo transactions. Keep timeline zoom/selection separate from saved edits. Add named beat, lyric and section marker tracks with manual tapping/import first; automatic beat suggestions remain editable.
+1. Migrate and extend V1 format 9 owner-addressed clips into song/show tracks targeting stable face/object IDs or named target sets. Preserve existing content-owner resolution, clip IDs, effect/image/video settings, times and asset references; explicitly map owners when grouping/detaching. Clips contain effect/media/look references, start/duration/offset and bounded parameters; tracks do not copy geometry. Define overlap/compositing priority, end-state and missing/deleted-target handling.
+2. Extend the existing bottom timeline selection, zoom, trim/move/copy/delete, snapping and follow controls with waveform/song editing; reuse V1 final-polish undo transactions. Keep timeline zoom/selection separate from saved edits. Add named beat, lyric and section marker tracks with manual tapping/import first; automatic beat suggestions remain editable.
 3. Add parameter curves with defined interpolation and typed bounds, plus cue start/stop/fade actions. Continuous object content still has one owner; define conflicts between object-level and face-specific clips visibly rather than producing hidden overrides.
 4. Add a manual cue list/GO action, marker navigation and loop rehearsal. Timed playback and manual triggers have explicit priority/reset rules; seek reconstructs the intended current state without firing unrelated network actions. Crossfades/advanced holiday transitions follow in v2.04.
 5. Save tracks/cues/markers/curves portably and migrate older packages. Verify boundary timestamps, gaps/overlaps, deleted targets, seek reconstruction, dirty/history behavior and preview/output equivalence. Accept a short fully choreographed song that repeats after save/reopen without remapping.

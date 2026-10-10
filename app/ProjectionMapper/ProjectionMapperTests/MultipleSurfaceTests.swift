@@ -698,7 +698,7 @@ struct MultipleSurfaceGPUTests {
         #expect(abs(Int(data[center])-51) <= 1 && abs(Int(data[center+1])-204) <= 1 && data[center+2] == 255 && data[center+3] == 255)
         face.appearance.brightness = 0; renderer.setScene(RenderScene(surfaces: [face])); data = try pixels(renderer)
         #expect(data[center] == 0 && data[center+1] == 0 && data[center+2] == 0 && data[center+3] == 255)
-        for content in SurfaceContent.allCases.filter({ $0 != .image }) {
+        for content in SurfaceContent.allCases.filter({ $0 != .image && $0 != .video }) {
             face.content = content; face.appearance.brightness = 1; renderer.setScene(RenderScene(surfaces: [face]))
             let original = try pixels(renderer,time: 0.37)
             face.appearance.brightness = 0.5; renderer.setScene(RenderScene(surfaces: [face])); let dimmed = try pixels(renderer,time: 0.37)
@@ -722,7 +722,7 @@ struct MultipleSurfaceGPUTests {
     }
     @Test func sharedAppearancePreservesJoinedFramesAndPreviewOutputParity() throws {
         let appearance = SurfaceAppearance(opacity: 0.6,brightness: 1.3,crop: ContentCrop(origin: SIMD2(0.1,0.15),size: SIMD2(0.7,0.8)),flipHorizontal: true,flipVertical: true)
-        for content in SurfaceContent.allCases.filter({ $0 != .image }) {
+        for content in SurfaceContent.allCases.filter({ $0 != .image && $0 != .video }) {
             let full = RenderSurface(geometry: rect(0,1),color: SIMD4(1,0.2,0,1),content: content,appearance: appearance)
             let whole = try pixels(MetalRenderer(scene: RenderScene(surfaces: [full])),time: 0.37)
             let pieces = (0..<3).map { i in RenderSurface(geometry: rect(Float(i)/3,1.0/3),color: full.color,content: content,inputMap: FaceInputMap(origin: SIMD2(Float(i)/3,0),size: SIMD2(1.0/3,1)),appearance: appearance) }

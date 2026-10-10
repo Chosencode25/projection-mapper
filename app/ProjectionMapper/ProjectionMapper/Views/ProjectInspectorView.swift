@@ -89,11 +89,16 @@ private struct SourceInspector: View {
         if let selectedSource = session.selectedSource {
             let source = session.project.resolvedSource(selectedSource)
             Picker("Content", selection: Binding(get: { source.content }, set: { session.setSurfaceContent($0) })) {
-                ForEach(SurfaceContent.allCases.filter { $0 != .image || source.image != nil }) { Text($0.title).tag($0) }
+                ForEach(SurfaceContent.allCases.filter { ($0 != .image || source.image != nil) && ($0 != .video || source.video != nil) }) { Text($0.title).tag($0) }
+            }
+            if session.project.timelineClips.contains(where: { $0.sourceID == source.id }) {
+                Text("This object is sequenced in the timeline. Edit content here, then Capture Current on a selected clip to apply these settings.")
+                    .font(.caption).foregroundStyle(.orange)
             }
             ImageContentControls(session: session)
-            if source.content == .solid || source.content.isAnimated {
-                ColorPicker(source.content.isAnimated ? "Color 1" : "Fill color", selection: Binding(get: {
+            VideoContentControls(session: session)
+            if source.content == .solid || (source.content.isProceduralAnimation && source.content != .video) {
+                ColorPicker(source.content.isProceduralAnimation ? "Color 1" : "Fill color", selection: Binding(get: {
                     Color(.sRGB, red: Double(source.color.x), green: Double(source.color.y), blue: Double(source.color.z), opacity: 1)
                 }, set: { color in
                     if let rgb = NSColor(color).usingColorSpace(.deviceRGB) {
@@ -106,7 +111,7 @@ private struct SourceInspector: View {
                 Text(session.selectedObject != nil || session.selectedSurface?.layout.objectID != nil ? "Color edits affect every face in this object's shared content." : "Color edits affect this independent face.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            if source.content.isAnimated {
+            if source.content.isProceduralAnimation && source.content != .video {
                 ColorPicker("Color 2", selection: Binding(get: {
                     let rgb = source.generator.secondaryColor
                     return Color(.sRGB, red: Double(rgb.x), green: Double(rgb.y), blue: Double(rgb.z), opacity: 1)
@@ -124,7 +129,7 @@ private struct SourceInspector: View {
                         session.setSelectedPaused(!session.selectedPlayback.isPaused)
                     }
                     Button("Restart owner") { session.restartSelectedPlayback() }
-                }
+                }.disabled(session.project.timelineClips.contains { $0.sourceID == source.id })
                 Text(session.selectedObject != nil || session.selectedSurface?.layout.objectID != nil ? "Owner playback affects every face in this object." : "Owner playback affects this independent face.")
                     .font(.caption).foregroundStyle(.secondary)
                 Text("Uses shared project playback. An object shares these colors across its faces.")
@@ -145,7 +150,7 @@ private struct GeneratorPresetControls: View {
             TextField("New preset name", text: $name).textFieldStyle(.roundedBorder)
             Button("Save new preset") {
                 selectedID = session.saveGeneratorPreset(name: name)
-            }.disabled(session.selectedSource?.content.isAnimated != true)
+            }.disabled(session.selectedSource?.content.isProceduralAnimation != true)
             Picker("Preset", selection: $selectedID) {
                 Text("Choose preset").tag(Optional<UUID>.none)
                 ForEach(session.project.generatorPresets) { preset in Text(preset.name).tag(Optional(preset.id)) }
@@ -153,11 +158,11 @@ private struct GeneratorPresetControls: View {
             HStack {
                 Button("Apply") { if let id = selectedID { session.applyGeneratorPreset(id) } }.disabled(selectedID == nil)
                 Button("Update") { if let id = selectedID { session.updateGeneratorPreset(id) } }
-                    .disabled(selectedID == nil || session.selectedSource?.content.isAnimated != true)
+                    .disabled(selectedID == nil || session.selectedSource?.content.isProceduralAnimation != true)
                 Button("Delete") { if let id = selectedID { session.deleteGeneratorPreset(id); selectedID = nil } }.disabled(selectedID == nil)
             }
             Button("Reset effect settings") { session.resetGeneratorSettings() }
-                .disabled(session.selectedSource?.content.isAnimated != true)
+                .disabled(session.selectedSource?.content.isProceduralAnimation != true)
             Text("Presets copy effect/colors only and are included when you save this project.")
                 .font(.caption).foregroundStyle(.secondary)
         }

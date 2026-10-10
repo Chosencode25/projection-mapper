@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.14 — Video Import and Timeline Integration — October 9, 2026
+
+- Import/drop SDR H.264/HEVC MP4/MOV, inspect orientation/audio, stage originals with cancellation and expose posters/replace/remove/relink.
+- Extend existing object timeline blocks with video In/Out, source speed, looping/mute/placement; preserve footage on moves and trim source range or loop phase on edge trims.
+- Share one AVFoundation player/frame per content owner across mapped faces and preview/Test Output, with host-clock reconciliation, paused-frame generation, stale-seek guards, bounded preloading and frame caches. Preserve masks/crops/flips/perspective and Continuous/Repeat.
+- Add explicit default-muted video audio, master volume/output selection, silent scrubbing and device-loss latch. Reopen safely muted.
+- Save/recover portable format 9 with formats 1–8 migration, timeline/look-only video retention, chunked background copy, cancellation and last-good-package protection. Include the previously local effect/image timeline and planning updates in this milestone.
+- 258 correctness tests passed in each Debug/Release configuration; the dedicated 13-test Release video run and 1080p profile passed. Signed universal 1.14/build 11 app installed with previous app preserved; user visual/listening acceptance remains pending. No GitHub release publication is included.
+
+## Local playback timeline — October 9, 2026
+
+- Add a resizable bottom timeline with connected-object/standalone-face lanes, effect/image clips and a seconds ruler. Add play/pause/stop, stepping, speed, zoom, snap, scrubbing and automatic playhead-follow scrolling.
+- Move/trim/select/edit/capture/duplicate/delete clips. Use one shared transport for clip boundaries and local phase in preview/Test Output; dark gaps on sequenced tracks and live content on empty tracks.
+- Save bounded clips in portable format 8, migrate formats 1–7, retain clip image assets and copy/prune sequences with owner lifecycle. Bundle remains 1.13/build 10; originally a local enhancement; included in the v1.14 milestone source backup. Automated verification and user visual status are recorded in TIMELINE_VERIFICATION.md.
+
 ## v1.13 — Image Import — October 9, 2026
 
 - Import PNG/JPEG onto independent faces or shared objects; explicit detach import, drag/drop, Fit/Fill/Stretch, replace/remove and relink. Normalize orientation/sRGB/alpha with bounded image allocations.

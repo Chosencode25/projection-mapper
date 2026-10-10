@@ -1,7 +1,7 @@
 import Foundation
 
 enum SurfaceContent: String, CaseIterable, Identifiable, Sendable, Codable {
-    case diagnosticGrid, solid, gradient, movingLines, movingCheckers, plasma, noise, particles, image
+    case diagnosticGrid, solid, gradient, movingLines, movingCheckers, plasma, noise, particles, image, video
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -14,11 +14,13 @@ enum SurfaceContent: String, CaseIterable, Identifiable, Sendable, Codable {
         case .noise: "Animated noise"
         case .particles: "Particles"
         case .image: "Image"
+        case .video: "Video"
         }
     }
     var isAnimated: Bool { self != .solid && self != .diagnosticGrid && self != .image }
+    var isProceduralAnimation: Bool { isAnimated && self != .video }
     var shaderKind: UInt32 {
-        switch self { case .solid: 0; case .diagnosticGrid: 1; case .gradient: 2; case .movingLines: 3; case .movingCheckers: 4; case .plasma: 5; case .noise: 6; case .particles: 7; case .image: 8 }
+        switch self { case .solid: 0; case .diagnosticGrid: 1; case .gradient: 2; case .movingLines: 3; case .movingCheckers: 4; case .plasma: 5; case .noise: 6; case .particles: 7; case .image, .video: 8 }
     }
 }
 
@@ -86,7 +88,7 @@ struct GeneratorSettings: Equatable, Sendable, Codable {
 
 struct RenderSurface: Equatable, Sendable {
     let geometry: NormalizedRectangle
-    let color: SIMD4<Float>
+    var color: SIMD4<Float>
     var content: SurfaceContent = .solid
     var inputMap: FaceInputMap = .full
     var generator: GeneratorSettings = .defaults
@@ -94,10 +96,25 @@ struct RenderSurface: Equatable, Sendable {
     var appearance = SurfaceAppearance.defaults
     var mask: FaceMask?
     var image: ImageContent?
+    var video: VideoContent?
+    var timelineClips: [EffectClip] = []
     var playback = SourcePlayback()
+    /// Gaps in sequenced tracks are dark. Empty tracks preserve the live editor source.
+    func evaluated(at time: Double, calibrationActive: Bool = false) -> Self {
+        guard !timelineClips.isEmpty else { return self }
+        var copy = self
+        guard let clip = timelineClips.first(where: { $0.contains(time) }) else {
+            if !calibrationActive { copy.appearance.opacity = 0 }
+            return copy
+        }
+        copy.content = clip.source.content; copy.color = clip.source.color
+        copy.generator = clip.source.generator; copy.image = clip.source.image; copy.video = clip.source.video
+        copy.playback = SourcePlayback(offset: -clip.start)
+        return copy
+    }
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.geometry == rhs.geometry && lhs.color == rhs.color && lhs.content == rhs.content &&
-        lhs.inputMap == rhs.inputMap && lhs.generator == rhs.generator && lhs.playback == rhs.playback && lhs.appearance == rhs.appearance && lhs.mask == rhs.mask && lhs.image == rhs.image
+        lhs.geometry == rhs.geometry && lhs.color == rhs.color && lhs.content == rhs.content && (lhs.content != .video || lhs.sourceID == rhs.sourceID) &&
+        lhs.inputMap == rhs.inputMap && lhs.generator == rhs.generator && lhs.playback == rhs.playback && lhs.appearance == rhs.appearance && lhs.mask == rhs.mask && lhs.image == rhs.image && lhs.video == rhs.video && lhs.timelineClips == rhs.timelineClips
     }
     var perspective: PerspectiveTransform? { inputMap.isValid && appearance.isValid && (mask?.allowsRendering ?? true) ? PerspectiveTransform(geometry) : nil }
 }
@@ -106,6 +123,7 @@ struct RenderSurface: Equatable, Sendable {
 struct RenderScene: Equatable, Sendable {
     let surfaces: [RenderSurface]
     var images: [UUID:ImagePixels] = [:]
+    var videoFrames: [UUID:VideoFrame] = [:]
     var editorTransparentBackground = false
     var transport = AnimationTransport()
     var masterBrightness: Float = 1
@@ -134,7 +152,7 @@ struct RenderScene: Equatable, Sendable {
     func needsContinuousRendering(at uptime: TimeInterval, hasVisibleSurface: Bool, hasRunningAnimation: Bool) -> Bool {
         guard calibration.isValid, calibration.pattern != .black, masterBrightness.isFinite, masterBrightness > 0, !showOutput.isBlackout else { return false }
         if showOutput.isFading(at: uptime), hasVisibleSurface { return true }
-        return !calibration.pattern.isActive && effectiveGain(at: uptime) > 0 && transport.isPlaying && hasRunningAnimation
+        return !calibration.pattern.isActive && effectiveGain(at: uptime) > 0 && transport.isPlaying && (hasRunningAnimation || (hasVisibleSurface && surfaces.contains { !$0.timelineClips.isEmpty }))
     }
     init(surfaces: [RenderSurface], transport: AnimationTransport = AnimationTransport(),
          masterBrightness: Float = 1, showOutput: ShowOutputState = ShowOutputState(),

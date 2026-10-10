@@ -243,7 +243,7 @@ struct ImageImportTests {
         json["formatVersion"] = 6
         var project = json["project"] as! [String:Any]; project.removeValue(forKey: "imageAssets"); json["project"] = project
         let migrated = try ProjectCodec.decode(JSONSerialization.data(withJSONObject: json))
-        #expect(migrated.formatVersion == 7 && migrated.project.imageAssets.isEmpty && migrated.project.referencePhoto == nil)
+        #expect(migrated.formatVersion == ProjectDocument.currentVersion && migrated.project.imageAssets.isEmpty && migrated.project.referencePhoto == nil)
         var bad = migrated; bad.project.surfaces[0].source.image = ImageContent(assetID: UUID()); bad.project.surfaces[0].source.content = .image
         #expect(throws: ProjectFileError.self) { try ProjectCodec.validate(bad) }
     }

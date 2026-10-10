@@ -63,6 +63,7 @@ extension MappingProject {
     var referencedImageIDs: Set<UUID> {
         var ids = Set((surfaces.map(\.source) + objects.map(\.source)).compactMap { $0.image?.assetID })
         for look in looks { for entry in look.entries { if let id = entry.source?.image?.assetID { ids.insert(id) } } }
+        for clip in timelineClips { if let id = clip.source.image?.assetID { ids.insert(id) } }
         if let id = referencePhoto?.assetID { ids.insert(id) }
         return ids
     }

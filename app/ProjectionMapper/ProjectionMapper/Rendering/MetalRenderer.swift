@@ -1,4 +1,5 @@
 import MetalKit
+import CoreVideo
 import simd
 
 enum MetalInitializationError: LocalizedError {
@@ -21,6 +22,13 @@ enum MetalInitializationError: LocalizedError {
     }
 }
 
+/// Immutable GPU submission leases keep Core Video textures and buffers alive until completion.
+private final class VideoSubmissionLease: @unchecked Sendable {
+    let frames: [VideoFrame]
+    let textures: [CVMetalTexture]
+    init(frames: [VideoFrame],textures: [CVMetalTexture]) { self.frames = frames; self.textures = textures }
+}
+
 /// Rendering is independent of output-window ownership and simulated resolution.
 @MainActor
 final class MetalRenderer: NSObject, MTKViewDelegate {
@@ -35,6 +43,19 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             let mask = item.mask ?? FaceMask(isEnabled: false)
             return (item,perspective,mask.shaderRings,mask.isEnabled ? mask.shaderPoints : [.zero])
         }
+    }
+    private var videoCache: CVMetalTextureCache?
+    private var videoTextures: [UUID:(VideoFrame,CVMetalTexture)] = [:]
+    private func videoTexture(_ owner: UUID, frame: VideoFrame) -> (any MTLTexture)? {
+        if let cached = videoTextures[owner], cached.0 == frame { return CVMetalTextureGetTexture(cached.1) }
+        if videoCache == nil { CVMetalTextureCacheCreate(nil,nil,device,nil,&videoCache) }
+        guard let videoCache else { return nil }
+        var wrapped: CVMetalTexture?
+        let buffer = frame.pixelBuffer
+        guard CVMetalTextureCacheCreateTextureFromImage(nil,videoCache,buffer,nil,.bgra8Unorm,
+            CVPixelBufferGetWidth(buffer),CVPixelBufferGetHeight(buffer),0,&wrapped) == kCVReturnSuccess, let wrapped else { return nil }
+        videoTextures[owner] = (frame,wrapped)
+        return CVMetalTextureGetTexture(wrapped)
     }
     private var imageTextures: [UUID:any MTLTexture] = [:]
     private var loadedImages: [UUID:ImagePixels] = [:]
@@ -119,7 +140,10 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         encoder.setFragmentBytes(&masterGain, length: MemoryLayout<Float>.stride, index: 10)
         var calibration = scene.calibration.shaderParameters
         encoder.setFragmentBytes(&calibration, length: MemoryLayout<SIMD4<Float>>.stride, index: 11)
-        for (item, perspective, rings, points) in prepared {
+        var frameLeases: [VideoFrame] = []
+        var textureLeases: [CVMetalTexture] = []
+        for (original, perspective, rings, points) in prepared {
+            let item = original.evaluated(at: seconds, calibrationActive: scene.calibration.pattern.isActive)
             guard masterGain > 0, item.appearance.opacity > 0 else { continue }
             encoder.setRenderPipelineState(rectanglePipeline)
             let positions = item.geometry.trianglePositions
@@ -150,15 +174,32 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             rings.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 12) }
             points.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 13) }
             var imageScale = SIMD2<Float>(1,1)
-            if item.content == .image, !scene.calibration.pattern.isActive {
+            var videoUV = matrix_identity_float3x3
+            if item.content == .video, !scene.calibration.pattern.isActive {
+                guard let content = item.video, let owner = item.sourceID, let frame = scene.videoFrames[owner],
+                      frame.assetID == content.assetID,
+                      frame.clipID == original.timelineClips.first(where: { $0.contains(seconds) })?.id,
+                      let texture = videoTexture(owner,frame: frame) else { continue }
+                let size = frame.asset.displaySize
+                imageScale = content.placement.scale(imageAspect: Float(size.width/size.height),canvasAspect: content.canvasAspect)
+                videoUV = frame.asset.textureMatrix
+                frameLeases.append(frame)
+                if let lease = videoTextures[owner]?.1 { textureLeases.append(lease) }
+                encoder.setFragmentTexture(texture,index: 0)
+            } else if item.content == .image, !scene.calibration.pattern.isActive {
                 guard let content = item.image, let pixels = scene.images[content.assetID], let texture = imageTextures[content.assetID] else { continue }
                 imageScale = content.placement.scale(imageAspect: Float(pixels.width)/Float(pixels.height),canvasAspect: content.canvasAspect)
                 encoder.setFragmentTexture(texture,index: 0)
             } else { encoder.setFragmentTexture(diagnosticTexture,index: 0) }
             encoder.setFragmentBytes(&imageScale,length: MemoryLayout<SIMD2<Float>>.stride,index: 14)
+            encoder.setFragmentBytes(&videoUV,length: MemoryLayout<simd_float3x3>.stride,index: 15)
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: positions.count)
         }
         encoder.endEncoding()
+        if !frameLeases.isEmpty {
+            let lease = VideoSubmissionLease(frames: frameLeases,textures: textureLeases)
+            command.addCompletedHandler { _ in _ = lease }
+        }
         if let diagnostics, let encodeStart {
             let encodeMilliseconds = (ProcessInfo.processInfo.systemUptime - encodeStart) * 1_000
             let started = requestTime ?? encodeStart
@@ -179,6 +220,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     func setScene(_ scene: RenderScene) {
         self.scene = scene
         updateImageTextures()
+        videoTextures = videoTextures.filter { scene.videoFrames[$0.key] != nil }
         lastContinuousDemand = nil
         prepared = Self.prepare(scene)
         hasVisibleSurface = prepared.contains { $0.0.appearance.opacity > 0 }
@@ -186,7 +228,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     }
 
     private func updateImageTextures() {
-        let ids = Set(scene.surfaces.compactMap { $0.image?.assetID })
+        let ids = Set(scene.surfaces.compactMap { $0.image?.assetID } + scene.surfaces.flatMap { $0.timelineClips.compactMap { $0.source.image?.assetID } })
         imageTextures = imageTextures.filter { ids.contains($0.key) && scene.images[$0.key] != nil }
         loadedImages = loadedImages.filter { ids.contains($0.key) && scene.images[$0.key] != nil }
         var changed: [any MTLTexture] = []

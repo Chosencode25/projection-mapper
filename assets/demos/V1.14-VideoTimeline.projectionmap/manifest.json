@@ -1,0 +1,713 @@
+{
+  "formatVersion" : 9,
+  "output" : {
+    "destination" : {
+      "requiresManualSelection" : false
+    },
+    "resolution" : "ultraHD"
+  },
+  "project" : {
+    "createdAt" : 813286948.116857,
+    "generatorPresets" : [
+
+    ],
+    "id" : "651C9BD6-CBEE-4F29-8B95-1B3CB2DC2D64",
+    "imageAssets" : [
+      {
+        "height" : 64,
+        "id" : "0CED619C-BAAF-48B0-9B2C-7BE68D3F9434",
+        "name" : "Rehearsal checker.png",
+        "width" : 64
+      }
+    ],
+    "looks" : [
+
+    ],
+    "masterOutput" : {
+      "brightness" : 1,
+      "fadeDuration" : 1
+    },
+    "modifiedAt" : 813286948.156899,
+    "name" : "Video timeline rehearsal",
+    "objects" : [
+      {
+        "appearance" : {
+          "brightness" : 1,
+          "crop" : {
+            "origin" : [
+              0,
+              0
+            ],
+            "size" : [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal" : false,
+          "flipVertical" : false,
+          "opacity" : 1
+        },
+        "id" : "41F50CFA-6626-4657-A3A0-C7156EA935D3",
+        "isGeometryLocked" : false,
+        "isVisible" : true,
+        "links" : [
+          {
+            "firstEdge" : "right",
+            "firstFace" : "B14B6C14-E236-499A-8CEE-92AF63E3C9A4",
+            "id" : "47EC6D61-710E-4D15-AC96-FCA2D0037FE0",
+            "isSeam" : false,
+            "reversed" : true,
+            "secondEdge" : "left",
+            "secondFace" : "478564E5-0992-4EAE-9D8C-3825422F16D6"
+          },
+          {
+            "firstEdge" : "right",
+            "firstFace" : "478564E5-0992-4EAE-9D8C-3825422F16D6",
+            "id" : "328A1B16-1109-4470-BA1D-C075DE221CFF",
+            "isSeam" : false,
+            "reversed" : true,
+            "secondEdge" : "left",
+            "secondFace" : "02B4D967-347B-49F1-A088-1366C92E3ACE"
+          }
+        ],
+        "mode" : "continuous",
+        "name" : "Connected box",
+        "source" : {
+          "color" : [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content" : "image",
+          "generator" : {
+            "density" : 8,
+            "direction" : 0,
+            "intensity" : 1,
+            "particleSize" : 0.15,
+            "rate" : 1,
+            "scale" : 1,
+            "secondaryColor" : [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed" : 1
+          },
+          "id" : "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1",
+          "image" : {
+            "assetID" : "0CED619C-BAAF-48B0-9B2C-7BE68D3F9434",
+            "canvasAspect" : 1.7777778,
+            "placement" : "fit"
+          },
+          "video" : {
+            "assetID" : "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+            "canvasAspect" : 1.7777778,
+            "inPoint" : 0,
+            "isMuted" : true,
+            "loops" : false,
+            "outPoint" : 4,
+            "placement" : "fit",
+            "rate" : 1
+          }
+        },
+        "tags" : [
+
+        ]
+      }
+    ],
+    "palettes" : [
+
+    ],
+    "referencePhoto" : {
+      "assetID" : "0CED619C-BAAF-48B0-9B2C-7BE68D3F9434",
+      "center" : [
+        0.5,
+        0.5
+      ],
+      "isLocked" : true,
+      "opacity" : 0.5,
+      "placement" : "fit",
+      "scale" : 1
+    },
+    "surfaces" : [
+      {
+        "appearance" : {
+          "brightness" : 1,
+          "crop" : {
+            "origin" : [
+              0,
+              0
+            ],
+            "size" : [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal" : false,
+          "flipVertical" : false,
+          "opacity" : 1
+        },
+        "id" : "5FC90C00-DB92-43BE-A27B-B565AF40E51F",
+        "layout" : {
+          "corners" : {
+            "bottomLeft" : [
+              0.3,
+              0.92
+            ],
+            "bottomRight" : [
+              0.7,
+              0.92
+            ],
+            "topLeft" : [
+              0.3,
+              0.65
+            ],
+            "topRight" : [
+              0.7,
+              0.65
+            ]
+          },
+          "inputMap" : {
+            "mirrored" : false,
+            "origin" : [
+              0,
+              0
+            ],
+            "quarterTurns" : 0,
+            "size" : [
+              1,
+              1
+            ]
+          },
+          "isGeometryLocked" : false,
+          "isVisible" : true
+        },
+        "name" : "Independent looping video",
+        "source" : {
+          "color" : [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content" : "video",
+          "generator" : {
+            "density" : 8,
+            "direction" : 0,
+            "intensity" : 1,
+            "particleSize" : 0.15,
+            "rate" : 1,
+            "scale" : 1,
+            "secondaryColor" : [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed" : 1
+          },
+          "id" : "BED298FA-FC25-4477-8BCC-6FBCB983BA68",
+          "video" : {
+            "assetID" : "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+            "canvasAspect" : 1.7777778,
+            "inPoint" : 1,
+            "isMuted" : true,
+            "loops" : true,
+            "outPoint" : 3,
+            "placement" : "fit",
+            "rate" : 1
+          }
+        },
+        "tags" : [
+
+        ]
+      },
+      {
+        "appearance" : {
+          "brightness" : 1,
+          "crop" : {
+            "origin" : [
+              0,
+              0
+            ],
+            "size" : [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal" : false,
+          "flipVertical" : false,
+          "opacity" : 1
+        },
+        "id" : "B14B6C14-E236-499A-8CEE-92AF63E3C9A4",
+        "layout" : {
+          "corners" : {
+            "bottomLeft" : [
+              0.06,
+              0.55
+            ],
+            "bottomRight" : [
+              0.34,
+              0.55
+            ],
+            "topLeft" : [
+              0.06,
+              0.12
+            ],
+            "topRight" : [
+              0.34,
+              0.12
+            ]
+          },
+          "inputMap" : {
+            "mirrored" : false,
+            "origin" : [
+              0,
+              0
+            ],
+            "quarterTurns" : 0,
+            "size" : [
+              0.33333334,
+              1
+            ]
+          },
+          "isGeometryLocked" : false,
+          "isVisible" : true,
+          "objectID" : "41F50CFA-6626-4657-A3A0-C7156EA935D3"
+        },
+        "mask" : {
+          "boundary" : {
+            "id" : "19A69C17-1920-49D5-B5E7-C4C4B479573F",
+            "points" : [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                1,
+                1
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          "holes" : [
+            {
+              "id" : "4981ED8B-6D6D-4218-8D66-080146B98075",
+              "points" : [
+                [
+                  0.4,
+                  0.4
+                ],
+                [
+                  0.6,
+                  0.4
+                ],
+                [
+                  0.5,
+                  0.6
+                ]
+              ]
+            }
+          ],
+          "isEnabled" : true
+        },
+        "name" : "Box front",
+        "source" : {
+          "color" : [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content" : "diagnosticGrid",
+          "generator" : {
+            "density" : 8,
+            "direction" : 0,
+            "intensity" : 1,
+            "particleSize" : 0.15,
+            "rate" : 1,
+            "scale" : 1,
+            "secondaryColor" : [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed" : 1
+          },
+          "id" : "6183EA25-8B1F-4BA9-8276-4DF6AA0C9DD9"
+        },
+        "tags" : [
+
+        ]
+      },
+      {
+        "appearance" : {
+          "brightness" : 1,
+          "crop" : {
+            "origin" : [
+              0,
+              0
+            ],
+            "size" : [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal" : false,
+          "flipVertical" : false,
+          "opacity" : 1
+        },
+        "id" : "478564E5-0992-4EAE-9D8C-3825422F16D6",
+        "layout" : {
+          "corners" : {
+            "bottomLeft" : [
+              0.34,
+              0.55
+            ],
+            "bottomRight" : [
+              0.62,
+              0.55
+            ],
+            "topLeft" : [
+              0.34,
+              0.12
+            ],
+            "topRight" : [
+              0.62,
+              0.12
+            ]
+          },
+          "inputMap" : {
+            "mirrored" : false,
+            "origin" : [
+              0.33333334,
+              0
+            ],
+            "quarterTurns" : 0,
+            "size" : [
+              0.33333334,
+              1
+            ]
+          },
+          "isGeometryLocked" : false,
+          "isVisible" : true,
+          "objectID" : "41F50CFA-6626-4657-A3A0-C7156EA935D3"
+        },
+        "name" : "Box side",
+        "source" : {
+          "color" : [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content" : "diagnosticGrid",
+          "generator" : {
+            "density" : 8,
+            "direction" : 0,
+            "intensity" : 1,
+            "particleSize" : 0.15,
+            "rate" : 1,
+            "scale" : 1,
+            "secondaryColor" : [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed" : 1
+          },
+          "id" : "D1E2E33E-4448-42A3-A54F-0046F2F2DA34"
+        },
+        "tags" : [
+
+        ]
+      },
+      {
+        "appearance" : {
+          "brightness" : 1,
+          "crop" : {
+            "origin" : [
+              0,
+              0
+            ],
+            "size" : [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal" : false,
+          "flipVertical" : false,
+          "opacity" : 1
+        },
+        "id" : "02B4D967-347B-49F1-A088-1366C92E3ACE",
+        "layout" : {
+          "corners" : {
+            "bottomLeft" : [
+              0.62,
+              0.55
+            ],
+            "bottomRight" : [
+              0.9,
+              0.55
+            ],
+            "topLeft" : [
+              0.62,
+              0.12
+            ],
+            "topRight" : [
+              0.9,
+              0.12
+            ]
+          },
+          "inputMap" : {
+            "mirrored" : false,
+            "origin" : [
+              0.6666667,
+              0
+            ],
+            "quarterTurns" : 0,
+            "size" : [
+              0.33333334,
+              1
+            ]
+          },
+          "isGeometryLocked" : false,
+          "isVisible" : true,
+          "objectID" : "41F50CFA-6626-4657-A3A0-C7156EA935D3"
+        },
+        "name" : "Box top",
+        "source" : {
+          "color" : [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content" : "diagnosticGrid",
+          "generator" : {
+            "density" : 8,
+            "direction" : 0,
+            "intensity" : 1,
+            "particleSize" : 0.15,
+            "rate" : 1,
+            "scale" : 1,
+            "secondaryColor" : [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed" : 1
+          },
+          "id" : "00A501AA-E265-4F87-98AD-D406A914C278"
+        },
+        "tags" : [
+
+        ]
+      }
+    ],
+    "timelineClips" : [
+      {
+        "duration" : 4,
+        "id" : "CED9E1FF-F7AB-408F-A0A1-C98C310DF1F8",
+        "source" : {
+          "color" : [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content" : "video",
+          "generator" : {
+            "density" : 8,
+            "direction" : 0,
+            "intensity" : 1,
+            "particleSize" : 0.15,
+            "rate" : 1,
+            "scale" : 1,
+            "secondaryColor" : [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed" : 1
+          },
+          "video" : {
+            "assetID" : "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+            "canvasAspect" : 1.7777778,
+            "inPoint" : 0,
+            "isMuted" : true,
+            "loops" : false,
+            "outPoint" : 4,
+            "placement" : "fit",
+            "rate" : 1
+          }
+        },
+        "sourceID" : "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1",
+        "start" : 0
+      },
+      {
+        "duration" : 4,
+        "id" : "2ED756CD-9FDC-41F2-8302-16DD00673D66",
+        "source" : {
+          "color" : [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content" : "movingLines",
+          "generator" : {
+            "density" : 8,
+            "direction" : 0,
+            "intensity" : 1,
+            "particleSize" : 0.15,
+            "rate" : 1,
+            "scale" : 1,
+            "secondaryColor" : [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed" : 1
+          },
+          "video" : {
+            "assetID" : "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+            "canvasAspect" : 1.7777778,
+            "inPoint" : 0,
+            "isMuted" : true,
+            "loops" : false,
+            "outPoint" : 4,
+            "placement" : "fit",
+            "rate" : 1
+          }
+        },
+        "sourceID" : "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1",
+        "start" : 4
+      },
+      {
+        "duration" : 2,
+        "id" : "0C3D2914-13AD-4469-9E31-F2D22ADE9914",
+        "source" : {
+          "color" : [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content" : "image",
+          "generator" : {
+            "density" : 8,
+            "direction" : 0,
+            "intensity" : 1,
+            "particleSize" : 0.15,
+            "rate" : 1,
+            "scale" : 1,
+            "secondaryColor" : [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed" : 1
+          },
+          "image" : {
+            "assetID" : "0CED619C-BAAF-48B0-9B2C-7BE68D3F9434",
+            "canvasAspect" : 1.7777778,
+            "placement" : "fit"
+          },
+          "video" : {
+            "assetID" : "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+            "canvasAspect" : 1.7777778,
+            "inPoint" : 0,
+            "isMuted" : true,
+            "loops" : false,
+            "outPoint" : 4,
+            "placement" : "fit",
+            "rate" : 1
+          }
+        },
+        "sourceID" : "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1",
+        "start" : 8
+      },
+      {
+        "duration" : 2,
+        "id" : "BA2B92F0-8A55-4476-90C1-D5538FA09512",
+        "source" : {
+          "color" : [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content" : "video",
+          "generator" : {
+            "density" : 8,
+            "direction" : 0,
+            "intensity" : 1,
+            "particleSize" : 0.15,
+            "rate" : 1,
+            "scale" : 1,
+            "secondaryColor" : [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed" : 1
+          },
+          "video" : {
+            "assetID" : "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+            "canvasAspect" : 1.7777778,
+            "inPoint" : 1,
+            "isMuted" : true,
+            "loops" : true,
+            "outPoint" : 3,
+            "placement" : "fit",
+            "rate" : 1
+          }
+        },
+        "sourceID" : "BED298FA-FC25-4477-8BCC-6FBCB983BA68",
+        "start" : 1
+      }
+    ],
+    "videoAssets" : [
+      {
+        "byteCount" : 173878,
+        "codec" : "H.264",
+        "duration" : 4,
+        "fileExtension" : "mp4",
+        "frameRate" : 30,
+        "hasAudio" : true,
+        "height" : 1080,
+        "id" : "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+        "name" : "audio.mp4",
+        "transform" : [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "width" : 1920
+      }
+    ],
+    "videoAudio" : {
+      "volume" : 1
+    }
+  }
+}

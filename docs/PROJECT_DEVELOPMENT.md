@@ -25,7 +25,7 @@ Recheck the build before implementation because the installed beta may be update
 
 Write the entire interface in code using SwiftUI and programmatic AppKit where needed. Do not use storyboards or XIBs or require drag-and-drop interface construction. Xcode previews are optional inspection aids.
 
-Use Metal for rendering starting in v1.04. AVFoundation remains the planned tool for future v1.14 video work. The user reordered the remaining roadmap on October 5, 2026: multiple surfaces v1.08, animations v1.09, saving v1.10, surface controls v1.11, mapping tools v1.12, images v1.13, video v1.14, and final polish/release v1.15. No third-party dependency is needed for v1.01.
+Use Metal for rendering starting in v1.04. AVFoundation supplies v1.14 video inspection and shared-owner playback. The user reordered the remaining roadmap on October 5, 2026: multiple surfaces v1.08, animations v1.09, saving v1.10, surface controls v1.11, mapping tools v1.12, images v1.13, video v1.14, and final polish/release v1.15. No third-party dependency is needed for v1.01.
 
 ## Test Mode
 
@@ -54,3 +54,7 @@ The user requested integrating the appropriate show foundations into V1 and plan
 ## Visual acceptance preference — October 5, 2026
 
 The user confirmed v1.09.1 visual checks passed. Until they change this preference, they perform routine visual app checks. Use file changes and automated checks; do not operate their screen unless investigating a specific expected bug. Report automated evidence and leave new visual acceptance to the user without blocking local delivery.
+
+## Timeline brought forward — October 9, 2026
+
+The user's bottom video-editor timeline request is implemented as a local enhancement to 1.13/build 10: saved format 8 effect/image clips, shared content-owner lanes, clip-local shared-clock rendering and runtime scrub/zoom/snap/follow controls. See [verification](TIMELINE_VERIFICATION.md). v1.14 must extend this timeline with video asset references, source in-points and frame/audio timing rather than creating a separate transport. v1.15 must include timeline/media edit transactions in undo/recovery, readiness and final acceptance. Music/waveforms, layered overlaps and crossfades remain V2. Preserve existing clip timing/assets when evolving the package format. Routine user visual acceptance remains pending; this local enhancement and planning edits do not trigger Git delivery.

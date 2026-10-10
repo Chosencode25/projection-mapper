@@ -6,6 +6,8 @@ struct ProjectShowControls: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            VideoAudioControls(session: session)
+            Divider()
             MasterOutputControls(session: session)
             Divider()
             LookLibraryControls(session: session).id(session.project.id)

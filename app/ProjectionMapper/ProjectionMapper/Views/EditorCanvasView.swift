@@ -58,14 +58,14 @@ struct EditorCanvasView: View {
                     }.frame(width: width,height: height).allowsHitTesting(false)
                 }
                 .dropDestination(for: URL.self) { urls, location in
-                    guard urls.count == 1, let url = urls.first else { session.editMessage = "Drop one PNG or JPEG at a time."; return false }
+                    guard urls.count == 1, let url = urls.first else { session.editMessage = "Drop one PNG, JPEG, MP4 or MOV at a time."; return false }
                     let fallback = session.selectedImageTarget
                     session.selectSurface(at: SIMD2(Float(location.x/max(1,width)),Float(location.y/max(1,height))))
                     if let face = session.selectedSurface, let object = session.project.object(for: face) {
                         pendingDrop = url; dropFaceID = face.id; dropOwnerID = object.source.id
                     } else {
                         let target = session.selectedImageTarget ?? fallback ?? .newFace
-                        Task { await session.importImage(from: url,target: target) }
+                        Task { await session.importMedia(from: url,target: target) }
                     }
                     return true
                 }
@@ -86,15 +86,15 @@ struct EditorCanvasView: View {
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .confirmationDialog("Import image for the shared object or just this face?",isPresented: Binding(get: { pendingDrop != nil },set: { if !$0 { pendingDrop = nil } }),titleVisibility: .visible) {
+        .confirmationDialog("Import media for the shared object or just this face?",isPresented: Binding(get: { pendingDrop != nil },set: { if !$0 { pendingDrop = nil } }),titleVisibility: .visible) {
             if let url = pendingDrop, let owner = dropOwnerID, let face = dropFaceID {
-                Button("Replace image on all object faces") { pendingDrop = nil; Task { await session.importImage(from: url,target: .owner(owner)) } }
+                Button("Replace content on all object faces") { pendingDrop = nil; Task { await session.importMedia(from: url,target: .owner(owner)) } }
                 Button("Detach and import on this face") {
                     pendingDrop = nil
                     guard let current = session.project.surfaces.first(where: { $0.id == face }), session.project.source(for: current).id == owner else {
-                        session.editMessage = "The dropped-on face changed. Drop the image again."; return
+                        session.editMessage = "The dropped-on face changed. Drop the media again."; return
                     }
-                    Task { await session.importImage(from: url,target: .detach(face)) }
+                    Task { await session.importMedia(from: url,target: .detach(face)) }
                 }
                 Button("Cancel",role: .cancel) { pendingDrop = nil }
             }

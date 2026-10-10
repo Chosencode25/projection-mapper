@@ -23,6 +23,9 @@ struct MappingProject: Equatable, Codable {
     var looks: [ProjectLook] = []
     var imageAssets: [ImageAsset] = []
     var referencePhoto: ReferencePhoto?
+    var videoAssets: [VideoAsset] = []
+    var videoAudio = VideoAudioSettings()
+    var timelineClips: [EffectClip] = []
     var masterOutput = MasterOutputSettings.defaults
 
     init(id: UUID = UUID(), name: String = MappingProject.defaultName, now: Date = .now,
@@ -32,7 +35,7 @@ struct MappingProject: Equatable, Codable {
     }
     var hasDefaultContent: Bool {
         name == Self.defaultName && surfaces.count == 1 && surfaces[0].hasDefaultContent && objects.isEmpty && generatorPresets.isEmpty &&
-        palettes.isEmpty && looks.isEmpty && imageAssets.isEmpty && referencePhoto == nil && masterOutput == .defaults
+        palettes.isEmpty && looks.isEmpty && imageAssets.isEmpty && referencePhoto == nil && videoAssets.isEmpty && videoAudio == VideoAudioSettings() && timelineClips.isEmpty && masterOutput == .defaults
     }
     func object(for face: MappingSurface) -> MappingObject? { objects.first { $0.id == face.layout.objectID } }
     func source(for face: MappingSurface) -> SurfaceSource { object(for: face)?.source ?? face.source }
@@ -66,7 +69,7 @@ struct MappingProject: Equatable, Codable {
             guard face.layout.isVisible, object(for: face)?.isVisible != false else { return nil }
             let owner = resolvedSource(source(for: face))
             let map = object(for: face)?.mode == .repeatContent ? .full : face.layout.inputMap
-            return RenderSurface(geometry: face.corners, color: owner.color, content: owner.content, inputMap: map, generator: owner.generator, sourceID: owner.id, appearance: appearance(for: face), mask: face.mask, image: owner.image)
+            return RenderSurface(geometry: face.corners, color: owner.color, content: owner.content, inputMap: map, generator: owner.generator, sourceID: owner.id, appearance: appearance(for: face), mask: face.mask, image: owner.image, video: owner.video, timelineClips: timelineClips.filter { $0.sourceID == owner.id })
         }, masterBrightness: masterOutput.brightness)
     }
     func joinMessage(_ link: FaceEdgeLink, objectID: UUID) -> String? {

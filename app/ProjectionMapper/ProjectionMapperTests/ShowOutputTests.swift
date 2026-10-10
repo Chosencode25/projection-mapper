@@ -202,7 +202,7 @@ struct ShowOutputGPUTests {
     }
 
     @Test func everyContentTypeAttenuatesAndBlackoutIsExactlyBlack() throws {
-        for content in SurfaceContent.allCases.filter({ $0 != .image }) {
+        for content in SurfaceContent.allCases.filter({ $0 != .image && $0 != .video }) {
             let face = RenderSurface(geometry: .diagnostic, color: SIMD4(0.8, 0.2, 0.4, 1), content: content)
             var scene = RenderScene(surfaces: [face])
             let renderer = try MetalRenderer(scene: scene)

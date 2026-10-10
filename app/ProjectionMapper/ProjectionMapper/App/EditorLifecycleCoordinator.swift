@@ -150,8 +150,12 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         }
     }
     private func writeProject(to url: URL, completion: @escaping @MainActor (Bool) -> Void) {
-        do { try session.save(to: url); remember(url); updateWindowTitle(); completion(true) }
-        catch { showFileError(error); completion(false) }
+        isPrompting = true
+        Task { @MainActor in
+            defer { isPrompting = false }
+            do { try await session.saveMedia(to: url); remember(url); updateWindowTitle(); completion(true) }
+            catch { showFileError(error); completion(false) }
+        }
     }
     private func remember(_ url: URL) {
         let paths = [url.path] + recentProjects.map(\.path).filter { $0 != url.path }
@@ -188,7 +192,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                         guard baseline == self.session.project else {
                             self.session.fileMessage = "The current mapping changed while images loaded. Open the project again."; return
                         }
-                        try self.session.load(document,from: url,loadedMedia: media)
+                        let videos = await VideoImportService.loadAssets(document.project.videoAssets,package: url)
+                        guard self.session.project == baseline else { throw ProjectFileError.io("Project changed while opening; try again.") }
+                        try self.session.load(document,from: url,loadedMedia: media,loadedVideos: videos)
                         self.remember(url); self.updateWindowTitle()
                     } catch { self.showFileError(error) }
                 }
@@ -213,16 +219,40 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
             guard response == .alertFirstButtonReturn else { return }
             // Save/Discard may remove the current project's recovery. Preserve the chosen copy first.
             let snapshot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".projectionmap")
-            do { try self.recovery.packages.write(entry.document,to: snapshot,assetsFrom: entry.url) }
-            catch { self.showFileError(error); return }
-            self.confirmSaveChanges(action: "restore this recovery copy") { proceed in
-                defer { try? FileManager.default.removeItem(at: snapshot) }
-                guard proceed else { return }
+            self.isPrompting = true
+            Task { @MainActor in
                 do {
-                    try self.recovery.packages.write(entry.document,to: entry.url,assetsFrom: snapshot)
-                    try self.session.load(entry.document,from: entry.url,recovering: true)
-                    self.updateWindowTitle()
-                } catch { self.showFileError(error) }
+                    let data = try ProjectCodec.encode(entry.document)
+                    try await Task.detached(priority: .userInitiated) {
+                        try ProjectPackageStore().write(ProjectCodec.decode(data),to: snapshot,assetsFrom: entry.url)
+                    }.value
+                    self.isPrompting = false
+                    self.confirmSaveChanges(action: "restore this recovery copy") { proceed in
+                        guard proceed else { try? FileManager.default.removeItem(at: snapshot); return }
+                        self.isPrompting = true
+                        let baseline = self.session.project
+                        Task { @MainActor in
+                            defer { try? FileManager.default.removeItem(at: snapshot) }
+                            do {
+                                try await Task.detached(priority: .userInitiated) {
+                                    try ProjectPackageStore().write(ProjectCodec.decode(data),to: entry.url,assetsFrom: snapshot)
+                                }.value
+                                let images = await Task.detached(priority: .userInitiated) {
+                                    ImageImportService.loadAssets(entry.document.project.imageAssets,package: entry.url)
+                                }.value
+                                let videos = await VideoImportService.loadAssets(entry.document.project.videoAssets,package: entry.url)
+                                guard baseline == self.session.project else { throw ProjectFileError.io("Mapping changed during recovery; restore again.") }
+                                try self.session.load(entry.document,from: entry.url,recovering: true,loadedMedia: images,loadedVideos: videos)
+                                self.isPrompting = false
+                                self.updateWindowTitle()
+                            } catch { self.isPrompting = false; self.showFileError(error) }
+                        }
+                    }
+                } catch {
+                    self.isPrompting = false
+                    try? FileManager.default.removeItem(at: snapshot)
+                    self.showFileError(error)
+                }
             }
         }
     }

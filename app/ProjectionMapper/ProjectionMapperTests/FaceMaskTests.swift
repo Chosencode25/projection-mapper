@@ -108,7 +108,7 @@ struct FaceMaskTests {
     }
     @Test func allContentAndCalibrationBranchesClipAndRevealLowerFaces() throws {
         let back = RenderSurface(geometry: rect(),color: SIMD4(0.02,0.04,0.08,1))
-        for content in SurfaceContent.allCases.filter({ $0 != .image }) {
+        for content in SurfaceContent.allCases.filter({ $0 != .image && $0 != .video }) {
             for pattern in CalibrationPattern.allCases {
                 let face = RenderSurface(geometry: rect(),color: SIMD4(1,0,0,1),content: content,mask: mask())
                 let config = CalibrationState(pattern: pattern)

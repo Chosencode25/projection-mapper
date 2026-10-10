@@ -1,38 +1,14 @@
 # Project Progress
 
-Last updated: October 7, 2026.
+Last updated: October 9, 2026.
 
 ## Current state
 
-**v1.12 Mapping Tools is complete and automatically verified.** All three slices include temporary calibration, face-local masks/cutouts, editor guide visibility/names/edge labels and shared-canvas stripe/join inspection. **225 offscreen correctness tests passed in Debug and Release**, with four optional benchmarks skipped and two legacy visible-window tests excluded. Tested universal **1.12/build 9** app is installed at app/ProjectionMapper.app and archived under builds/v1.12/, with evidence under builds/v1.12.3/ and the previous preview preserved. Packages use format 6.
+**v1.14 Video Import and Timeline Integration is implemented, automatically verified and installed.** The universal **1.14/build 11** app imports SDR H.264/HEVC MP4/MOV, adds video source ranges/rates/looping to the existing object timeline, shares frames across connected faces and preview/Test Output, provides explicitly muted audio/routing controls, and saves/recoveries portable format **9** with formats 1–8 migration. **258 correctness tests passed in each Debug/Release run**; four benchmarks skipped, two legacy visible-window tests excluded. A separate final 13-test Release video run passed with two 30-second 1080p workloads. See [verification](V1.14_VERIFICATION.md) and [usage/demo](VIDEO_IMPORT_GUIDE.md).
 
-Completed-milestone source backup successfully pushed to GitHub main at **b786f55**, fast-forwarded from 03c9a45. Prior v1.11 source 87459a8 and v1.10 source 55d242c remain preserved. Delivery-record documentation follows the tested source commit. No release/tag/assets are authorized; latest published release remains v1.04.2. Routine user visuals remain pending. No screen automation or visible-window tests were used for 1.12.3. Next: **v1.13 Image Import**; physical projector output remains deferred.
+Tested signed app installed at app/ProjectionMapper.app and archived in builds/v1.14/. All files match the tested Release product. Previous installed timeline app preserved in builds/v1.14/Previous-installed.app; historical archives remain intact. No app launch or screen control used. User visual/listening acceptance is pending, including real audio routing/unplug and perceived sync/pitch. Runtime tests used Apple Silicon/macOS 27; Intel and older-macOS execution remain unverified. Physical projector operation remains deferred to v2.01.
 
-## Completed
-
-- [x] Recover V1 roadmap and v1.01 scope from earlier project chats.
-- [x] Record code-based interface, Test Mode, and exact Xcode requirements.
-- [x] Verify /Applications/Xcode-beta.app matches the required build.
-- [x] Create Xcode project and shared ProjectionMapper scheme.
-- [x] Set and document macOS 15.0 minimum deployment target.
-- [x] Implement project model, naming, timestamps, and session state.
-- [x] Build toolbar, sidebar, 16:9 empty canvas, inspector, and status area.
-- [x] Connect New Project, panel toggles, menus, shortcuts, and About.
-- [x] Implement Cancel/Discard protection for reset, close, and quit.
-- [x] Verify editor reopening and default, minimum, and larger layouts.
-- [x] Pass five focused model/session tests.
-- [x] Produce an ad-hoc signed local development build.
-- [x] Add build/run instructions and acceptance record.
-
-## Current acceptance and next milestone
-
-The installed v1.12 adds editor guide controls in the toolbar eye menu/View menu, optional object/face/edge labels, and object inspector vertical/horizontal stripe/checker join inspection. Existing masks and calibration retain master fade/blackout and playback priorities. See [milestone verification](V1.12.3_VERIFICATION.md) and [staged plan](V1.12_PLAN.md). User mapping-tools and earlier control/save visuals remain pending; no new acceptance has been reported. No new feature work is authorized beyond this milestone by its plan.
-
-## Scope and limitations
-
-Projects can be saved/opened as portable .projectionmap packages. Output selection/preferences, a separate resizable Test Window, editable perspective surfaces and static connected-object mapping are implemented. Six built-in effects and shared playback are implemented; generator presets/seeking and scoped runtime playback are implemented; saving/recovery are implemented; appearance/crop/flip are implemented; locks/group movement/scoped resets are implemented; looks/palettes and master brightness/fade/blackout are implemented; temporary calibration patterns and face-local polygon masks/cutouts are implemented locally; editor visibility/labels and shared-canvas join tools are implemented; imports remain later work. Physical projector output remains deferred. Runtime verification used Apple Silicon on the development Mac running macOS 27.0; Intel and older macOS runtime compatibility are unverified. Release includes arm64 and x86_64 slices.
-
-See [V1.12.3_VERIFICATION.md](V1.12.3_VERIFICATION.md) for current evidence and [BUILD_AND_RUN.md](BUILD_AND_RUN.md) for instructions.
+Completed x.xx source backup, including prior local timeline/planning edits, is pending Git delivery on codex/v1.14-video-timeline. No release/tag/app asset publication is included. **Next implementation: v1.15 undo/redo, readiness, UI/error/accessibility polish and final packaging.** Music, waveforms, advanced show sequencing and projector hardware retain their V2 scope.
 
 ## GitHub version history
 
@@ -480,3 +456,31 @@ Next planned build: v1.13 Image Import. No release publication requested.
 - [x] Version 1.13/build 10 installed in app/ and archived in builds/v1.13/; previous v1.12 UI-polish app preserved. See [verification](V1.13_VERIFICATION.md) and [image guide](IMAGE_IMPORT_GUIDE.md).
 - [ ] User visual acceptance of picker/drop, image placement and reference compositing. No screen control/app launch used.
 - Completed-milestone source backup successfully pushed to GitHub main at **6dfd076** (from 4e92123), including the prior UI polish. No release/tag/assets published. Next build: v1.14 Video Import.
+
+
+## Local playback timeline — October 9, 2026
+
+- [x] Resizable bottom lanes for objects/standalone faces, current-effect clips, seconds ruler, moving playhead, scrub/zoom/snap/follow and transport controls.
+- [x] Timed captured effects/images with move/trim/edit/duplicate/delete; shared-owner evaluation, clip-local phase, dark gaps and live fallback on empty tracks.
+- [x] Format 8 validation/migration, clip-image asset retention and object copy/detach/delete lifecycle.
+- [x] Six new correctness tests; final Debug/Release each 245 passing, zero failures, four benchmarks skipped and two visible-window exclusions.
+- [x] Signed universal Release app copied to app/ and builds/timeline/ with SHA256 equality; previous installed app preserved.
+- [ ] User visual acceptance. No screen control/app launch used.
+- No commit/push/upload/release for this local enhancement. See [verification](TIMELINE_VERIFICATION.md).
+
+## Roadmap alignment — October 9, 2026
+
+Planning updated to match the delivered format 8 timeline. v1.14 extends existing rows/transport/clips with videos, source in-points, shared frame/audio ownership and portable saves; v1.15 includes timeline undo/recovery/readiness, UI polish, demos and packaging. V2 extends this foundation for music/waveforms/advanced choreography. Corrected stale current-state summaries while preserving historical milestone records. Documentation only; no app/source changes, build, screen use or Git delivery.
+
+## v1.14 detailed planning — October 9, 2026
+
+Seven work stages planned: safe video import/model, existing timeline source-range edits, shared-clock decode/Metal frames, mapping/lifecycle, explicit embedded audio, portable format 8 migration/save/recovery and full verification/delivery. Source trim/move semantics, gaps/loops, shared audio/frame ownership, default mute and resource/cancellation policies are explicit. See [plan](V1.14_PLAN.md). Pinned Xcode 27A5237l reverified and installed AVFoundation headers inspected. Planning only: no video code, app build, version bump, screen use or Git delivery performed.
+
+## v1.14 — Video Import and Timeline Integration — October 9, 2026
+
+- [x] Seven approved implementation stages complete: bounded video import/model, timeline ranges, owner decode/Metal frames, mapping/lifecycle, explicit embedded audio, portable save/recovery, automated verification/local delivery.
+- [x] 258 full-suite correctness tests in Debug and Release; final dedicated 13-test Release video run and sustained 1080p profiling. Four benchmarks skipped; two visible-window tests excluded.
+- [x] Signed universal 1.14/build 11 app delivered to app/ and builds/v1.14/; previous installed app preserved; hashes/architecture/signatures verified.
+- [x] Self-generated portable mixed video/effect/image demo, mask and editor reference saved under assets/demos/.
+- [ ] User visual/listening acceptance and physical audio-device unplug/routing checks.
+- Completed milestone source backup pending; no release/tag/assets publication. Next v1.15.

@@ -31,6 +31,7 @@ struct SurfaceSource: Equatable, Sendable, Codable {
     var generator: GeneratorSettings = .defaults
     var color: SIMD4<Float> = SIMD4(1, 0.25, 0, 1)
     var image: ImageContent?
+    var video: VideoContent?
     var primaryBinding: ColorBinding?
     var secondaryBinding: ColorBinding?
     func independentCopy() -> Self { var copy = self; copy.id = UUID(); return copy }

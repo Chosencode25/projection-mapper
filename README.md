@@ -28,9 +28,9 @@ The planned app maps images, videos and built-in animations onto independent sur
 
 Required toolchain: **Xcode 27.0 beta 5 (27A5237l)**.
 
-Created October 5, 2026. **v1.12 Mapping Tools is implemented and automatically verified:** appearance/looks/palettes and master output controls from v1.11, plus calibration, polygon masks/cutouts, editor guide visibility/labels and shared-canvas join inspection. All **225 offscreen correctness tests passed in Debug and Release**; four optional benchmarks skipped and two visible-window tests excluded. User visual acceptance remains pending. Physical projector output remains deferred.
+**Current app: v1.14 Video Import and Timeline Integration.** Open app/ProjectionMapper.app (1.14/build 11), or open app/ProjectionMapper/ProjectionMapper.xcodeproj with the required Xcode. Quit/reopen an older running app to use the replacement. The universal signed app is archived in builds/v1.14/; the previous installed app is preserved.
 
-Open app/ProjectionMapper/ProjectionMapper.xcodeproj in required Xcode-beta and press Command–R, or use the tested **1.12/build 9** app at app/ProjectionMapper.app. Archived app: builds/v1.12/ProjectionMapper.app; evidence: builds/v1.12.3/. Quit/reopen a running older app to use the new binary. The toolbar eye menu controls handles/outlines/names/edge labels; the object inspector offers stripe/checker join inspection. Masks and calibration remain shared between preview and Test Window. Save/Open uses format 6 .projectionmap packages, migrates formats 1–5, and restores safe runtime defaults. Older app copies cannot open new format 6 packages. See [current verification](docs/V1.12.3_VERIFICATION.md) and [progress](docs/PROGRESS.md).
+Independent/connected faces, animations, images, masks/calibration, looks/palettes and a bottom object timeline now support video ranges, trim/move/loop/seek and explicit embedded audio. Portable format 9 migrates formats 1–8. Both Debug and Release passed 258 correctness tests; user visual/listening acceptance remains pending. See [video guide and demo](docs/VIDEO_IMPORT_GUIDE.md), [verification](docs/V1.14_VERIFICATION.md) and [progress](docs/PROGRESS.md). Next: v1.15 undo/redo, readiness and polish. Music/show features and physical projector work remain V2.
 
 The original ChatGPT project mirror at `/Users/keith/.codex/.chatgpt-projects/g-p-6ac32a4ca5b08191bfcf6bd28eb66008` remains a reference location. Do not edit its synced files.
 
@@ -40,9 +40,4 @@ Private repository: [Chosencode25/projection-mapper](https://github.com/Chosenco
 
 The first milestone is `v1.01`. Follow [GitHub workflow](docs/GITHUB_WORKFLOW.md) for branches, commits, milestone tags, and release downloads. See [Changelog](CHANGELOG.md) for completed version changes.
 
-Completed v1.12 tested source is backed up on GitHub main at b786f55, successfully pushed from 03c9a45. Delivery documentation follows that source commit. Earlier v1.11 at 87459a8 and v1.10 at 55d242c remain preserved. No new release/tag/assets are authorized. Next: v1.13 Image Import.
-
-
-## Current app — v1.13 Image Import
-
-Open app/ProjectionMapper.app (version 1.13/build 10). Quit/reopen an older running instance to use it. PNG/JPEG imports, linked-face image placement, portable image saves and the editor-only reference photo are implemented, alongside the improved top bar and Edit/Show/Project inspector. All 239 offscreen correctness tests passed in Debug/Release; user visual checks remain pending. See [image instructions](docs/IMAGE_IMPORT_GUIDE.md), [verification](docs/V1.13_VERIFICATION.md) and [milestone plan](docs/V1.13_PLAN.md). Completed source is backed up on GitHub main at 6dfd076. Next: v1.14 Video Import. No new release published.
+Completed v1.14 milestone source backup is pending. No new release/tag/app asset publication is included. Earlier milestone history is preserved.

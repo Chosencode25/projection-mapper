@@ -14,6 +14,7 @@ struct EditorWindowView: View {
         VStack(spacing: 0) {
             EditorToolbar(session: session, newProject: newProject, openOutput: openOutput, openProject: openProject, saveProject: saveProject)
             Divider()
+            VSplitView {
             HStack(spacing: 0) {
                 if session.isSidebarVisible {
                     SurfaceSidebarView(session: session).frame(width: 220)
@@ -24,6 +25,9 @@ struct EditorWindowView: View {
                     Divider()
                     ProjectInspectorView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput).frame(width: 310)
                 }
+            }
+            .frame(minHeight: 240)
+            PlaybackTimelineView(session: session).frame(minHeight: 170, idealHeight: 240, maxHeight: 480)
             }
             Divider()
             EditorStatusView(session: session)

@@ -12,6 +12,11 @@ struct EditorStatusView: View {
                 .help(session.output.statusText + " · " + session.testOutput.statusText)
             if session.hasUserChanges { Text("· Unsaved changes").foregroundStyle(.secondary) }
             if let message = session.fileMessage { Text("· " + message).foregroundStyle(.secondary).lineLimit(1).help(message) }
+            if session.isSavingMedia {
+                ProgressView().controlSize(.small)
+                Text("Saving media…")
+                Button("Cancel") { session.cancelMediaSave() }.buttonStyle(.borderless)
+            }
             Spacer()
             Text("Test Mode").foregroundStyle(.tertiary)
             Text("v\(AppVersion.version)").foregroundStyle(.secondary)

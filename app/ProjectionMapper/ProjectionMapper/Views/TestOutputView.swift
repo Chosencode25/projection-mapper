@@ -61,6 +61,7 @@ class MetalSceneView: NSView {
         renderer?.renderDemandDidChange = { [weak self] continuous in
             self?.configureDrawingMode(continuous: continuous)
         }
+        VideoRenderAvailability.views.add(self)
         updateRenderingAvailability()
         setAccessibilityElement(true)
         setAccessibilityRole(.group)

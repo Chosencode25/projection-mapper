@@ -1,6 +1,6 @@
 # V2 Roadmap — Music and Show Playback
 
-Status: planned only, October 5, 2026. The user requested revising V1 foundations and planning V2 after research into projection mapping, Christmas sequencing and show control. v1.08 remains the latest implemented/locally accepted app (local-only delivery). These milestone numbers describe implementation order; they do not authorize implementation, version bumps or publication now.
+Status updated October 9, 2026: numbered V2 milestones remain planned. V1 through v1.14 is implemented and automatically verified, including owner rows, effect/image/video clips, source ranges and explicit embedded audio. Installed app is 1.14/build 11, format 9, with 258 passing correctness tests per Debug/Release run; user visual/listening acceptance is pending. V1.15 finishes undo/readiness/polish. V2 reuses/migrates these rows, clips, media identities and transport. These milestone numbers do not authorize publication.
 
 V2 turns the V1 mapper into a native Mac workspace for building repeatable projection shows to music, rehearsing them, coordinating with an existing lighting system and running playlists. Map the display once, reuse it across songs, and keep Test Mode available for editing without hardware. Preserve connected object faces and their shared content coordinates.
 
@@ -12,7 +12,7 @@ Read [V1 remaining plan](V1_REMAINING_PLAN.md), [development requirements](PROJE
 |---|---|---|
 | 2.01 — Projector Output and Calibration | One fullscreen external output; display identity/reconnect; device calibration and timing measurements; existing renderer/masks. | Test Mode stays independent; real projector operation is claimed only after recorded physical checks. |
 | 2.02 — Music and Show Transport | Portable song assets, waveform, audio routing, one song clock, play/pause/stop/restart/seek and rehearsal loops. | Seek/pause/restart keeps generators, video and music at the intended song position. |
-| 2.03 — Timeline and Cues | Named object/tag tracks, timed clips, beat/lyric/section markers, parameter curves and manual cue triggering. | A song can be choreographed, saved and replayed with repeatable results. |
+| 2.03 — Timeline and Cues | Extend V1 owner tracks/clips with song-aware named object/tag tracks, beat/lyric/section markers, parameter curves and manual cue triggering. | A song can be choreographed, saved and replayed with repeatable results. |
 | 2.04 — Holiday Choreography | Snow/twinkle/candy-cane effects, object chases, spatial waves, palette changes, transitions and optional audio reaction. | Coordinated looks work across separate objects and connected faces without disturbing alignment. |
 | 2.05 — Layers, Regions and Text | Bounded visual layer stacks, masks/named regions, outlines, countdowns and projected singing-face animation. | A window border, center and overlay can be composed and sequenced independently. |
 | 2.06 — Reusable Shows and Layouts | Display roles, selection groups, layout-target assignment, templates, effect packs and recording manual cue performances. | A song template can be assigned to another house layout without moving its mapping. |

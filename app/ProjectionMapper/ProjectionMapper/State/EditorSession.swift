@@ -6,6 +6,17 @@ import simd
 @MainActor
 @Observable
 final class EditorSession {
+    let videoPlayback = VideoPlaybackCoordinator()
+    @ObservationIgnored private var managedVideoURLs = Set<URL>()
+    @ObservationIgnored private var videoFileLeases = 0
+    private(set) var videoFiles: [UUID:URL] = [:]
+    private(set) var videoPosters: [UUID:ImagePixels] = [:]
+    private(set) var videoProblems: [UUID:String] = [:]
+    @ObservationIgnored private var videoImportTask: Task<Void,Never>?
+    private(set) var isImportingVideo = false
+    @ObservationIgnored private var saveWorker: Task<Void,Error>?
+    private(set) var isSavingMedia = false
+    var videoAudioEnabled = false
     private(set) var imagePixels: [UUID:ImagePixels] = [:]
     private var imageFiles: [UUID:Data] = [:]
     private(set) var imageProblems: [UUID:String] = [:]
@@ -27,7 +38,12 @@ final class EditorSession {
         var result = RenderScene(surfaces: faces, transport: transport)
         result.masterBrightness = project.masterOutput.brightness; result.showOutput = showOutput; result.calibration = calibration
         result.images = imagePixels
+        result.videoFrames = videoPlayback.frames
         return result
+    }
+    private func updateOutputScene() {
+        videoPlayback.configure(scene: scene,assets: project.videoAssets,urls: videoFiles,audio: project.videoAudio,enabled: videoAudioEnabled)
+        testOutput.setScene(scene)
     }
     func seekPlayback(to seconds: Double, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard seconds.isFinite, (0...3600).contains(seconds), uptime.isFinite else { return }
@@ -36,34 +52,86 @@ final class EditorSession {
         for id in Array(sourcePlayback.keys) {
             if let frozen = sourcePlayback[id]?.frozenTime { sourcePlayback[id]?.frozenTime = max(0,frozen + delta) }
         }
-        testOutput.setScene(scene)
+        updateOutputScene()
     }
     func setSelectedPaused(_ paused: Bool, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard let source = selectedSource, uptime.isFinite else { return }
         var clock = sourcePlayback[source.id] ?? SourcePlayback()
         clock.setPaused(paused, at: transport.elapsed(at: uptime)); sourcePlayback[source.id] = clock
-        testOutput.setScene(scene)
+        updateOutputScene()
     }
     func restartSelectedPlayback(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard let source = selectedSource, uptime.isFinite else { return }
         var clock = sourcePlayback[source.id] ?? SourcePlayback()
         clock.restart(at: transport.elapsed(at: uptime)); sourcePlayback[source.id] = clock
-        testOutput.setScene(scene)
+        updateOutputScene()
     }
     private func copyPlayback(from original: UUID, to copy: UUID) {
         if let clock = sourcePlayback[original] { sourcePlayback[copy] = clock }
+        let originals = project.timelineClips.filter { $0.sourceID == original }
+        if project.timelineClips.count + originals.count <= 2000 {
+            project.timelineClips += originals.map { var clip = $0; clip.id = UUID(); clip.sourceID = copy; return clip }
+        } else { timelineMessage = "The copied object uses live content: the project has reached its 2000-clip limit." }
     }
     func setPlaying(_ playing: Bool, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        transport.setPlaying(playing, at: uptime); testOutput.setScene(scene)
+        transport.setPlaying(playing, at: uptime); updateOutputScene()
     }
     func restartPlayback(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard uptime.isFinite else { return }
         transport.restart(at: uptime)
         for id in Array(sourcePlayback.keys) { sourcePlayback[id] = sourcePlayback[id]?.isPaused == true ? SourcePlayback(frozenTime: 0) : SourcePlayback() }
-        testOutput.setScene(scene)
+        updateOutputScene()
     }
     func setPlaybackSpeed(_ value: Double, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        transport.setSpeed(value, at: uptime); testOutput.setScene(scene)
+        transport.setSpeed(value, at: uptime); updateOutputScene()
+    }
+    var selectedClipID: UUID?
+    var timelineMessage: String?
+    var selectedClip: EffectClip? { project.timelineClips.first { $0.id == selectedClipID } }
+    func selectTimelineTrack(_ track: TimelineTrack) {
+        if track.isObject { selectObject(track.targetID) } else { selectSurface(track.targetID) }
+    }
+    @discardableResult
+    func addTimelineClip(sourceID: UUID, at seconds: Double, duration: Double = 5) -> UUID? {
+        guard let track = project.timelineTracks.first(where: { $0.id == sourceID }) else { return nil }
+        var source = SourceLook(source: project.resolvedSource(track.source))
+        source.primaryBinding = nil; source.secondaryBinding = nil
+        let length = source.content == .video ? min(3600-seconds,source.video?.timelineDuration ?? duration) : duration
+        let clip = EffectClip(sourceID: sourceID, start: seconds, duration: length, source: source)
+        var candidate = project; candidate.timelineClips.append(clip)
+        guard commitTimeline(candidate) else { return nil }
+        selectedClipID = clip.id; selectTimelineTrack(track); return clip.id
+    }
+    @discardableResult
+    func updateTimelineClip(_ clip: EffectClip) -> Bool {
+        guard let i = project.timelineClips.firstIndex(where: { $0.id == clip.id }), project.timelineClips[i].sourceID == clip.sourceID else { return false }
+        var candidate = project; candidate.timelineClips[i] = clip
+        return commitTimeline(candidate)
+    }
+    func deleteTimelineClip(_ id: UUID) {
+        var candidate = project; candidate.timelineClips.removeAll { $0.id == id }
+        if commitTimeline(candidate), selectedClipID == id { selectedClipID = nil }
+    }
+    func duplicateTimelineClip(_ id: UUID) {
+        guard var copy = project.timelineClips.first(where: { $0.id == id }) else { return }
+        copy.id = UUID(); copy.start = copy.end
+        var candidate = project; candidate.timelineClips.append(copy)
+        if commitTimeline(candidate) { selectedClipID = copy.id }
+    }
+    func captureTimelineClip(_ id: UUID) {
+        guard var clip = project.timelineClips.first(where: { $0.id == id }),
+              let track = project.timelineTracks.first(where: { $0.id == clip.sourceID }) else { return }
+        clip.source = SourceLook(source: project.resolvedSource(track.source))
+        clip.source.primaryBinding = nil; clip.source.secondaryBinding = nil
+        if let video = clip.source.video, clip.source.content == .video, !video.loops { clip.duration = video.timelineDuration }
+        _ = updateTimelineClip(clip)
+    }
+    private func commitTimeline(_ candidate: MappingProject) -> Bool {
+        do { try ProjectCodec.validate(ProjectDocument(project: candidate)) }
+        catch { timelineMessage = "Clips need a free time range, at least 0.1 seconds long, within 0–3600 seconds and inside the video source range."; return false }
+        timelineMessage = nil
+        guard candidate != project else { return true }
+        project = candidate; changed(); return true
     }
     private(set) var selectedSurfaceID: UUID?
     private(set) var selectedObjectID: UUID?
@@ -199,26 +267,47 @@ final class EditorSession {
         autosaveTask = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: .seconds(2)) } catch { return }
             guard let self, !Task.isCancelled else { return }
-            do { try self.flushRecovery(); self.fileMessage = "Recovery copy updated" }
+            do { try await self.flushRecoveryMedia(); self.fileMessage = "Recovery copy updated" }
             catch { self.fileMessage = "Recovery could not be updated: \(error.localizedDescription)" }
         }
     }
+    private func flushRecoveryMedia() async throws {
+        guard hasUserChanges, let recoveryStore, !isSavingMedia else { return }
+        videoFileLeases += 1
+        defer { videoFileLeases -= 1; cleanupManagedVideos() }
+        let data = try ProjectCodec.encode(document), original = documentURL, source = assetSourceURL
+        let images = imageFiles, videos = videoFiles, directory = recoveryStore.directory
+        let worker = Task.detached(priority: .utility) {
+            let document = try ProjectCodec.decode(data)
+            try ProjectRecoveryStore(directory: directory).save(document,original: original,assetsFrom: source,imageFiles: images,videoFiles: videos)
+        }
+        try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
+    }
     func flushRecovery() throws {
         guard hasUserChanges, let recoveryStore else { return }
-        try recoveryStore.save(document,original: documentURL,assetsFrom: assetSourceURL, imageFiles: imageFiles)
+        try recoveryStore.save(document,original: documentURL,assetsFrom: assetSourceURL, imageFiles: imageFiles, videoFiles: videoFiles)
     }
     func clearRecovery() {
         autosaveTask?.cancel(); autosaveTask = nil; recoveryStore?.remove(projectID: project.id)
     }
     func save(to url: URL, store: ProjectPackageStore = ProjectPackageStore()) throws {
-        try store.write(document,to: url,assetsFrom: assetSourceURL, imageFiles: imageFiles)
+        try store.write(document,to: url,assetsFrom: assetSourceURL, imageFiles: imageFiles, videoFiles: videoFiles)
         documentURL = url; assetSourceURL = url; savedBaseline = project; isRecovered = false
         clearRecovery(); fileMessage = "Saved \(url.lastPathComponent)"
     }
-    func load(_ document: ProjectDocument, from url: URL, recovering: Bool = false, store: ProjectPackageStore = ProjectPackageStore(), loadedMedia: (pixels: [UUID:ImagePixels], files: [UUID:Data], problems: [UUID:String])? = nil) throws {
+    func load(_ document: ProjectDocument, from url: URL, recovering: Bool = false, store: ProjectPackageStore = ProjectPackageStore(), loadedMedia: (pixels: [UUID:ImagePixels], files: [UUID:Data], problems: [UUID:String])? = nil, loadedVideos: (urls: [UUID:URL],posters: [UUID:ImagePixels],problems: [UUID:String])? = nil) throws {
         try ProjectCodec.validate(document)
         if !recovering || project.id != document.project.id { clearRecovery() }
         let media = loadedMedia ?? ImageImportService.loadAssets(document.project,package: url)
+        videoPlayback.reset(); videoAudioEnabled = false
+        videoFiles = loadedVideos?.urls ?? [:]; videoPosters = loadedVideos?.posters ?? [:]; videoProblems = loadedVideos?.problems ?? [:]
+        if loadedVideos == nil {
+            for asset in document.project.videoAssets {
+                let file = url.appendingPathComponent("assets").appendingPathComponent(asset.fileName)
+                if (try? VideoImportService.safeFile(file)) == asset.byteCount { videoFiles[asset.id] = file }
+                else { videoProblems[asset.id] = "Missing video; relink the asset." }
+            }
+        }
         imagePixels = media.pixels; imageFiles = media.files; imageProblems = media.problems; referencePhotoVisible = true
         mediaGeneration = UUID()
         project = document.project; savedBaseline = project; isRecovered = recovering || document.recovery != nil
@@ -228,10 +317,11 @@ final class EditorSession {
             if let saved = try? store.read(original), saved.project.id == project.id { documentURL = original; savedBaseline = saved.project }
         }
         output.restoreProjectPreference(document.output.destination,resolution: document.output.resolution)
-        clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
+        selectedClipID = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil
-        testOutput.setResolution(output.testResolution); testOutput.destinationDidChange(output.destination); testOutput.setScene(scene)
+        testOutput.setResolution(output.testResolution); testOutput.destinationDidChange(output.destination); updateOutputScene()
         fileMessage = isRecovered ? "Recovered unsaved project — Save to keep it" : "Opened \(url.lastPathComponent)"
+        if !videoProblems.isEmpty { fileMessage = (fileMessage ?? "") + " · missing/damaged videos, relink in the inspector" }
         if !imageProblems.isEmpty { fileMessage = (fileMessage ?? "") + " · \(imageProblems.count) missing/damaged image(s), relink in the inspector" }
         scheduleRecovery()
     }
@@ -243,12 +333,14 @@ final class EditorSession {
         isRecovered = !project.hasDefaultContent
         selectedSurfaceID = project.surfaces.first?.id
         testOutput = TestOutputCoordinator(presentWindow: presentOutput, scene: project.renderScene)
+        videoPlayback.changed = { [weak self] in guard let self else { return }; self.testOutput.setScene(self.scene) }
     }
     private func changed(now: Date = .now) {
         let active = Set(project.surfaces.map { project.source(for: $0).id })
         sourcePlayback = sourcePlayback.filter { active.contains($0.key) }
-        collectImages()
-        project.modifiedAt = now; editMessage = nil; testOutput.setScene(scene); scheduleRecovery()
+        project.timelineClips.removeAll { !active.contains($0.sourceID) }
+        collectImages(); collectVideos()
+        project.modifiedAt = now; editMessage = nil; updateOutputScene(); scheduleRecovery()
     }
     private func cleanName(_ name: String, fallback: String) -> String {
         let trimmed = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
@@ -464,7 +556,7 @@ final class EditorSession {
         project.surfaces[i].appearanceOverride = enabled ? effective : nil; changed()
     }
     func setSurfaceContent(_ content: SurfaceContent, now: Date = .now) {
-        guard content != .image || selectedSource?.image != nil else { return }
+        guard (content != .image || selectedSource?.image != nil) && (content != .video || selectedSource?.video != nil) else { return }
         updateSource(now: now) { $0.content = content }
     }
     func setSourceColor(_ color: SIMD4<Float>) {
@@ -473,7 +565,7 @@ final class EditorSession {
     }
     @discardableResult
     func saveGeneratorPreset(name: String) -> UUID? {
-        guard let source = selectedSource, source.content.isAnimated else { return nil }
+        guard let source = selectedSource, source.content.isProceduralAnimation else { return nil }
         guard project.generatorPresets.count < 100 else { editMessage = "Maximum of 100 presets reached."; return nil }
         let base = cleanName(name, fallback: source.content.title)
         var name = base, n = 2
@@ -489,7 +581,7 @@ final class EditorSession {
         updateSource { $0.content = preset.content; $0.color = preset.color; $0.generator = preset.settings; $0.primaryBinding = nil; $0.secondaryBinding = nil }
     }
     func updateGeneratorPreset(_ id: UUID) {
-        guard let source = selectedSource, source.content.isAnimated,
+        guard let source = selectedSource, source.content.isProceduralAnimation,
               let i = project.generatorPresets.firstIndex(where: { $0.id == id }) else { return }
         let old = project.generatorPresets[i]
         let resolved = project.resolvedSource(source)
@@ -502,7 +594,7 @@ final class EditorSession {
         project.generatorPresets.removeAll { $0.id == id }; changed()
     }
     func resetGeneratorSettings() {
-        guard selectedSource?.content.isAnimated == true else { return }
+        guard selectedSource?.content.isProceduralAnimation == true else { return }
         updateSource { $0.generator = .defaults; $0.color = SIMD4(1,0.25,0,1); $0.primaryBinding = nil; $0.secondaryBinding = nil }
     }
     func setGeneratorSettings(_ settings: GeneratorSettings) {
@@ -653,8 +745,9 @@ final class EditorSession {
     func resetProject(now: Date = .now) {
         imagePixels.removeAll(); imageFiles.removeAll(); imageProblems.removeAll(); mediaGeneration = UUID(); referencePhotoVisible = true
         clearRecovery(); documentURL = nil; assetSourceURL = nil; isRecovered = false; fileMessage = nil
-        clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
-        selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil; testOutput.setScene(scene)
+        videoPlayback.reset(); videoFiles.removeAll(); videoPosters.removeAll(); videoProblems.removeAll(); videoAudioEnabled = false; cleanupManagedVideos()
+        selectedClipID = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
+        selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil; updateOutputScene()
     }
 }
 
@@ -829,12 +922,12 @@ extension EditorSession {
         var candidate = project; candidate.masterOutput.fadeDuration = value; _ = commitShowEdit(candidate)
     }
     func fadeToBlack(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        showOutput.fade(to: 0, duration: project.masterOutput.fadeDuration, at: uptime); testOutput.setScene(scene)
+        showOutput.fade(to: 0, duration: project.masterOutput.fadeDuration, at: uptime); updateOutputScene()
     }
     func restoreOutput(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        showOutput.restore(duration: project.masterOutput.fadeDuration, at: uptime); testOutput.setScene(scene)
+        showOutput.restore(duration: project.masterOutput.fadeDuration, at: uptime); updateOutputScene()
     }
-    func blackoutOutput() { showOutput.blackout(); testOutput.setScene(scene) }
+    func blackoutOutput() { showOutput.blackout(); updateOutputScene() }
 }
 
 extension EditorSession {
@@ -842,7 +935,7 @@ extension EditorSession {
         guard value.isValid else { editMessage = "Calibration requires 2–64 rows/columns and a 1–4 pixel line width."; return }
         editMessage = nil
         guard value != calibration else { return }
-        calibration = value; testOutput.setScene(scene)
+        calibration = value; updateOutputScene()
     }
     func setCalibrationPattern(_ pattern: CalibrationPattern) { var value = calibration; value.pattern = pattern; setCalibration(value) }
     func setCalibrationColumns(_ columns: Int) { var value = calibration; value.columns = columns; setCalibration(value) }
@@ -992,5 +1085,157 @@ extension EditorSession {
         var copy = scene
         copy.editorTransparentBackground = referencePhotoVisible && project.referencePhoto.flatMap { imagePixels[$0.assetID] } != nil
         return copy
+    }
+}
+
+extension EditorSession {
+    private func collectVideos() {
+        for i in project.surfaces.indices where project.surfaces[i].layout.objectID != nil {
+            project.surfaces[i].source.video = nil
+            if project.surfaces[i].source.content == .video { project.surfaces[i].source.content = .diagnosticGrid }
+        }
+        let ids = project.referencedVideoIDs
+        project.videoAssets.removeAll { !ids.contains($0.id) }
+        videoFiles = videoFiles.filter { ids.contains($0.key) }
+        videoPosters = videoPosters.filter { ids.contains($0.key) }
+        videoProblems = videoProblems.filter { ids.contains($0.key) }
+        cleanupManagedVideos()
+    }
+    private func cleanupManagedVideos() {
+        guard videoFileLeases == 0 else { return }
+        let live = Set(videoFiles.values)
+        for url in managedVideoURLs.subtracting(live) { try? FileManager.default.removeItem(at: url); managedVideoURLs.remove(url) }
+    }
+    func importMedia(from url: URL,target: ImageImportTarget) async {
+        if ["mp4","mov"].contains(url.pathExtension.lowercased()) {
+            let task = Task { @MainActor in await importVideo(from: url,target: target) }
+            videoImportTask = task; await task.value; videoImportTask = nil
+        }
+        else { await importImage(from: url,target: target) }
+    }
+    func cancelVideoImport() { videoImportTask?.cancel(); mediaGeneration = UUID() }
+    func chooseVideo(target: ImageImportTarget) {
+        guard !isImportingVideo else { return }
+        let generation = mediaGeneration, expected = sourceForImageTarget(target)
+        let panel = NSOpenPanel(); panel.allowedContentTypes = [.mpeg4Movie,.quickTimeMovie]
+        panel.allowsMultipleSelection = false; panel.canChooseDirectories = false
+        panel.message = "Choose an SDR H.264/HEVC video for this content owner"
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor [weak self] in
+                guard let self, generation == self.mediaGeneration, expected == self.sourceForImageTarget(target) else { return }
+                await self.importMedia(from: url,target: target)
+            }
+        }
+    }
+    func importVideo(from url: URL,target: ImageImportTarget,
+        read: @Sendable (URL) async throws -> ImportedVideo = { url in
+            let worker = Task.detached(priority: .userInitiated) { try await VideoImportService.read(url) }
+            return try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
+        }) async {
+        guard !isImportingVideo else { editMessage = "Wait for the current video import to finish."; return }
+        let generation = mediaGeneration, expected = sourceForImageTarget(target)
+        isImportingVideo = true
+        defer { isImportingVideo = false }
+        do {
+            let imported = try await read(url)
+            guard !Task.isCancelled, generation == mediaGeneration, expected == sourceForImageTarget(target) else {
+                if imported.url.deletingLastPathComponent() == VideoImportService.stagingDirectory { try? FileManager.default.removeItem(at: imported.url) }
+                editMessage = "The target changed during import. Choose the video again."; return
+            }
+            do { try installVideo(imported,target: target) }
+            catch {
+                if imported.url.deletingLastPathComponent() == VideoImportService.stagingDirectory { try? FileManager.default.removeItem(at: imported.url) }
+                throw error
+            }
+        } catch { editMessage = error is CancellationError ? "Video import cancelled." : error.localizedDescription }
+    }
+    func installVideo(_ imported: ImportedVideo,target: ImageImportTarget) throws {
+        var candidate = project, asset = imported.asset
+        guard asset.isValid, try VideoImportService.safeFile(imported.url) == asset.byteCount else { throw ProjectFileError.invalid("Invalid prepared video.") }
+        var owner: UUID?
+        switch target {
+        case .owner(let id):
+            guard sourceForImageTarget(target) != nil else { throw ProjectFileError.invalid("The content owner no longer exists.") }; owner = id
+        case .detach(let id):
+            guard let i = candidate.surfaces.firstIndex(where: { $0.id == id }), let object = candidate.object(for: candidate.surfaces[i]) else { throw ProjectFileError.invalid("The grouped face no longer exists.") }
+            candidate.surfaces[i].source = object.source.independentCopy(); owner = candidate.surfaces[i].source.id
+            candidate.surfaces[i].appearance = candidate.appearance(for: candidate.surfaces[i]); candidate.surfaces[i].appearanceOverride = nil
+            candidate.surfaces[i].layout.isGeometryLocked = candidate.isGeometryLocked(candidate.surfaces[i])
+            candidate.surfaces[i].layout.isVisible = candidate.surfaces[i].layout.isVisible && object.isVisible
+            if object.mode == .repeatContent { candidate.surfaces[i].layout.inputMap = .full }
+            candidate.surfaces[i].layout.objectID = nil
+            candidate.timelineClips += candidate.timelineClips.filter { $0.sourceID == object.source.id }.map { var clip = $0; clip.id = UUID(); clip.sourceID = owner!; return clip }
+            for j in candidate.objects.indices { candidate.objects[j].links.removeAll { $0.firstFace == id || $0.secondFace == id } }
+            candidate.objects.removeAll { obj in !candidate.surfaces.contains { $0.layout.objectID == obj.id } }
+        case .newFace:
+            guard candidate.surfaces.count < 1000 else { throw ProjectFileError.invalid("Maximum of 1000 faces.") }
+            let face = MappingSurface(name: "Video \(candidate.surfaces.count+1)")
+            candidate.surfaces.insert(face,at: 0); owner = face.source.id
+        case .relink(let id):
+            guard candidate.videoAssets.contains(where: { $0.id == id }) else { throw ProjectFileError.invalid("That asset no longer exists.") }
+            asset.id = id; candidate.videoAssets.removeAll { $0.id == id }
+        case .reference: throw ProjectFileError.invalid("Reference photos accept images only.")
+        }
+        if let owner {
+            let content = VideoContent(assetID: asset.id,outPoint: asset.duration,canvasAspect: Float(output.aspectRatio))
+            if let i = candidate.objects.firstIndex(where: { $0.source.id == owner }) {
+                candidate.objects[i].source.content = .video; candidate.objects[i].source.video = content
+            } else if let i = candidate.surfaces.firstIndex(where: { $0.source.id == owner }) {
+                candidate.surfaces[i].source.content = .video; candidate.surfaces[i].source.video = content
+            }
+        }
+        if let old = candidate.videoAssets.first(where: { $0.id == asset.id }) {
+            guard old == asset, videoFiles[asset.id] == imported.url else { throw ProjectFileError.invalid("Video identity conflict.") }
+        } else { candidate.videoAssets.append(asset) }
+        let active = Set(candidate.timelineTracks.map(\.id)); candidate.timelineClips.removeAll { !active.contains($0.sourceID) }
+        let referenced = candidate.referencedVideoIDs
+        candidate.videoAssets.removeAll { !referenced.contains($0.id) }
+        try ProjectCodec.validate(ProjectDocument(project: candidate))
+        if imported.url.deletingLastPathComponent() == VideoImportService.stagingDirectory { managedVideoURLs.insert(imported.url) }
+        project = candidate; videoFiles[asset.id] = imported.url; videoPosters[asset.id] = imported.poster; videoProblems.removeValue(forKey: asset.id)
+        transport.setPlaying(false,at: ProcessInfo.processInfo.systemUptime)
+        if case .newFace = target { selectSurface(project.surfaces.first?.id) }
+        if case .detach(let id) = target { selectSurface(id) }
+        changed()
+    }
+    func setSelectedVideo(_ content: VideoContent) {
+        guard !project.videoProblem(content) else { editMessage = "Choose a valid source range inside the video's duration."; return }
+        updateSource { $0.video = content }
+    }
+    func removeSelectedVideo() { updateSource { $0.content = .diagnosticGrid; $0.video = nil } }
+    func setVideoAudio(_ settings: VideoAudioSettings) {
+        guard settings.isValid else { return }
+        project.videoAudio = settings; changed()
+    }
+    func enableVideoAudio(_ enabled: Bool) { videoAudioEnabled = enabled; if enabled { videoPlayback.rearmAudio() }; updateOutputScene() }
+    /// Native Save runs asset copies off the main actor; edits after the snapshot remain dirty.
+    func cancelMediaSave() { saveWorker?.cancel() }
+    func saveMedia(to url: URL) async throws {
+        guard !isSavingMedia else { throw ProjectFileError.io("A media save is already in progress.") }
+        let snapshot = project, generation = mediaGeneration, data = try ProjectCodec.encode(document)
+        let images = imageFiles, videos = videoFiles, source = assetSourceURL
+        isSavingMedia = true; videoFileLeases += 1
+        defer { saveWorker = nil; isSavingMedia = false; videoFileLeases -= 1; cleanupManagedVideos() }
+        let worker = Task.detached(priority: .userInitiated) {
+            let document = try ProjectCodec.decode(data)
+            for asset in document.project.videoAssets {
+                try Task.checkCancellation()
+                guard let file = videos[asset.id] else { throw ProjectFileError.invalid("Missing video; relink before saving.") }
+                let actual = try await VideoImportService.inspect(file).0
+                guard actual.byteCount == asset.byteCount, actual.duration >= asset.duration-0.00001,
+                      actual.width == asset.width, actual.height == asset.height, actual.transform == asset.transform else {
+                    throw ProjectFileError.invalid("Video changed; relink before saving.")
+                }
+            }
+            try ProjectPackageStore().write(document,to: url,assetsFrom: source,imageFiles: images,videoFiles: videos)
+        }
+        saveWorker = worker
+        try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
+        guard generation == mediaGeneration else { throw ProjectFileError.io("Project changed while saving; the captured project was saved separately.") }
+        documentURL = url; assetSourceURL = url; savedBaseline = snapshot; isRecovered = false
+        for asset in project.videoAssets where snapshot.videoAssets.contains(asset) { videoFiles[asset.id] = url.appendingPathComponent("assets").appendingPathComponent(asset.fileName) }
+        if !hasUserChanges { clearRecovery() } else { scheduleRecovery() }
+        fileMessage = "Saved \(url.lastPathComponent)"; updateOutputScene()
     }
 }

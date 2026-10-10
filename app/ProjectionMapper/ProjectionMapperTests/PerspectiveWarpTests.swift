@@ -98,7 +98,7 @@ struct PerspectiveWarpTests {
         let renderer = try MetalRenderer(scene: .diagnosticGrid)
         #expect(pixel(try render(renderer),x: 155,y: 155) != [0,0,0,255])
         let invalid = NormalizedRectangle.diagnostic.replacing(.topLeft,with: SIMD2(0.7,0.7))
-        for content in SurfaceContent.allCases.filter({ $0 != .image }) {
+        for content in SurfaceContent.allCases.filter({ $0 != .image && $0 != .video }) {
             renderer.setScene(RenderScene(geometry: invalid,color: SIMD4(1,0,0,1),content: content))
             let texture = try render(renderer)
             for y in stride(from: 0,to: 512,by: 17) { for x in stride(from: 0,to: 512,by: 17) {

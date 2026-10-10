@@ -59,6 +59,7 @@ fragment float4 rectangleFragment(RectangleVertexOutput input [[stage_in]],
                                  constant uint2 *maskRings [[buffer(12)]],
                                  constant float2 *maskPoints [[buffer(13)]],
                                  constant float2 &imageScale [[buffer(14)]],
+                                 constant float3x3 &videoUV [[buffer(15)]],
                                  texture2d<float> grid [[texture(0)]]) {
     // Clip in original face UV before EVERY content/calibration branch.
     if (maskRings[0].y > 0) {
@@ -113,7 +114,7 @@ fragment float4 rectangleFragment(RectangleVertexOutput input [[stage_in]],
         float2 imageUV = (uv - 0.5) * imageScale + 0.5;
         if (any(imageUV < 0.0) || any(imageUV > 1.0)) discard_fragment();
         constexpr sampler imageSampler(coord::normalized,address::clamp_to_edge,filter::linear,mip_filter::linear);
-        float4 sample = grid.sample(imageSampler,imageUV);
+        float4 sample = grid.sample(imageSampler,(videoUV * float3(imageUV,1)).xy);
         // Interpolate premultiplied pixels, then convert for the existing straight-alpha blend.
         if (sample.a > 1e-6) sample.rgb /= sample.a;
         return applyAppearance(sample,appearance,masterGain);
