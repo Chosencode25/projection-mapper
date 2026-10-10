@@ -1,6 +1,6 @@
 # Projection Mapper V1 guide
 
-Current V1 app: 1.15/build 12, portable format 9, macOS 15 or later. Test Mode is the supported V1 output. Fullscreen projector output and physical acceptance are scheduled for v2.01.
+Current V1 app: 1.15.1/build 13, portable format 9, macOS 15 or later. Test Mode is the supported V1 output. Fullscreen projector output and physical acceptance are scheduled for v2.01.
 
 ## Start and map
 

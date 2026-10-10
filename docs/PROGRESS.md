@@ -4,6 +4,8 @@ Last updated: October 10, 2026.
 
 ## Current state
 
+**Current correction: v1.15.1/build 13.** The missing Show readiness/audio controls are fixed and passed automated and short onscreen checks. The user explicitly requested GitHub/release correction; the full patch release is being packaged, preserving v1.15. See [patch verification](V1.15.1_VERIFICATION.md) and [acceptance evidence](V1.15_ACCEPTANCE.md).
+
 **v1.15 is the completed V1 app; the full GitHub release is published.** Universal **1.15/build 12**, portable format **9**. Adds bounded model/media undo/redo, coherent mapping/mask/slider transactions, saved-state media revision tracking, readiness diagnostics, temporary owner identification, scrollable narrow-window timeline controls, protected portable demo, help/welcome/About and app icon. **269 correctness tests passed in Debug and Release**, zero failures and zero runtime warnings; four opt-in benchmarks skipped and two legacy visible-window checks excluded. See [verification](V1.15_VERIFICATION.md) and [V1 guide](V1_USER_GUIDE.md).
 
 Signed app installed at app/ProjectionMapper.app and archived in builds/v1.15/. Previous installed v1.14 preserved at builds/v1.15/Previous-installed.app. Full V1 ZIP, checksum and install/usage notes prepared. Packaged/installed files match the tested Release product; architecture and strict signature checks passed. No screen control or app launch used. User visual/listening acceptance is pending, including actual audio routing/device loss and perceived sync/pitch. Runtime tests used Apple Silicon/macOS 27; Intel/older-macOS execution and physical projector output remain unverified. Developer ID/notarization have not been established; the app is locally ad-hoc signed.
@@ -492,3 +494,11 @@ Published [Projection Mapper V1 — v1.15](https://github.com/Chosencode25/proje
 Assets: ProjectionMapper-v1.15-macOS-universal.zip, SHA256SUMS.txt, V1_USER_GUIDE.md and Build-identity.json. All four were downloaded from GitHub before publication and matched their local bytes. Archive SHA-256: **f32cc9731ff0c3e93a3202c2c09dfb82be8ceb0560d23177b27fe67a22310a26**. Extracted app files matched every tested Release file and strict signature verification passed. Universal slices and bundle identity were checked. Local evidence is under builds/v1.15/V1-release/, including Published-release.json, Remote-tag.json and Repository-visibility.json. The verified app copy was restored to app/ProjectionMapper.app without launching it or using screen control. No code changed, so existing 269 passing tests per configuration and profile results remain applicable.
 
 Developer ID/notarization, Intel/older-macOS runtime and user visual/listening acceptance remain unestablished. Physical fullscreen output and music/show features remain V2. The separate canonical demo has local deletions that are preserved unstaged; its tracked bytes match the intact bundled demo. Release documentation was committed separately without those deletions.
+
+## Short V1 acceptance — October 10, 2026
+
+Completed the authorized short Computer Use checks with a separate generated-media demo project, excluding the long session. Fixed missing Show readiness/audio controls locally and installed the verified universal app. Readiness, identification restoration, mapping/timeline undo/redo, clean output, calibration/blackout, compact layout and portable save/reopen/relink were observed. Speaker routing/volume/enablement and safe audio-off reopening were checked through UI; audible behavior/perceived sync and physical device-unplug remain unverified. Published release unchanged; details in V1.15_ACCEPTANCE.md.
+
+## v1.15.1 release correction
+
+The user explicitly authorized uploading the tested Show-controls correction. v1.15.1/build 13 is prepared as a full patch release; original v1.15 remains preserved. Corrected app code passed 269 tests in both Debug/Release, and version metadata was rebuilt with the pinned toolchain. See [patch verification](V1.15.1_VERIFICATION.md). Publication confirmation follows after success.

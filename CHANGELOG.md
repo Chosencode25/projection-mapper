@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.15.1 — Show Controls Fix — October 10, 2026
+
+- Connect existing readiness/identification and global video audio controls to the Show inspector; they were implemented but inaccessible there in the released app.
+- Short authorized onscreen checks covered mapping/timeline undo, mixed content, clean output, calibration/blackout, identification, narrow layouts, relink and portable save/reopen. Audio controls and safe reopening checked; listening/device-unplug remain unverified.
+- Debug/Release each passed 269 tests with zero failures/runtime warnings. Rebuilt universal 1.15.1/build 13 for the explicitly requested GitHub/release correction. Preserve the original v1.15 tag and assets.
+
 ## v1.15 — V1 Completion — October 10, 2026
 
 - Add bounded project/media undo and redo, coherent mapping/mask/slider edits, stable target/clip identities and save-aware dirty tracking, including same-ID media relinks. Retain staged video originals through saved-package replacement and release obsolete history/resources.

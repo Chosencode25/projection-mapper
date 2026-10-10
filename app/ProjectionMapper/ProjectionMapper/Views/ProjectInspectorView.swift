@@ -29,7 +29,11 @@ struct ProjectInspectorView: View {
                             Button("Add surface", systemImage: "plus") { session.addSurface() }
                         }
                     case .show:
+                        PlaybackReadinessControls(session: session)
+                        Divider()
                         PlaybackControls(session: session)
+                        Divider()
+                        VideoAudioControls(session: session)
                         Divider()
                         MasterOutputControls(session: session)
                         Divider()

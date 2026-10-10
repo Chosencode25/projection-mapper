@@ -30,7 +30,7 @@ The V1 app maps images, videos and built-in animations onto independent surfaces
 
 Required toolchain: **Xcode 27.0 beta 5 (27A5237l)**.
 
-**Current app: Projection Mapper V1 — v1.15/build 12.** Open app/ProjectionMapper.app, or download the universal app from the [full V1 release](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15). macOS 15 or later; locally ad-hoc signed, not Apple-notarized. Quit/reopen an older running copy.
+**Current app: Projection Mapper V1 — v1.15.1/build 13.** Open app/ProjectionMapper.app, or download the universal app from the [full V1 release](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15.1). macOS 15 or later; locally ad-hoc signed, not Apple-notarized. Quit/reopen an older running copy.
 
 V1 includes independent/connected faces, mapping/masks/calibration, animations, looks/palettes, image/reference-photo and video import, explicit video audio, object timeline, portable saves/recovery, undo/redo, readiness and a protected demo. Format 9 migrates formats 1–8. Both Debug and Release passed 269 correctness tests; user visual/listening acceptance remains pending. See the [V1 guide](docs/V1_USER_GUIDE.md) and [verification](docs/V1.15_VERIFICATION.md). Next development: v2.01 physical projector output; music/show features follow in V2.
 
@@ -42,4 +42,4 @@ Private repository: [Chosencode25/projection-mapper](https://github.com/Chosenco
 
 The first milestone is `v1.01`. Follow [GitHub workflow](docs/GITHUB_WORKFLOW.md) for branches, commits, milestone tags, and release downloads. See [Changelog](CHANGELOG.md) for completed version changes.
 
-Tested V1 app source is **60e838d**; the annotated v1.15 tag includes finalized release documentation. Prior milestones, tags and releases are preserved. Repository visibility remains private.
+The v1.15.1 patch corrects missing Show readiness/audio controls and includes the short acceptance record. The original v1.15 snapshot is preserved. Prior milestones, tags and releases are preserved. Repository visibility remains private.
