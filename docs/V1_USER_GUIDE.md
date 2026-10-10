@@ -1,6 +1,6 @@
 # Projection Mapper V1 guide
 
-Current development app: 1.15/build 12, portable format 9, macOS 15 or later. Test Mode is the supported V1 output. Fullscreen projector output and physical acceptance are scheduled for v2.01.
+Current V1 app: 1.15/build 12, portable format 9, macOS 15 or later. Test Mode is the supported V1 output. Fullscreen projector output and physical acceptance are scheduled for v2.01.
 
 ## Start and map
 
@@ -34,7 +34,7 @@ Identify Selected isolates that owner's faces in white without changing mapping 
 
 At 4K, dense overlapping particle layers can exceed the measured frame budget. Use Full HD or reduce density/overlap for heavier scenes; readiness does not certify a frame rate. The bounded profiling results are in V1.15_VERIFICATION.md.
 
-## User acceptance before publication
+## User visual and listening checks
 
 Open the demo, play/scrub mixed clips, inspect the connected faces, try a mapping drag and undo/redo, relink media, Save As and reopen. Check narrow-window controls and Show readiness/identification restoration. Deliberately test audio routing, perceived sync/pitch and device unplug only when desired. Routine visuals/listening are performed by the user; automated offscreen evidence is recorded separately.
 

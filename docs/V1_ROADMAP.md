@@ -2,7 +2,7 @@
 
 V1 targets a native Mac mapping workspace for images, videos and built-in animations on multiple surfaces. Faces can form objects with shared content coordinates so content continues across joined faces. Reusable looks/palettes, masks, time-based playback, an editor-only house photo and portable projects prepare it for musical shows. V1 acceptance remains Test Mode; fullscreen projector implementation and physical acceptance are scheduled for v2.01.
 
-See [ordered implementation steps](V1_REMAINING_PLAN.md). **Current October 10, 2026 state:** v1.01–v1.15 implementation is complete. Installed 1.15/build 12 uses portable format 9; 269 correctness tests passed in each Debug/Release run with zero runtime warnings. User visual/listening acceptance and separately authorized publication remain pending. See [v1.15 verification](V1.15_VERIFICATION.md) and [V1 guide](V1_USER_GUIDE.md). No release/tag publication or repository visibility change is included. Next development is v2.01 physical projector output. Earlier entries below preserve historical scope.
+See [ordered implementation steps](V1_REMAINING_PLAN.md). **Current October 10, 2026 state:** v1.01–v1.15 implementation is complete. Installed 1.15/build 12 uses portable format 9; 269 correctness tests passed in each Debug/Release run with zero runtime warnings. User visual/listening acceptance remains pending; full V1 release publication is explicitly authorized and being finalized. See [v1.15 verification](V1.15_VERIFICATION.md) and [V1 guide](V1_USER_GUIDE.md). Repository visibility remains private. Next development is v2.01 physical projector output. Earlier entries below preserve historical scope.
 
 | Stage | Scope |
 |---|---|
@@ -150,3 +150,7 @@ Face-local polygon boundaries and holes, drawing/dragging/numeric editing, valid
 ## v1.12 Mapping Tools completed — October 7, 2026
 
 All three slices are implemented: temporary calibration including shared stripes/checkers, saved face-local polygon boundaries/holes, editor guide visibility/names/edge labels and connected-face inspection. All 225 offscreen correctness checks passed in Debug/Release; four benchmarks skipped and two visible-window tests excluded. Tested signed universal 1.12/build 9 app installed; previous preview preserved. See [verification](V1.12.3_VERIFICATION.md). Completed-milestone source backup successfully pushed to GitHub main at b786f55; user visuals pending. No release/tag/assets authorized. Next: v1.13 Image Import.
+
+## Full V1 release finalization — October 10, 2026
+
+The user explicitly authorized a full GitHub release of v1.15. The tested 1.15/build 12 app is unchanged; stale current-state documentation and distribution notes were finalized. The release packages the universal locally ad-hoc signed app, bundled demo, guide, install instructions, build identity and checksums. Repository visibility remains private. Publication and downloaded-asset verification will be recorded after confirmation. Developer ID/notarization and user visual/listening acceptance remain unestablished. The separate canonical demo has local deletions that are preserved unstaged; its tracked bytes match the intact bundled demo.

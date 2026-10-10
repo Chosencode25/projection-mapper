@@ -30,9 +30,9 @@ The V1 app maps images, videos and built-in animations onto independent surfaces
 
 Required toolchain: **Xcode 27.0 beta 5 (27A5237l)**.
 
-**Current app: v1.14 Video Import and Timeline Integration.** Open app/ProjectionMapper.app (1.14/build 11), or open app/ProjectionMapper/ProjectionMapper.xcodeproj with the required Xcode. Quit/reopen an older running app to use the replacement. The universal signed app is archived in builds/v1.14/; the previous installed app is preserved.
+**Current app: Projection Mapper V1 — v1.15/build 12.** Open app/ProjectionMapper.app, or download the universal app from the [full V1 release](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15). macOS 15 or later; locally ad-hoc signed, not Apple-notarized. Quit/reopen an older running copy.
 
-Independent/connected faces, animations, images, masks/calibration, looks/palettes and a bottom object timeline now support video ranges, trim/move/loop/seek and explicit embedded audio. Portable format 9 migrates formats 1–8. Both Debug and Release passed 258 correctness tests; user visual/listening acceptance remains pending. See [video guide and demo](docs/VIDEO_IMPORT_GUIDE.md), [verification](docs/V1.14_VERIFICATION.md) and [progress](docs/PROGRESS.md). Next: v1.15 undo/redo, readiness and polish. Music/show features and physical projector work remain V2.
+V1 includes independent/connected faces, mapping/masks/calibration, animations, looks/palettes, image/reference-photo and video import, explicit video audio, object timeline, portable saves/recovery, undo/redo, readiness and a protected demo. Format 9 migrates formats 1–8. Both Debug and Release passed 269 correctness tests; user visual/listening acceptance remains pending. See the [V1 guide](docs/V1_USER_GUIDE.md) and [verification](docs/V1.15_VERIFICATION.md). Next development: v2.01 physical projector output; music/show features follow in V2.
 
 The original ChatGPT project mirror at `/Users/keith/.codex/.chatgpt-projects/g-p-6ac32a4ca5b08191bfcf6bd28eb66008` remains a reference location. Do not edit its synced files.
 
@@ -42,4 +42,4 @@ Private repository: [Chosencode25/projection-mapper](https://github.com/Chosenco
 
 The first milestone is `v1.01`. Follow [GitHub workflow](docs/GITHUB_WORKFLOW.md) for branches, commits, milestone tags, and release downloads. See [Changelog](CHANGELOG.md) for completed version changes.
 
-Completed v1.14 tested milestone source was successfully pushed to GitHub main at **ccb5df2**, from 7c84178. Delivery notes follow that source commit. No new release/tag/app asset publication is included. Earlier milestone history is preserved.
+Tested V1 app source is **60e838d**; the annotated v1.15 tag includes finalized release documentation. Prior milestones, tags and releases are preserved. Repository visibility remains private.

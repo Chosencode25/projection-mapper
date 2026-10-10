@@ -13,7 +13,7 @@ The interface uses SwiftUI and programmatic AppKit, without storyboards/XIBs. Mi
 
 ## Current local app — v1.15
 
-Open app/ProjectionMapper.app or builds/v1.15/ProjectionMapper.app. Bundle **1.15/build 12**, format **9**; universal arm64/x86_64 and locally ad-hoc signed. Quit/reopen an older instance. Previous v1.14 app is preserved at builds/v1.15/Previous-installed.app. Development ZIP/checksum/install instructions are local; public signing/notarization and release publication are pending.
+Open app/ProjectionMapper.app or builds/v1.15/ProjectionMapper.app. Bundle **1.15/build 12**, format **9**; universal arm64/x86_64 and locally ad-hoc signed. Quit/reopen an older instance. Previous v1.14 app is preserved at builds/v1.15/Previous-installed.app. The full V1 release uses ProjectionMapper-v1.15-macOS-universal.zip with checksum/install instructions. Developer ID signing and notarization remain unestablished.
 
 See [V1 guide](V1_USER_GUIDE.md) and [verification](V1.15_VERIFICATION.md). Help → Open V1 Demo protects unsaved work and opens a fresh unsaved template. Command-Z / Shift-Command-Z undo/redo project edits outside text fields; Show provides readiness/identification. User visual/listening acceptance remains pending. No app launch or screen automation used.
 
