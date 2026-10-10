@@ -4,7 +4,7 @@ Last updated: October 10, 2026.
 
 ## Current state
 
-**Current correction: v1.15.1/build 13.** The missing Show readiness/audio controls are fixed and passed automated and short onscreen checks. The user explicitly requested GitHub/release correction; the full patch release is being packaged, preserving v1.15. See [patch verification](V1.15.1_VERIFICATION.md) and [acceptance evidence](V1.15_ACCEPTANCE.md).
+**Current correction: v1.15.1/build 13.** The missing Show readiness/audio controls are fixed and passed automated and short onscreen checks. The user explicitly requested GitHub/release correction; the full patch release is published as latest, preserving v1.15. See [patch verification](V1.15.1_VERIFICATION.md) and [acceptance evidence](V1.15_ACCEPTANCE.md).
 
 **v1.15 is the completed V1 app; the full GitHub release is published.** Universal **1.15/build 12**, portable format **9**. Adds bounded model/media undo/redo, coherent mapping/mask/slider transactions, saved-state media revision tracking, readiness diagnostics, temporary owner identification, scrollable narrow-window timeline controls, protected portable demo, help/welcome/About and app icon. **269 correctness tests passed in Debug and Release**, zero failures and zero runtime warnings; four opt-in benchmarks skipped and two legacy visible-window checks excluded. See [verification](V1.15_VERIFICATION.md) and [V1 guide](V1_USER_GUIDE.md).
 
@@ -501,4 +501,8 @@ Completed the authorized short Computer Use checks with a separate generated-med
 
 ## v1.15.1 release correction
 
-The user explicitly authorized uploading the tested Show-controls correction. v1.15.1/build 13 is prepared as a full patch release; original v1.15 remains preserved. Corrected app code passed 269 tests in both Debug/Release, and version metadata was rebuilt with the pinned toolchain. See [patch verification](V1.15.1_VERIFICATION.md). Publication confirmation follows after success.
+The user explicitly authorized uploading the tested Show-controls correction. v1.15.1/build 13 is prepared as a full patch release; original v1.15 remains preserved. Corrected app code passed 269 tests in both Debug/Release, and version metadata was rebuilt with the pinned toolchain. See [patch verification](V1.15.1_VERIFICATION.md). Publication is confirmed below.
+
+## Confirmed patch publication
+
+Published [v1.15.1](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15.1) at 2026-10-10T22:50:58Z as the latest full release, not draft/prerelease. Annotated tag points to **a2fa5188a91fe92cafb29cabd4bf953b9f35ddf1**. Main source was successfully pushed; original v1.15 tag/release/assets are preserved. Four assets uploaded: universal app ZIP, SHA256SUMS.txt, guide and build identity. All four downloaded assets match local bytes; checksum, extracted app file hashes, strict signature and bundle 1.15.1/build 13 passed. ZIP SHA-256: **ee397193fc0c885c72414ade1c0e43c6ea66d493ab600f13be8bcc4751fc6cef**. Corrected app is installed at app/ProjectionMapper.app and archived under builds/v1.15.1/. Quit/reopen an older running copy. No new listening/device-unplug/long-session acceptance claim.

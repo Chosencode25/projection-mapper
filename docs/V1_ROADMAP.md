@@ -2,7 +2,7 @@
 
 V1 targets a native Mac mapping workspace for images, videos and built-in animations on multiple surfaces. Faces can form objects with shared content coordinates so content continues across joined faces. Reusable looks/palettes, masks, time-based playback, an editor-only house photo and portable projects prepare it for musical shows. V1 acceptance remains Test Mode; fullscreen projector implementation and physical acceptance are scheduled for v2.01.
 
-See [ordered implementation steps](V1_REMAINING_PLAN.md). **Current October 10, 2026 state:** v1.01–v1.15 implementation is complete. Installed 1.15/build 12 uses portable format 9; 269 correctness tests passed in each Debug/Release run with zero runtime warnings. User visual/listening acceptance remains pending; the full V1 release is published at [v1.15](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15). See [v1.15 verification](V1.15_VERIFICATION.md) and [V1 guide](V1_USER_GUIDE.md). Repository visibility remains private. Next development is v2.01 physical projector output. Earlier entries below preserve historical scope.
+See [ordered implementation steps](V1_REMAINING_PLAN.md). **Current October 10, 2026 state:** v1.01–v1.15 implementation is complete. Installed 1.15.1/build 13 uses portable format 9; 269 correctness tests passed in each Debug/Release run with zero runtime warnings. User visual/listening acceptance remains pending; the corrected full V1 release is published at [v1.15.1](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15.1). See [v1.15 verification](V1.15_VERIFICATION.md) and [V1 guide](V1_USER_GUIDE.md). Repository visibility remains private. Next development is v2.01 physical projector output. Earlier entries below preserve historical scope.
 
 | Stage | Scope |
 |---|---|
@@ -161,4 +161,8 @@ Developer ID/notarization, Intel/older-macOS runtime and user visual/listening a
 
 ## v1.15.1 release correction
 
-The user explicitly authorized uploading the tested Show-controls correction. v1.15.1/build 13 is prepared as a full patch release; original v1.15 remains preserved. Corrected app code passed 269 tests in both Debug/Release, and version metadata was rebuilt with the pinned toolchain. See [patch verification](V1.15.1_VERIFICATION.md). Publication confirmation follows after success.
+The user explicitly authorized uploading the tested Show-controls correction. v1.15.1/build 13 is prepared as a full patch release; original v1.15 remains preserved. Corrected app code passed 269 tests in both Debug/Release, and version metadata was rebuilt with the pinned toolchain. See [patch verification](V1.15.1_VERIFICATION.md). Publication is confirmed below.
+
+## Confirmed patch publication
+
+Published [v1.15.1](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15.1) at 2026-10-10T22:50:58Z as the latest full release, not draft/prerelease. Annotated tag points to **a2fa5188a91fe92cafb29cabd4bf953b9f35ddf1**. Main source was successfully pushed; original v1.15 tag/release/assets are preserved. Four assets uploaded: universal app ZIP, SHA256SUMS.txt, guide and build identity. All four downloaded assets match local bytes; checksum, extracted app file hashes, strict signature and bundle 1.15.1/build 13 passed. ZIP SHA-256: **ee397193fc0c885c72414ade1c0e43c6ea66d493ab600f13be8bcc4751fc6cef**. Corrected app is installed at app/ProjectionMapper.app and archived under builds/v1.15.1/. Quit/reopen an older running copy. No new listening/device-unplug/long-session acceptance claim.

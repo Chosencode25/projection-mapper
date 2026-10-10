@@ -4,7 +4,7 @@
 
 - Connect existing readiness/identification and global video audio controls to the Show inspector; they were implemented but inaccessible there in the released app.
 - Short authorized onscreen checks covered mapping/timeline undo, mixed content, clean output, calibration/blackout, identification, narrow layouts, relink and portable save/reopen. Audio controls and safe reopening checked; listening/device-unplug remain unverified.
-- Debug/Release each passed 269 tests with zero failures/runtime warnings. Rebuilt universal 1.15.1/build 13 for the explicitly requested GitHub/release correction. Preserve the original v1.15 tag and assets.
+- Debug/Release each passed 269 tests with zero failures/runtime warnings. Published [v1.15.1](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15.1) as latest, with verified universal 1.15.1/build 13 download. Original v1.15 tag and assets preserved.
 
 ## v1.15 — V1 Completion — October 10, 2026
 
