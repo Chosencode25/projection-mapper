@@ -66,6 +66,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        session.releaseRuntimeResources()
         session.testOutput.close()
         editorWindow?.contentView = nil
         editorWindow?.delegate = nil
@@ -116,12 +117,45 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         return true
     }
 
+    // Keep text-field undo in the native field editor; project history applies outside text editing.
+    private var textEditor: NSTextView? { editorWindow?.firstResponder as? NSTextView }
+    var canUndo: Bool { textEditor?.undoManager?.canUndo ?? session.canUndo }
+    var canRedo: Bool { textEditor?.undoManager?.canRedo ?? session.canRedo }
+    func undo() { if let editor = textEditor { editor.undoManager?.undo() } else { session.undoProjectEdit(); updateWindowTitle() } }
+    func redo() { if let editor = textEditor { editor.undoManager?.redo() } else { session.redoProjectEdit(); updateWindowTitle() } }
+    func openDemo() {
+        guard let url = Bundle.main.url(forResource: "V1-Demo",withExtension: "projectionmap") else {
+            session.fileMessage = "The demo package is unavailable; reinstall the complete app."; return
+        }
+        // Reuse Save/Discard/Cancel and the normal portable-media loading path.
+        openProject(url)
+    }
+    func showWelcome() {
+        showEditor()
+        guard !isPrompting, let window = editorWindow else { return }
+        let alert = NSAlert(); alert.messageText = "Welcome to Projection Mapper"
+        alert.informativeText = "Map effects, images and video onto faces or connected objects, then arrange them on the timeline. V1 includes a resizable Test Window. Start with the portable demo or read the guide. Opening the demo protects unsaved work with Save / Discard / Cancel."
+        alert.addButton(withTitle: "Open Demo"); alert.addButton(withTitle: "Guide"); alert.addButton(withTitle: "Keep Editing")
+        isPrompting = true
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }; self.isPrompting = false
+            if response == .alertFirstButtonReturn { self.openDemo() }
+            else if response == .alertSecondButtonReturn { self.showHelp() }
+        }
+    }
+    func showHelp() {
+        let alert = NSAlert(); alert.messageText = "Projection Mapper · V1 Guide"
+        alert.informativeText = "Add faces, drag their corners, and group checked faces into an object. Continuous mode shares one canvas; input maps and edge links establish continuity. Repeat shows the same content on each face.\n\nChoose effects, PNG/JPEG images or SDR H.264/HEVC MP4/MOV. Capture content with + in an object timeline row. Empty rows show live content; gaps in populated rows are dark. Move clips to move timing, drag edges to trim, and scrub the ruler. Audio starts muted.\n\nCommand-Z / Shift-Command-Z undo and redo project edits. Save with Command-S; .projectionmap packages include referenced media. Open the V1 Demo from Help; unsaved work is protected. Check Playback Readiness in Show before playback. Identification temporarily isolates the selected owner; Finish Identification restores normal output.\n\nV1 uses a resizable Test Window. Fullscreen projector output, music waveforms/sequencing, lights and layered crossfades remain V2."
+        alert.addButton(withTitle: "Done")
+        if let window = editorWindow { alert.beginSheetModal(for: window) { _ in } }
+    }
+
     func showAbout() {
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "Projection Mapper",
             .applicationVersion: AppVersion.version,
             .version: AppVersion.build,
-            .credits: NSAttributedString(string: "A simple workspace for projection mapping.\nBasic Test Window · v\(AppVersion.version)")
+            .credits: NSAttributedString(string: "A simple workspace for projection mapping.\nTest Mode · effects, connected faces, images and video · v\(AppVersion.version)")
         ])
     }
 
@@ -185,7 +219,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                     defer { self.isPrompting = false }
                     do {
                         // Reread after any Save. Decode large image assets off the main thread.
-                        let document = try ProjectPackageStore().read(url)
+                        let isDemo = url == Bundle.main.url(forResource: "V1-Demo",withExtension: "projectionmap")
+                        let original = try ProjectPackageStore().read(url)
+                        let document = isDemo ? try ProjectCodec.freshDemo(original) : original
                         let baseline = self.session.project
                         let assets = document.project.imageAssets
                         let media = await Task.detached(priority: .userInitiated) { ImageImportService.loadAssets(assets,package: url) }.value
@@ -193,9 +229,10 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                             self.session.fileMessage = "The current mapping changed while images loaded. Open the project again."; return
                         }
                         let videos = await VideoImportService.loadAssets(document.project.videoAssets,package: url)
+                        defer { self.removeUnadoptedVideoStages(videos.urls) }
                         guard self.session.project == baseline else { throw ProjectFileError.io("Project changed while opening; try again.") }
-                        try self.session.load(document,from: url,loadedMedia: media,loadedVideos: videos)
-                        self.remember(url); self.updateWindowTitle()
+                        try self.session.load(document,from: url,recovering: isDemo,loadedMedia: media,loadedVideos: videos)
+                        if !isDemo { self.remember(url) }; self.updateWindowTitle()
                     } catch { self.showFileError(error) }
                 }
             }
@@ -241,6 +278,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                                     ImageImportService.loadAssets(entry.document.project.imageAssets,package: entry.url)
                                 }.value
                                 let videos = await VideoImportService.loadAssets(entry.document.project.videoAssets,package: entry.url)
+                                defer { self.removeUnadoptedVideoStages(videos.urls) }
                                 guard baseline == self.session.project else { throw ProjectFileError.io("Mapping changed during recovery; restore again.") }
                                 try self.session.load(entry.document,from: entry.url,recovering: true,loadedMedia: images,loadedVideos: videos)
                                 self.isPrompting = false
@@ -254,6 +292,12 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                     self.showFileError(error)
                 }
             }
+        }
+    }
+    private func removeUnadoptedVideoStages(_ urls: [UUID:URL]) {
+        let adopted = Set(session.videoFiles.values)
+        for url in urls.values where !adopted.contains(url) && url.deletingLastPathComponent() == VideoImportService.stagingDirectory {
+            try? FileManager.default.removeItem(at: url)
         }
     }
     private func showFileError(_ error: Error) {

@@ -123,11 +123,12 @@ struct MaskCanvas: View {
                                     .gesture(DragGesture(minimumDistance: 0,coordinateSpace: .named(space))
                                         .onChanged { drag in
                                             guard !projected || session.editorDisplay.maskHandles else { return }
+                                            session.beginContinuousEdit("Move Mask Point")
                                             session.selectedMaskRingID = ring.id; session.selectedMaskVertex = index
                                             if let uv = local(drag.location,size: geometry.size) {
                                                 session.moveMaskPoint(uv,faceID: face.id,ringID: ring.id,index: index)
                                             }
-                                        })
+                                        }.onEnded { _ in session.endContinuousEdit() })
                                     .accessibilityLabel("\(ring.id == face.mask?.boundary.id ? "Boundary" : "Hole") point \(index+1)")
                             }
                         }

@@ -178,7 +178,7 @@ private struct GeneratorControls: View {
     private func slider(_ title: String, value: Float, range: ClosedRange<Double>, set: @escaping (inout GeneratorSettings, Float) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text("\(title) · \(Double(value).formatted(.number.precision(.fractionLength(2))))").font(.caption)
-            Slider(value: Binding(get: { Double(value) }, set: { number in edit { set(&$0,Float(number)) } }), in: range)
+            Slider(value: Binding(get: { Double(value) }, set: { number in edit { set(&$0,Float(number)) } }), in: range, onEditingChanged: session.continuousEditing)
                 .accessibilityLabel(title)
         }
     }
@@ -284,7 +284,7 @@ private struct FaceInspector: View {
                     Text(face.appearanceOverride == nil ? "Inherited from \(object.name). Inspect the object to change all faces." : "Face override · crop, flips or appearance may break continuity at joined edges.")
                         .font(.caption).foregroundStyle(face.appearanceOverride == nil ? Color.secondary : Color.orange)
                 }
-                AppearanceEditor(value: session.project.appearance(for: face),scope: face.layout.objectID == nil ? "Face appearance" : "Face appearance override",apply: { session.setAppearance($0,faceID: face.id) })
+                AppearanceEditor(session: session,value: session.project.appearance(for: face),scope: face.layout.objectID == nil ? "Face appearance" : "Face appearance override",apply: { session.setAppearance($0,faceID: face.id) })
                     .disabled(face.layout.objectID != nil && face.appearanceOverride == nil)
             }
             InspectorSection("Input mapping") { InputMapEditor(session: session, face: face) }
@@ -369,7 +369,7 @@ private struct ObjectInspector: View {
                 }
             }
             InspectorSection("Appearance") {
-                AppearanceEditor(value: object.appearance,scope: "Object appearance · inherited by faces",apply: { session.setAppearance($0,objectID: object.id) })
+                AppearanceEditor(session: session,value: object.appearance,scope: "Object appearance · inherited by faces",apply: { session.setAppearance($0,objectID: object.id) })
                 Text("Shared crop and flips preserve joined sampling. Faces with overrides keep their own controls.").font(.caption).foregroundStyle(.secondary)
             }
             InspectorSection("Members & object actions") {
@@ -468,6 +468,7 @@ private struct NameEditor: View {
 }
 
 private struct AppearanceEditor: View {
+    let session: EditorSession
     let value: SurfaceAppearance
     let scope: String
     let apply: (SurfaceAppearance) -> Void
@@ -487,9 +488,9 @@ private struct AppearanceEditor: View {
         VStack(alignment: .leading,spacing: 8) {
             Text(scope.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             HStack { Text("Opacity"); Spacer(); Text(value.opacity.formatted(.percent.precision(.fractionLength(0)))).monospacedDigit() }.font(.caption)
-            Slider(value: Binding(get: { Double(value.opacity) },set: { next in change { $0.opacity = Float(next) } }),in: 0...1).accessibilityLabel(scope + " opacity")
+            Slider(value: Binding(get: { Double(value.opacity) },set: { next in change { $0.opacity = Float(next) } }),in: 0...1, onEditingChanged: session.continuousEditing).accessibilityLabel(scope + " opacity")
             HStack { Text("Brightness"); Spacer(); Text(value.brightness.formatted(.percent.precision(.fractionLength(0)))).monospacedDigit() }.font(.caption)
-            Slider(value: Binding(get: { Double(value.brightness) },set: { next in change { $0.brightness = Float(next) } }),in: 0...2).accessibilityLabel(scope + " brightness")
+            Slider(value: Binding(get: { Double(value.brightness) },set: { next in change { $0.brightness = Float(next) } }),in: 0...2, onEditingChanged: session.continuousEditing).accessibilityLabel(scope + " brightness")
             Toggle("Flip horizontally",isOn: Binding(get: { value.flipHorizontal },set: { next in change { $0.flipHorizontal = next } }))
             Toggle("Flip vertically",isOn: Binding(get: { value.flipVertical },set: { next in change { $0.flipVertical = next } }))
             Text("Crop · source coordinates 0–1").font(.caption).foregroundStyle(.secondary)

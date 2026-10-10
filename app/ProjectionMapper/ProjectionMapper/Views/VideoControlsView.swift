@@ -89,7 +89,7 @@ struct VideoAudioControls: View {
                 Toggle("Enable Audio",isOn: Binding(get: { session.videoAudioEnabled },set: session.enableVideoAudio))
                 Slider(value: Binding(get: { Double(session.project.videoAudio.volume) },set: { value in
                     var settings = session.project.videoAudio; settings.volume = Float(value); session.setVideoAudio(settings)
-                }),in: 0...1).accessibilityLabel("Master video audio volume")
+                }),in: 0...1, onEditingChanged: session.continuousEditing).accessibilityLabel("Master video audio volume")
                 Picker("Output device",selection: Binding(get: { session.project.videoAudio.deviceUID },set: { value in
                     var settings = session.project.videoAudio; settings.deviceUID = value; session.setVideoAudio(settings)
                 })) {

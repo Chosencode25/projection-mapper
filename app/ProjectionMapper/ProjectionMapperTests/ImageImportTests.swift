@@ -45,6 +45,35 @@ struct ImageImportTests {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: url,withIntermediateDirectories: true); return url
     }
+    @Test func historyRestoresReplacedRemovedAndRelinkedImageBytes() throws {
+        let s = EditorSession(presentOutput: { _ in }), first = try fixture(), second = try fixture(quadrants: true)
+        let owner = s.project.timelineTracks[0].id
+        try s.installImage(first,target: .owner(owner)); let original = s.project
+        try s.installImage(second,target: .owner(owner))
+        s.undoProjectEdit(); #expect(s.project == original && s.imagePixels[first.asset.id] == first.pixels)
+        s.redoProjectEdit(); #expect(s.imagePixels[second.asset.id] == second.pixels)
+        s.removeSelectedImage(); s.undoProjectEdit(); #expect(s.imagePixels[second.asset.id] == second.pixels)
+        try s.installImage(first,target: .relink(second.asset.id))
+        #expect(s.imagePixels[second.asset.id] == first.pixels)
+        s.undoProjectEdit(); #expect(s.imagePixels[second.asset.id] == second.pixels)
+        let folder = try temp(); defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("undo.projectionmap"); try s.save(to: file)
+        let loaded = try ProjectPackageStore().read(file)
+        try s.load(loaded,from: file); #expect(!s.canUndo && !s.canRedo)
+    }
+    @Test func sameMetadataRelinkTracksUnsavedBytesAcrossSaveAndUndo() throws {
+        let s = EditorSession(presentOutput: { _ in }), first = try fixture(), replacement = try fixture(quadrants: true)
+        let folder = try temp(); defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("image.projectionmap")
+        try s.installImage(first,target: .owner(s.project.timelineTracks[0].id)); try s.save(to: file)
+        #expect(!s.hasUserChanges)
+        try s.installImage(replacement,target: .relink(first.asset.id)); #expect(s.hasUserChanges)
+        s.undoProjectEdit(); #expect(!s.hasUserChanges && s.imagePixels[first.asset.id] == first.pixels)
+        s.redoProjectEdit(); #expect(s.hasUserChanges && s.imagePixels[first.asset.id] == replacement.pixels)
+        try s.save(to: file); #expect(!s.hasUserChanges)
+        s.undoProjectEdit(); #expect(s.hasUserChanges)
+        s.redoProjectEdit(); #expect(!s.hasUserChanges)
+    }
     @Test func normalizationPreservesPNGOrientationColorAndTransparency() throws {
         let image = try fixture(quadrants: true)
         #expect(image.pixels.width == 16 && image.pixels.height == 8)

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.15 — V1 Completion — October 10, 2026
+
+- Add bounded project/media undo and redo, coherent mapping/mask/slider edits, stable target/clip identities and save-aware dirty tracking, including same-ID media relinks. Retain staged video originals through saved-package replacement and release obsolete history/resources.
+- Add bounded readiness diagnostics for geometry/masks/joins, live/library/timeline media/ranges, decoded-resource problems, audio selection and Test Mode; checks never start playback. Temporary selected-owner identification preserves saved content/runtime transport with a reachable Finish action.
+- Polish narrow-window timeline control scrolling, native text undo, accessible actions and zero-width renderer-error layout; supply protected unique-identity demo loading, Welcome/Guide/About and code-generated app icon.
+- Bundle a portable mixed-content demo with a house reference illustration/masks, connected object and independent video. Preserve schema 9 and migrations 1–8. Prepare locally ad-hoc signed universal 1.15/build 12 app and development ZIP/checksum/instructions.
+- Final Debug/Release each passed 269 correctness tests, zero failures and zero runtime warnings. Bounded mixed HD profile and effects matrix evidence is recorded separately. User visual/listening, Intel/older-macOS, physical projector and Developer ID/notarization acceptance remain pending. No release/tag publication is included.
+
 ## v1.14 — Video Import and Timeline Integration — October 9, 2026
 
 - Import/drop SDR H.264/HEVC MP4/MOV, inspect orientation/audio, stage originals with cancellation and expose posters/replace/remove/relink.

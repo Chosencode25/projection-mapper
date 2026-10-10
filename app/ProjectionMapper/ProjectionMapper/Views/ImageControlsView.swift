@@ -61,11 +61,11 @@ struct ReferencePhotoControls: View {
                         TextField("Center Y",value: Binding(get: { Double(photo.center.y) },set: { value in edit { $0.center.y = Float(value) } }),format: .number).accessibilityLabel("Reference photo center Y")
                     }.textFieldStyle(.roundedBorder)
                     Text("Photo scale")
-                    Slider(value: Binding(get: { Double(photo.scale) },set: { value in edit { $0.scale = Float(value) } }),in: 0.1...4).accessibilityLabel("Reference photo scale")
+                    Slider(value: Binding(get: { Double(photo.scale) },set: { value in edit { $0.scale = Float(value) } }),in: 0.1...4, onEditingChanged: session.continuousEditing).accessibilityLabel("Reference photo scale")
                     Button("Reset alignment") { edit { $0.center = SIMD2(0.5,0.5); $0.scale = 1; $0.placement = .fit } }
                 }.disabled(photo.isLocked)
                 Text("Photo opacity")
-                Slider(value: Binding(get: { Double(photo.opacity) },set: { value in edit { $0.opacity = Float(value) } }),in: 0...1).accessibilityLabel("Reference photo opacity")
+                Slider(value: Binding(get: { Double(photo.opacity) },set: { value in edit { $0.opacity = Float(value) } }),in: 0...1, onEditingChanged: session.continuousEditing).accessibilityLabel("Reference photo opacity")
                 if let problem = session.imageProblems[photo.assetID] { Text(problem).font(.caption).foregroundStyle(.orange) }
                 Button("Relink reference photo…") { session.chooseImage(target: .relink(photo.assetID)) }.disabled(session.isImportingImage)
                 Button("Remove reference photo") { session.setReferencePhoto(nil) }

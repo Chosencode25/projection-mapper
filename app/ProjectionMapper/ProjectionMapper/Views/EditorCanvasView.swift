@@ -38,6 +38,8 @@ struct EditorCanvasView: View {
                                       if let id = surface?.id { session.moveSelectedCorner(to: point, surfaceID: id) }
                                   },
                                   nudge: { session.nudgeSelectedCorner(direction: $0, larger: $1) },
+                                  beginEdit: { session.beginContinuousEdit("Move Mapping") },
+                                  endEdit: { session.endContinuousEdit() },
                                   selectFace: { session.selectSurface(at: $0) },
                                   isLocked: surface.map { session.project.isGeometryLocked($0) } ?? session.selectedObject.map { !session.project.canMoveObject($0.id) } ?? false,
                                   showsHandles: session.editorDisplay.cornerHandles,

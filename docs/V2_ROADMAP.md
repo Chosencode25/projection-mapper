@@ -1,6 +1,6 @@
 # V2 Roadmap — Music and Show Playback
 
-Status updated October 9, 2026: numbered V2 milestones remain planned. V1 through v1.14 is implemented and automatically verified, including owner rows, effect/image/video clips, source ranges and explicit embedded audio. Installed app is 1.14/build 11, format 9, with 258 passing correctness tests per Debug/Release run; user visual/listening acceptance is pending. V1.15 finishes undo/readiness/polish. V2 reuses/migrates these rows, clips, media identities and transport. These milestone numbers do not authorize publication.
+Status updated October 10, 2026: numbered V2 milestones remain planned. V1 through v1.15 is implemented and automatically verified: owner rows, effect/image/video clips, embedded audio, undo/redo, readiness and local development packaging. Installed 1.15/build 12 uses format 9; 269 correctness tests passed in each Debug/Release run. User visual/listening acceptance and separately authorized publication remain pending. V2 migrates/reuses the existing rows, clips, stable media/layout identities and transport. Next is v2.01 physical output; milestone numbers do not authorize publication.
 
 V2 turns the V1 mapper into a native Mac workspace for building repeatable projection shows to music, rehearsing them, coordinating with an existing lighting system and running playlists. Map the display once, reuse it across songs, and keep Test Mode available for editing without hardware. Preserve connected object faces and their shared content coordinates.
 

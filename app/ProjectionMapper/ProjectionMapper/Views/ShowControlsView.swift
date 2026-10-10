@@ -6,6 +6,8 @@ struct ProjectShowControls: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            PlaybackReadinessControls(session: session)
+            Divider()
             VideoAudioControls(session: session)
             Divider()
             MasterOutputControls(session: session)
@@ -32,7 +34,7 @@ struct MasterOutputControls: View {
             }.font(.caption)
             Slider(value: Binding(get: { Double(session.project.masterOutput.brightness) }, set: {
                 session.setMasterBrightness(Float($0))
-            }), in: 0...1).accessibilityLabel("Master output brightness")
+            }), in: 0...1, onEditingChanged: session.continuousEditing).accessibilityLabel("Master output brightness")
             HStack {
                 Text("Fade duration")
                 TextField("Seconds", value: Binding(get: { session.project.masterOutput.fadeDuration }, set: {
@@ -288,4 +290,36 @@ private func swiftUIColor(_ rgba: SIMD4<Float>) -> Color {
 private func rgbaColor(_ color: Color) -> SIMD4<Float>? {
     guard let rgb = NSColor(color).usingColorSpace(.deviceRGB) else { return nil }
     return SIMD4<Float>(Float(rgb.redComponent), Float(rgb.greenComponent), Float(rgb.blueComponent), Float(rgb.alphaComponent))
+}
+
+struct PlaybackReadinessControls: View {
+    let session: EditorSession
+    @State private var report: PlaybackReadinessReport?
+    @State private var inspectedProject: MappingProject?
+    var body: some View {
+        VStack(alignment: .leading,spacing: 8) {
+            Text("PLAYBACK READINESS").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Button(report == nil ? "Check Project" : "Check Again") {
+                report = session.playbackReadiness(); inspectedProject = session.project
+            }.help("Inspect current project and media without starting playback")
+            if let report {
+                Text(report.summary).font(.caption.weight(.semibold)).foregroundStyle(report.blockerCount == 0 ? .green : .orange)
+                if inspectedProject != session.project { Text("Project changed; check again for current results.").font(.caption).foregroundStyle(.orange) }
+                ForEach(report.issues) { issue in
+                    VStack(alignment: .leading,spacing: 3) {
+                        Text(issue.severity.rawValue + " · " + issue.message).font(.caption).textSelection(.enabled)
+                        if let id = issue.faceID { Button("Select Face") { session.selectSurface(id) }.font(.caption) }
+                    }.padding(.vertical,2)
+                }
+                if report.omittedCount > 0 { Text("\(report.omittedCount) further issues omitted; fix these and check again.").font(.caption) }
+                Text("Checked " + report.checkedAt.formatted(date: .omitted,time: .standard)).font(.caption2).foregroundStyle(.secondary)
+            }
+            HStack {
+                Button("Identify Selected") { session.identifySelectedObject() }.disabled(session.selectedSource == nil)
+                Button("Finish") { session.finishIdentification() }.disabled(session.identifyingSourceID == nil)
+            }
+            Text("Identification isolates the selected owner in white. Mapping is preserved; blackout still wins.").font(.caption).foregroundStyle(.secondary)
+            if let notice = session.historyNotice { Text(notice).font(.caption).foregroundStyle(.orange) }
+        }
+    }
 }

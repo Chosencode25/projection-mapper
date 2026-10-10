@@ -110,7 +110,11 @@ enum VideoImportService {
                 let (actual,poster) = try await inspect(url)
                 guard actual.duration >= asset.duration-0.00001, actual.width == asset.width, actual.height == asset.height,
                       actual.byteCount == asset.byteCount, actual.transform == asset.transform else { throw ProjectFileError.invalid("Video metadata changed; relink the asset.") }
-                urls[asset.id] = url; posters[asset.id] = poster
+                // Stage immutable originals so Save over this package cannot remove undoable media.
+                try FileManager.default.createDirectory(at: stagingDirectory,withIntermediateDirectories: true)
+                let staged = stagingDirectory.appendingPathComponent(UUID().uuidString + "." + asset.fileExtension)
+                do { try copy(url,to: staged) } catch { try? FileManager.default.removeItem(at: staged); throw error }
+                urls[asset.id] = staged; posters[asset.id] = poster
             } catch { problems[asset.id] = error.localizedDescription }
         }
         return (urls,posters,problems)

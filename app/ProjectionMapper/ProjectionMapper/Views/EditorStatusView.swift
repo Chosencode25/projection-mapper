@@ -17,6 +17,10 @@ struct EditorStatusView: View {
                 Text("Saving media…")
                 Button("Cancel") { session.cancelMediaSave() }.buttonStyle(.borderless)
             }
+            if session.identifyingSourceID != nil {
+                Text("Identifying object").foregroundStyle(.orange)
+                Button("Finish") { session.finishIdentification() }.buttonStyle(.borderless)
+            }
             Spacer()
             Text("Test Mode").foregroundStyle(.tertiary)
             Text("v\(AppVersion.version)").foregroundStyle(.secondary)

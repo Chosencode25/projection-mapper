@@ -2,7 +2,7 @@
 
 V1 targets a native Mac mapping workspace for images, videos and built-in animations on multiple surfaces. Faces can form objects with shared content coordinates so content continues across joined faces. Reusable looks/palettes, masks, time-based playback, an editor-only house photo and portable projects prepare it for musical shows. V1 acceptance remains Test Mode; fullscreen projector implementation and physical acceptance are scheduled for v2.01.
 
-See [ordered implementation steps](V1_REMAINING_PLAN.md). **Current October 9, 2026 state:** v1.01–v1.14 implemented, including video in the existing object timeline. Installed 1.14/build 11 uses portable format 9; 258 correctness tests passed in each Debug/Release run. User visual/listening checks are pending. **Next is v1.15 undo/redo, readiness, polish and packaging.** See [video verification](V1.14_VERIFICATION.md). Completed milestone source backup was successfully pushed at **ccb5df2**; no release publication is included. Earlier chronological entries below are historical.
+See [ordered implementation steps](V1_REMAINING_PLAN.md). **Current October 10, 2026 state:** v1.01–v1.15 implementation is complete. Installed 1.15/build 12 uses portable format 9; 269 correctness tests passed in each Debug/Release run with zero runtime warnings. User visual/listening acceptance and separately authorized publication remain pending. See [v1.15 verification](V1.15_VERIFICATION.md) and [V1 guide](V1_USER_GUIDE.md). No release/tag publication or repository visibility change is included. Next development is v2.01 physical projector output. Earlier entries below preserve historical scope.
 
 | Stage | Scope |
 |---|---|
@@ -20,7 +20,7 @@ See [ordered implementation steps](V1_REMAINING_PLAN.md). **Current October 9, 2
 | 1.12 — Mapping Tools | Calibration integrated with existing blackout, editor handles and join diagnostics; saved basic face-local polygon masks/cutout holes. |
 | 1.13 — Images | PNG/JPEG import/drop, placement and shared object textures; portable assets; separate editor-only house/display reference photo. |
 | [1.14 — Video](V1.14_PLAN.md) | Extend existing object timeline with video clips/in-points and trim/seek behavior; AVFoundation frames into shared Metal output, one frame/audio owner per object, explicit mute/routing and portable media/migration. Implemented; user visual/listening acceptance pending. |
-| 1.15 — Polish & Release | Undo/redo for mapping and timeline/media edits; polish existing UI, readiness including clip assets/ranges, mixed-content demos, profiling and accurate Test Mode packaging. Upload/publication needs its own authorization. Planned. |
+| 1.15 — Polish & Release | Undo/redo for mapping and timeline/media edits; polish existing UI, readiness including clip assets/ranges, mixed-content demos, profiling and accurate Test Mode packaging. Implemented and automatically verified; user visual/listening acceptance and upload/publication need their own acceptance/authorization. |
 
 The first major mapping milestone is 1.07. A temporary developer test texture or pattern can exercise warping before image/video import, now scheduled after the core mapping tools; full calibration tools remain planned for 1.12.
 

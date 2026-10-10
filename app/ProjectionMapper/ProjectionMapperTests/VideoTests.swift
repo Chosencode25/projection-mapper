@@ -292,6 +292,29 @@ import Darwin
         let resumed = try await waitForFrame(coordinator,owner: rotatedOwner)
         #expect(abs(resumed.sourceTime-3) < 0.04)
     }
+    @Test func videoHistoryRetainsOriginalAcrossOverwriteAndCleanup() async throws {
+        let folder = try directory(); defer { try? FileManager.default.removeItem(at: folder) }
+        let imported = try await VideoImportService.read(movie(in: folder))
+        let s = EditorSession(presentOutput: { _ in }), owner = s.project.timelineTracks[0].id
+        try s.installVideo(imported,target: .owner(owner))
+        let package = folder.appendingPathComponent("history.projectionmap")
+        try await s.saveMedia(to: package)
+        let document = try ProjectPackageStore().read(package)
+        let media = await VideoImportService.loadAssets(document.project.videoAssets,package: package)
+        let loaded = EditorSession(presentOutput: { _ in }); try loaded.load(document,from: package,loadedVideos: media)
+        let staged = try #require(loaded.videoFiles[imported.asset.id])
+        #expect(staged != package.appendingPathComponent("assets").appendingPathComponent(imported.asset.fileName))
+        loaded.removeSelectedVideo(); try await loaded.saveMedia(to: package)
+        #expect(FileManager.default.fileExists(atPath: staged.path))
+        loaded.undoProjectEdit(); #expect(loaded.selectedSource?.video?.assetID == imported.asset.id && loaded.hasUserChanges)
+        #expect(try VideoImportService.safeFile(staged) == imported.asset.byteCount)
+        try await loaded.saveMedia(to: package)
+        let reopened = try ProjectPackageStore().read(package)
+        #expect(reopened.project.videoAssets.count == 1)
+        loaded.redoProjectEdit(); #expect(loaded.selectedSource?.content == .diagnosticGrid)
+        loaded.resetProject(); #expect(!FileManager.default.fileExists(atPath: staged.path))
+        s.resetProject()
+    }
     @Test func portableClipOnlyAssetsRecoveryFailedSaveAndShortRelink() async throws {
         let folder = try directory(); defer { try? FileManager.default.removeItem(at: folder) }
         let imported = try await VideoImportService.read(movie(in: folder)); defer { try? FileManager.default.removeItem(at: imported.url) }
@@ -444,7 +467,18 @@ import Darwin
             var prototype = scene(imported).surfaces[0]; prototype.video?.loops = true
             let owner = try #require(prototype.sourceID)
             let faces = (0..<3).map { i in var face = prototype; if count == 3 { face.sourceID = UUID() }; return face }
-            var snapshot = RenderScene(surfaces: faces)
+            let imageID = UUID()
+            var extras: [RenderSurface] = []
+            if hd {
+                func region(_ x: Float) -> NormalizedRectangle {
+                    NormalizedRectangle(topLeft: SIMD2(x,0.1),topRight: SIMD2(x+0.2,0.1),bottomRight: SIMD2(x+0.2,0.3),bottomLeft: SIMD2(x,0.3))
+                }
+                extras = [RenderSurface(geometry: region(0.1),color: SIMD4(1,0.3,0,1),content: .gradient),
+                          RenderSurface(geometry: region(0.4),color: SIMD4(0,1,0.5,0.5),content: .particles),
+                          RenderSurface(geometry: region(0.7),color: SIMD4(1,1,1,1),content: .image,image: ImageContent(assetID: imageID,placement: .stretch))]
+            }
+            var snapshot = RenderScene(surfaces: faces + extras)
+            if hd { snapshot.images[imageID] = ImagePixels(width: 128,height: 64,bytes: Data(repeating: 255,count: 128*64*4)) }
             snapshot.transport.setPlaying(true,at: ProcessInfo.processInfo.systemUptime)
             coordinator.configure(scene: snapshot,assets: [imported.asset],urls: [imported.asset.id:imported.url],audio: VideoAudioSettings(),enabled: false)
             let started = ProcessInfo.processInfo.systemUptime
@@ -491,6 +525,7 @@ import Darwin
             sample["processCPUSeconds"] = Double(clock()-cpuStart)/Double(CLOCKS_PER_SEC)
             sample["meanGPUEncodeMilliseconds"] = gpuTimes.reduce(0,+)/Double(max(1,gpuTimes.count))
             sample["owners"] = Double(count); sample["faces"] = 3
+            sample["totalSurfaces"] = Double(snapshot.surfaces.count); sample["imageSurfaces"] = hd ? 1 : 0; sample["proceduralSurfaces"] = hd ? 2 : 0
             sample["seconds"] = ProcessInfo.processInfo.systemUptime-started
             sample["observedFrames"] = Double(observed); sample["peakPublishedBytes"] = Double(decodedBytes)
             sample["maxObservedSourceErrorSeconds"] = maxError

@@ -49,7 +49,7 @@ class MetalSceneView: NSView {
             NSLayoutConstraint.activate([
                 message.centerXAnchor.constraint(equalTo: surface.centerXAnchor),
                 message.centerYAnchor.constraint(equalTo: surface.centerYAnchor),
-                message.widthAnchor.constraint(lessThanOrEqualTo: surface.widthAnchor, constant: -32)
+                message.widthAnchor.constraint(lessThanOrEqualTo: surface.widthAnchor, multiplier: 0.9)
             ])
         }
         super.init(frame: frameRect)

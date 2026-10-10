@@ -7,41 +7,36 @@ Required Xcode: **27.0 beta 5 (27A5237l)** at `/Applications/Xcode-beta.app`.
 1. Open `app/ProjectionMapper/ProjectionMapper.xcodeproj` with Xcode-beta.
 2. Select **ProjectionMapper** and **My Mac**.
 3. Press **Command–R** to build and run.
-4. Press **Command–U** for the full suite, including two legacy tests that present native windows. The current offscreen verification subset passes 258 correctness tests; four optional benchmark declarations are skipped unless explicitly enabled. Use the exclusions below for checks without visible windows.
+4. Press **Command–U** for the full suite, including two legacy tests that present native windows. The current offscreen verification subset passes 269 correctness tests; four optional benchmark declarations are skipped unless explicitly enabled. Use the exclusions below for checks without visible windows.
 
 The interface uses SwiftUI and programmatic AppKit, without storyboards/XIBs. Minimum deployment target: macOS 15.0. Local ad-hoc signing needs no paid developer account. Review proposed Xcode settings migrations against the pinned toolchain.
 
-## Current local app — v1.14
+## Current local app — v1.15
 
-Open app/ProjectionMapper.app or builds/v1.14/ProjectionMapper.app. Bundle **1.14/build 11**, portable project format **9**; universal arm64/x86_64 and ad-hoc signed. Quit/reopen an older running instance to use the replacement binary. Source/architecture/signature/file-hash evidence is in builds/v1.14/. Previous installed timeline app is preserved at builds/v1.14/Previous-installed.app.
+Open app/ProjectionMapper.app or builds/v1.15/ProjectionMapper.app. Bundle **1.15/build 12**, format **9**; universal arm64/x86_64 and locally ad-hoc signed. Quit/reopen an older instance. Previous v1.14 app is preserved at builds/v1.15/Previous-installed.app. Development ZIP/checksum/install instructions are local; public signing/notarization and release publication are pending.
 
-See [video guide/demo](VIDEO_IMPORT_GUIDE.md), [verification](V1.14_VERIFICATION.md) and [timeline guide](TIMELINE_GUIDE.md). Runtime verification was on Apple Silicon/macOS 27; user visual/listening checks remain pending. No app launch/screen automation was used.
+See [V1 guide](V1_USER_GUIDE.md) and [verification](V1.15_VERIFICATION.md). Help → Open V1 Demo protects unsaved work and opens a fresh unsaved template. Command-Z / Shift-Command-Z undo/redo project edits outside text fields; Show provides readiness/identification. User visual/listening acceptance remains pending. No app launch or screen automation used.
 
 ## Build and test commands
 
-Run from the project root:
-
 ```sh
 DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -version
-
 DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
 xcodebuild -project app/ProjectionMapper/ProjectionMapper.xcodeproj \
   -scheme ProjectionMapper -configuration Release \
   -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath builds/v1.14/ReleaseDerivedData \
+  -derivedDataPath builds/v1.15/ReleaseDerivedData \
   'ARCHS=arm64 x86_64' ONLY_ACTIVE_ARCH=NO build
 ```
 
-Replace `build` with `test` to run checks; use `-configuration Debug` for Debug. Both final configurations passed 258 offscreen correctness tests, with the two exclusions below and four opt-in benchmarks skipped. The system-wide developer directory stays unchanged.
-
-For the current 258-test correctness subset without presenting windows, append these before `test`:
+Replace build with test for the full suite; Debug uses builds/v1.15/DerivedData. Offscreen regressions each pass 269 correctness tests with four opt-in benchmarks skipped. Append these exclusions before test:
 
 ```sh
 '-skip-testing:ProjectionMapperTests/TestOutputCoordinatorTests/normalFrameRestoresAcrossCloseAndNewCoordinator()' \
 '-skip-testing:ProjectionMapperTests/MetalRendererTests/nativeMetalOutputSurvivesPresetsResizeAndReopen()'
 ```
 
-The excluded tests exercise minimize/zoom/frame persistence and native Metal drawable behavior. The optional benchmarks below remain disabled in normal runs. Current evidence: `builds/v1.14/Debug-final6.xcresult` and `Release-final2.xcresult` with their respective logs and JSON summaries. Historical sections below describe earlier deliveries.
+Final evidence: builds/v1.15/Debug-final3.xcresult and Release-final2.xcresult, matching logs and summaries. Profile reproduction/limits are in V1.15_VERIFICATION.md. Historical sections below retain their original milestone context.
 
 ## Opt-in benchmarks
 

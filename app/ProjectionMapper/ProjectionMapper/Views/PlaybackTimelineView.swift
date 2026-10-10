@@ -15,7 +15,7 @@ struct PlaybackTimelineView: View {
             let time = session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)
             let horizon = min(3600.0, max(60, (max(time, session.project.timelineClips.map(\.end).max() ?? 0) / 30).rounded(.up) * 30 + 30))
             VStack(spacing: 0) {
-                transportBar(time: time)
+                ScrollView(.horizontal) { transportBar(time: time) }.scrollIndicators(.hidden)
                 Divider()
                 ScrollView(.vertical) {
                     HStack(alignment: .top, spacing: 0) {
@@ -48,7 +48,7 @@ struct PlaybackTimelineView: View {
                     }
                 }
                 Divider()
-                clipEditor
+                ScrollView(.horizontal) { clipEditor }.scrollIndicators(.hidden)
             }
             .background(Color(nsColor: .controlBackgroundColor))
         }

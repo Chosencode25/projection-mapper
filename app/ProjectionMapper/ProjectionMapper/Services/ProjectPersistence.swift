@@ -306,3 +306,13 @@ final class ProjectRecoveryStore {
 enum ProjectCloseChoice { case save, discard, cancel
     func canProceed(saveSucceeded: Bool) -> Bool { switch self { case .save: saveSucceeded; case .discard: true; case .cancel: false } }
 }
+
+extension ProjectCodec {
+    /// A bundled template starts a new document while retaining internal target/asset relationships.
+    static func freshDemo(_ document: ProjectDocument) throws -> ProjectDocument {
+        var json = try JSONSerialization.jsonObject(with: encode(document)) as? [String:Any] ?? [:]
+        guard var project = json["project"] as? [String:Any] else { throw ProjectFileError.invalid("Demo project is missing.") }
+        project["id"] = UUID().uuidString; json["project"] = project; json.removeValue(forKey: "recovery")
+        return try decode(JSONSerialization.data(withJSONObject: json,options: [.sortedKeys]))
+    }
+}

@@ -26,6 +26,10 @@ struct EditorToolbar: View {
                 Divider()
                 Button("Project settings & libraries") { showInspector(.project) }
             }
+            Menu("Edit", systemImage: "arrow.uturn.backward") {
+                Button(session.undoTitle) { session.undoProjectEdit() }.disabled(!session.canUndo)
+                Button(session.redoTitle) { session.redoProjectEdit() }.disabled(!session.canRedo)
+            }
             Menu("Add", systemImage: "plus") {
                 Button("Surface") { session.addSurface() }
                 Button("Group checked surfaces") { session.createObject() }
@@ -44,6 +48,7 @@ struct EditorToolbar: View {
                 .help("Calibration: " + session.calibration.pattern.title)
                 .accessibilityLabel("Calibration patterns").accessibilityValue(session.calibration.pattern.title)
             Menu("Show", systemImage: "slider.horizontal.3") {
+                Button("Playback readiness") { showInspector(.show) }
                 Button("Playback & output settings") { showInspector(.show) }
                 Button("Restart playback") { session.restartPlayback() }
                 Divider()

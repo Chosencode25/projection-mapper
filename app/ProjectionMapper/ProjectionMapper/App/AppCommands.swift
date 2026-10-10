@@ -21,11 +21,26 @@ struct AppCommands: Commands {
             }
             Button("Recover Unsaved Project…") { coordinator.recoverProject() }
         }
+        CommandGroup(replacing: .undoRedo) {
+            Button(coordinator.session.undoTitle) { coordinator.undo() }.keyboardShortcut("z", modifiers: .command)
+                .disabled(!coordinator.canUndo)
+            Button(coordinator.session.redoTitle) { coordinator.redo() }.keyboardShortcut("z", modifiers: [.command,.shift])
+                .disabled(!coordinator.canRedo)
+        }
+        CommandGroup(replacing: .help) {
+            Button("Welcome to Projection Mapper") { coordinator.showWelcome() }
+            Button("Projection Mapper Guide") { coordinator.showHelp() }
+            Button("Open V1 Demo…") { coordinator.openDemo() }
+        }
         CommandGroup(replacing: .appSettings) { }
         CommandGroup(replacing: .appInfo) {
             Button("About Projection Mapper") { coordinator.showAbout() }
         }
         CommandMenu("Show") {
+            Button("Playback Readiness") { coordinator.session.isInspectorVisible = true; coordinator.session.inspectorTab = .show }
+            Button("Identify Selected Object") { coordinator.session.identifySelectedObject() }.disabled(coordinator.session.selectedSource == nil)
+            Button("Finish Identification") { coordinator.session.finishIdentification() }.disabled(coordinator.session.identifyingSourceID == nil)
+            Divider()
             Menu("Calibration") { CalibrationPatternMenu(session: coordinator.session) }
             Button(coordinator.session.calibration.pattern.isActive ? "Exit Calibration" : "Enter Calibration (Grid)") {
                 coordinator.session.toggleCalibration()

@@ -8,6 +8,8 @@ struct CornerOverlay: NSViewRepresentable {
     let select: (SurfaceCorner?) -> Void
     let move: (SIMD2<Float>) -> Void
     let nudge: (SIMD2<Float>, Bool) -> Void
+    var beginEdit: () -> Void = {}
+    var endEdit: () -> Void = {}
     var deselect: () -> Void = {}
     var selectFace: ((SIMD2<Float>?) -> Void)?
     var isLocked = false
@@ -20,6 +22,7 @@ struct CornerOverlay: NSViewRepresentable {
 
     func makeNSView(context: Context) -> CornerOverlayView { CornerOverlayView() }
     func updateNSView(_ view: CornerOverlayView, context: Context) {
+        view.beginEdit = beginEdit; view.endEdit = endEdit
         view.configure(surfaceID: surfaceID, corners: corners, activeCorner: activeCorner,
                        select: select, move: move, nudge: nudge, deselect: deselect, selectFace: selectFace,isLocked: isLocked,showsHandles: showsHandles,showsOutlines: showsOutlines,objectID: objectID,objectBounds: objectBounds,moveObject: moveObject,nudgeObject: nudgeObject)
     }
@@ -28,6 +31,8 @@ struct CornerOverlay: NSViewRepresentable {
 /// Editor-only controls above the Metal preview. Native first-responder routing keeps arrows
 /// out of text fields and lets key repeat work without an app-wide event monitor.
 final class CornerOverlayView: NSView {
+    var beginEdit: () -> Void = {}
+    var endEdit: () -> Void = {}
     private var surfaceID: UUID?
     private var corners = NormalizedRectangle.diagnostic
     private var activeCorner: SurfaceCorner?
@@ -109,6 +114,7 @@ final class CornerOverlayView: NSView {
             let center = SurfaceCoordinates.position((box.topLeft+box.bottomRight)*0.5,in: previewRect)
             if distance(point,center) <= 12 {
                 dragging = nil; objectDragPoint = isLocked ? nil : point
+                if !isLocked { beginEdit() }
                 select(nil); window?.makeFirstResponder(self); needsDisplay = true; return
             }
         }
@@ -132,6 +138,7 @@ final class CornerOverlayView: NSView {
         let center = SurfaceCoordinates.position(corners[corner], in: previewRect)
         grabOffset = CGSize(width: point.x - center.x, height: point.y - center.y)
         dragging = isLocked ? nil : corner; activeCorner = corner
+        if !isLocked { beginEdit() }
         select(corner); window?.makeFirstResponder(self); needsDisplay = true
     }
     override func mouseDragged(with event: NSEvent) {
@@ -148,7 +155,7 @@ final class CornerOverlayView: NSView {
             move(normalized)
         }
     }
-    override func mouseUp(with event: NSEvent) { dragging = nil; objectDragPoint = nil }
+    override func mouseUp(with event: NSEvent) { dragging = nil; objectDragPoint = nil; endEdit() }
 
     static func direction(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> SIMD2<Float>? {
         guard modifiers.intersection([.command, .control, .option]).isEmpty else { return nil }
@@ -161,7 +168,7 @@ final class CornerOverlayView: NSView {
         }
     }
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 { activeCorner = nil; dragging = nil; objectDragPoint = nil; select(nil); needsDisplay = true; return }
+        if event.keyCode == 53 { endEdit(); activeCorner = nil; dragging = nil; objectDragPoint = nil; select(nil); needsDisplay = true; return }
         if let direction = Self.direction(keyCode: event.keyCode, modifiers: event.modifierFlags), objectID != nil || activeCorner != nil {
             guard showsHandles, !isLocked else { return }
             if objectID != nil { nudgeObject?(direction,event.modifierFlags.contains(.shift)) }

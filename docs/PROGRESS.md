@@ -1,14 +1,14 @@
 # Project Progress
 
-Last updated: October 9, 2026.
+Last updated: October 10, 2026.
 
 ## Current state
 
-**v1.14 Video Import and Timeline Integration is implemented, automatically verified and installed.** The universal **1.14/build 11** app imports SDR H.264/HEVC MP4/MOV, adds video source ranges/rates/looping to the existing object timeline, shares frames across connected faces and preview/Test Output, provides explicitly muted audio/routing controls, and saves/recoveries portable format **9** with formats 1–8 migration. **258 correctness tests passed in each Debug/Release run**; four benchmarks skipped, two legacy visible-window tests excluded. A separate final 13-test Release video run passed with two 30-second 1080p workloads. See [verification](V1.14_VERIFICATION.md) and [usage/demo](VIDEO_IMPORT_GUIDE.md).
+**v1.15 V1 Completion is implemented, automatically verified and installed.** Universal **1.15/build 12**, portable format **9**. Adds bounded model/media undo/redo, coherent mapping/mask/slider transactions, saved-state media revision tracking, readiness diagnostics, temporary owner identification, scrollable narrow-window timeline controls, protected portable demo, help/welcome/About and app icon. **269 correctness tests passed in Debug and Release**, zero failures and zero runtime warnings; four opt-in benchmarks skipped and two legacy visible-window checks excluded. See [verification](V1.15_VERIFICATION.md) and [V1 guide](V1_USER_GUIDE.md).
 
-Tested signed app installed at app/ProjectionMapper.app and archived in builds/v1.14/. All files match the tested Release product. Previous installed timeline app preserved in builds/v1.14/Previous-installed.app; historical archives remain intact. No app launch or screen control used. User visual/listening acceptance is pending, including real audio routing/unplug and perceived sync/pitch. Runtime tests used Apple Silicon/macOS 27; Intel and older-macOS execution remain unverified. Physical projector operation remains deferred to v2.01.
+Signed app installed at app/ProjectionMapper.app and archived in builds/v1.15/. Previous installed v1.14 preserved at builds/v1.15/Previous-installed.app. Local development ZIP, checksum and install/usage notes prepared. Packaged/installed files match the tested Release product; architecture and strict signature checks passed. No screen control or app launch used. User visual/listening acceptance is pending, including actual audio routing/device loss and perceived sync/pitch. Runtime tests used Apple Silicon/macOS 27; Intel/older-macOS execution and physical projector output remain unverified. Developer ID/notarization have not been established; this is a locally ad-hoc signed development artifact.
 
-Completed x.xx source backup, including prior local timeline/planning edits, was successfully pushed to GitHub main at **ccb5df2**, from 7c84178 after fast-forwarding codex/v1.14-video-timeline. No release/tag/app asset publication is included. **Next implementation: v1.15 undo/redo, readiness, UI/error/accessibility polish and final packaging.** Music, waveforms, advanced show sequencing and projector hardware retain their V2 scope.
+v1.14 source is already confirmed on GitHub at **ccb5df2** with delivery record **29ad795**. v1.15 source delivery is pending the completed milestone commit/push; no release/tag/app upload or visibility change is included. V1 implementation is finished; user acceptance and separately authorized distribution/publication remain. **Next development milestone is v2.01 physical fullscreen projector output and calibration**, retaining Test Mode. Music/song transport and waveforms follow in v2.02.
 
 ## GitHub version history
 

@@ -2,14 +2,16 @@
 
 This is the main working folder for the Projection Mapping Mac app.
 
-The planned app maps images, videos and built-in animations onto independent surfaces or connected object faces. V1 builds a reusable mapping workspace with Test Mode; V2 adds music sequencing and show playback. Fullscreen projector implementation/physical acceptance is scheduled for v2.01, preserving the current hardware deferral.
+The V1 app maps images, videos and built-in animations onto independent surfaces or connected object faces. V1 builds a reusable mapping workspace with Test Mode; V2 adds music sequencing and show playback. Fullscreen projector implementation/physical acceptance is scheduled for v2.01, preserving the current hardware deferral.
 
 ## Start here
 
 - [Development requirements](docs/PROJECT_DEVELOPMENT.md): exact Xcode version and code-based interface requirements.
 - [v1.01 plan](docs/V1.01_PLAN.md): first milestone scope, implementation steps, and completion criteria.
 - [V1 roadmap](docs/V1_ROADMAP.md): all 15 milestones, including Test Mode and show foundations.
-- [Remaining V1 steps](docs/V1_REMAINING_PLAN.md): v1.08 completion and planned work from v1.09 through v1.15.
+- [V1 guide](docs/V1_USER_GUIDE.md): mapping, timeline, undo, readiness, demo and portable files.
+- [V1 verification](docs/V1.15_VERIFICATION.md): completed implementation, automated evidence and pending user acceptance.
+- [V1 implementation contracts](docs/V1_REMAINING_PLAN.md): completed milestone scope and separate publication gates.
 - [V2 roadmap](docs/V2_ROADMAP.md): music, choreography, integration and show operation.
 - [V2 implementation steps](docs/V2_IMPLEMENTATION_PLAN.md): ordered work, acceptance gates and later backlog.
 - [v1.02 plan](docs/V1.02_PLAN.md): output selection and display discovery; implemented, physical acceptance pending.
