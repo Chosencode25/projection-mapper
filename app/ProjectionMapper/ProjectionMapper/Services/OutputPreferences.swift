@@ -29,6 +29,19 @@ final class OutputPreferences {
         guard values.allSatisfy({ $0.isFinite }), frame.width > 0, frame.height > 0 else { return }
         defaults.set(values, forKey: "output.testWindowFrame.v1")
     }
+    func loadCalibration(for display: DisplayDescriptor) -> OutputCalibrationProfile? {
+        guard let uuid = display.uuid, let data = defaults.data(forKey: "output.calibration.v1"), data.count <= 131072,
+              let profiles = try? JSONDecoder().decode([OutputCalibrationProfile].self, from: data), profiles.count <= 32 else { return nil }
+        return profiles.first { $0.displayUUID == uuid && $0.isValid }
+    }
+    func saveCalibration(_ profile: OutputCalibrationProfile) {
+        guard profile.isValid else { return }
+        let data = defaults.data(forKey: "output.calibration.v1")
+        var profiles = data.flatMap { $0.count <= 131072 ? try? JSONDecoder().decode([OutputCalibrationProfile].self, from: $0) : nil } ?? []
+        profiles = Array(profiles.filter { $0.isValid && $0.displayUUID != profile.displayUUID }.suffix(31))
+        profiles.append(profile)
+        if let encoded = try? JSONEncoder().encode(profiles) { defaults.set(encoded, forKey: "output.calibration.v1") }
+    }
     func save(_ preference: SavedOutputPreference) {
         if let data = try? JSONEncoder().encode(preference) { defaults.set(data, forKey: key) }
     }

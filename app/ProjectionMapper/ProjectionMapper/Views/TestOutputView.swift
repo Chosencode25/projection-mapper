@@ -7,6 +7,12 @@ class MetalSceneView: NSView {
     private let renderer: MetalRenderer?
     private(set) var isRenderingActive = false
     private(set) var renderingError: String?
+    var renderingFailed: ((String) -> Void)? {
+        didSet { renderer?.renderingFailed = renderingFailed }
+    }
+    var frameSubmitted: ((TimeInterval) -> Void)? {
+        didSet { renderer?.frameSubmitted = frameSubmitted }
+    }
     var metalView: MTKView? { surface as? MTKView }
     var outputFrame: CGRect { surface.frame }
     var outputAspectRatio = TestResolution.hd.aspectRatio {

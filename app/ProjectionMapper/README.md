@@ -1,13 +1,34 @@
-# Projection Mapper — v1.15 V1 Completion
+# Projection Mapper — v2.01
 
-Native SwiftUI/programmatic AppKit editor with shared Metal preview/Test Output and AVFoundation video. Required Xcode **27.0 beta 5 (27A5237l)**; minimum macOS **15.0**. Code-only interface.
+SwiftUI/programmatic AppKit editor with shared Metal preview/Test/Projector Output
+and AVFoundation video. Required **Xcode 27.0 beta 5 (27A5237l)**; macOS **15.0+**.
 
-Open ProjectionMapper.xcodeproj with Xcode-beta, select ProjectionMapper/My Mac, then Command–R. Command–U includes two legacy visible-window tests; use exclusions in [build instructions](../../docs/BUILD_AND_RUN.md) for offscreen verification.
+Open `ProjectionMapper.xcodeproj` in Xcode-beta, select ProjectionMapper / My Mac,
+then Command-R. From the repository root:
 
-Universal locally ad-hoc signed **1.15.1/build 13** is delivered at ../ProjectionMapper.app and ../../builds/v1.15/. Quit/reopen an older instance. V1 includes independent/connected faces, mapping/input joins, effects, looks/palettes, masks/calibration, images/reference photos, video/explicit muted audio, object timeline, portable saves/recovery, bounded undo/redo and readiness. Format 9 migrates formats 1–8; opens paused/audio-disabled. Help provides a protected unique-identity portable demo and guide.
+```sh
+python3 app/scripts/project.py doctor
+python3 app/scripts/project.py build
+python3 app/scripts/project.py test --configuration Debug
+python3 app/scripts/project.py test --configuration Release
+python3 app/scripts/project.py clean
+```
 
-269 correctness tests passed in Debug/Release with zero failures/runtime warnings; four optional benchmarks skipped and two visible-window tests excluded. Bounded mixed workload evidence is in [verification](../../docs/V1.15_VERIFICATION.md). User visual/listening acceptance, Intel/older macOS and physical projector runtime are unverified. The full V1 release packages the verified universal app, guide, installation notes and checksums. Developer ID/notarization remain unestablished; repository visibility stays private.
+The helper verifies the exact toolchain, builds universal binaries, excludes the
+two legacy visible-window tests, saves check evidence and shares one disposable cache.
+`clean` previews; `clean --apply` removes only that cache.
+See [build instructions](../../docs/BUILD_AND_RUN.md) for details.
 
-See [V1 guide](../../docs/V1_USER_GUIDE.md), [progress](../../docs/PROGRESS.md) and [V2 roadmap](../../docs/V2_ROADMAP.md). Next development is v2.01 physical output, preserving Test Mode. Generated builds/caches stay out of commits.
+Current runnable app: `../ProjectionMapper.app`, **2.01/build 14**, format **9**,
+local ad-hoc signing. Current archive: `../../builds/current/`.
+V1 authoring remains available. Test Window remains resizable; projector output
+requires explicit Open and closes on display/sleep changes. Physical projector,
+optical timing, user visual/listening and Intel/older-macOS runtime acceptance
+remain pending; Developer ID/notarization remain unestablished.
 
-The v1.15.1 patch connects the readiness and global video-audio controls in Show. See [patch verification](../../docs/V1.15.1_VERIFICATION.md).
+See [verification](../../docs/V2.01_VERIFICATION.md),
+[output guide](../../docs/V2.01_USER_GUIDE.md),
+[authoring guide](../../docs/V1_USER_GUIDE.md) and
+[cleanup record](../../docs/PROJECT_CLEANUP_2026-10-19.md).
+GitHub source backup is authorized by the October 19 request; latest published
+download remains v1.15.1. Next independent milestone: v2.02 music/song transport.

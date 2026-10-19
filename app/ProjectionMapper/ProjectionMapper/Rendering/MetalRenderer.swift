@@ -67,6 +67,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     private var requestedAt: TimeInterval?
     private var lastContinuousDemand: Bool?
     /// The view uses this after a submitted frame, including the completed fade's final frame.
+    var renderingFailed: ((String) -> Void)?
+    var frameSubmitted: ((TimeInterval) -> Void)?
     var renderDemandDidChange: ((Bool) -> Void)?
     var isDrawingEnabled = true { didSet { if !isDrawingEnabled { requestedAt = nil } } }
     private(set) var scene: RenderScene
@@ -277,9 +279,15 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         requestedAt = nil
         let uptime = ProcessInfo.processInfo.systemUptime
         guard let command = encodeScene(to: descriptor, viewIdentifier: String(describing: ObjectIdentifier(view)),
-                                        requestTime: requestTime, evaluationUptime: uptime) else { return }
+                                        requestTime: requestTime, evaluationUptime: uptime) else { renderingFailed?("Metal could not encode output."); return }
+        command.addCompletedHandler { [weak self] buffer in
+            guard buffer.status == .error else { return }
+            let reason = buffer.error?.localizedDescription ?? "Metal output command failed."
+            Task { @MainActor [weak self] in self?.renderingFailed?(reason) }
+        }
         command.present(drawable)
         command.commit()
+        frameSubmitted?(uptime)
         updateRenderingDemand(at: uptime)
     }
 }

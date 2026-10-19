@@ -132,7 +132,7 @@ struct ProjectHistoryTests {
     }
     @Test func demoRoundTripMixedWorkflowAndHistory() async throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let fixture = root.appendingPathComponent("assets/demos/V1-Demo.projectionmap")
+        let fixture = root.appendingPathComponent("app/ProjectionMapper/ProjectionMapper/Resources/V1-Demo.projectionmap")
         let template = try ProjectPackageStore().read(fixture)
         let document = try ProjectCodec.freshDemo(template)
         let another = try ProjectCodec.freshDemo(template)

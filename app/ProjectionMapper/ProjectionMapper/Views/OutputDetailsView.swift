@@ -35,11 +35,12 @@ struct OutputDetailsView: View {
                 .fixedSize(horizontal: false, vertical: true)
             Button("Refresh Displays", action: refreshDisplays)
             OutputWindowControls(session: session, openOutput: openOutput)
-            Text(session.testOutput.statusText).font(.caption).foregroundStyle(.secondary)
+            Text(session.outputStatusText).font(.caption).foregroundStyle(.secondary)
             Text(output.destination == .testWindow
                  ? "Test output renders your project surface."
-                 : "Projector output is deferred. Select Test Window to open output.")
+                 : "One external fullscreen output. Reopen explicitly after display changes; playback may still be running.")
                 .font(.caption).foregroundStyle(.secondary)
+            if output.selectedDisplay != nil { OutputCalibrationControls(session: session) }
         }
     }
     private func detail(_ label: String, _ value: String) -> some View {

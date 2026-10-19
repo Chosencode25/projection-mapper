@@ -17,6 +17,7 @@ struct DisplayDescriptor: Identifiable, Equatable {
     var isEditorDisplay = false
 
     var unavailableReason: String? {
+        if isBuiltIn { return "Built-in display" }
         if isMirrored { return "Mirroring enabled" }
         if isEditorDisplay { return "Editor display" }
         if !hasIndependentScreen { return "Display unavailable" }

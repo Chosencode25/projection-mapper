@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.01 maintenance and source backup — October 19, 2026
+
+- Back up the previously local v2.01 implementation and mobile-editor planning under the user’s explicit delivery exception; published v1.15.1 releases/assets remain unchanged.
+- Fix a display-change race leaving projector output stuck in opening, release the rejected renderer and support explicit retry. Final Debug/Release each pass 285 checks with zero failures/recorded runtime warnings; four benchmarks skip and two visible-window tests are excluded.
+- Consolidate development commands around the exact pinned Xcode and one disposable cache, with dated test evidence and preview-first cleanup.
+- Rescue saved projects from generated output, consolidate the protected demo, remove redundant old app/build copies and simplify current documentation. Version stays 2.01/build 14; no release/version bump is manufactured.
+
+## v2.01 — Local Projector Output and Calibration — October 14, 2026
+
+- Add one explicit external fullscreen output using the existing shared Metal scene/media owners, with reachable Close/Escape/Blackout controls and Test Mode preserved.
+- Validate display identity/eligibility before presentation; close output on display/mode/scale/position/discovery changes or sleep, and require explicit reopening. Never relocate output or auto-start playback.
+- Add temporary full-output boundary/identity and nominal 60 fps frame/flash fixtures, bounded submission-cadence diagnostics and versioned machine-local device/mode calibration profiles. Compensation is stored for v2.02 and does not alter playback yet.
+- Update readiness/status/help and output guide; preserve portable format 9 and V1 migrations. Renderer errors close physical output and remain in the editor.
+- Debug/Release each passed 284 correctness tests, zero failures/recorded runtime warnings; four benchmarks skipped and two visible-window checks excluded. Sustained Full HD media ownership/cleanup checks passed. Physical projector/optical timing and user visual acceptance remain pending.
+- Universal locally ad-hoc signed 2.01/build 14 and archive stay local under builds/v2.01/; previous installed app is preserved. User explicitly prohibited GitHub delivery: no commits, pushes, tags, releases or uploads.
+
 ## v1.15.1 — Show Controls Fix — October 10, 2026
 
 - Connect existing readiness/identification and global video audio controls to the Show inspector; they were implemented but inaccessible there in the released app.

@@ -1,16 +1,24 @@
 # Project Progress
 
-Last updated: October 10, 2026.
+Last updated: October 19, 2026.
 
 ## Current state
 
-**Current correction: v1.15.1/build 13.** The missing Show readiness/audio controls are fixed and passed automated and short onscreen checks. The user explicitly requested GitHub/release correction; the full patch release is published as latest, preserving v1.15. See [patch verification](V1.15.1_VERIFICATION.md) and [acceptance evidence](V1.15_ACCEPTANCE.md).
+**Current local app: v2.01/build 14 — October 14, 2026.** Projector Output and Calibration is implemented, automatically verified and installed locally; **physical projector/optical timing acceptance remains pending**. One explicitly opened external fullscreen output reuses the shared renderer/media owners, closes on display changes/sleep and requires explicit reopening. Test Mode remains available. Added full-output boundary/frame/flash diagnostics, bounded submission cadence and local device/mode profiles; compensation is reserved for v2.02. Format stays 9. See [verification](V2.01_VERIFICATION.md) and [output guide](V2.01_USER_GUIDE.md).
+
+October 19 Debug and Release each passed **285 correctness tests**, zero failures/recorded runtime warnings; four opt-in benchmarks skipped and two legacy visible-window tests excluded. Separate two-case 60-second Full HD media profile and full-resolution effects matrix passed; heavy 4K particle overlap exceeds the tested pair's 60 Hz GPU budget. Universal/signature/bundle identity and app/ZIP-extraction hashes verified. App installed at app/ProjectionMapper.app; current ZIP under builds/current/. Redundant old builds and previous installed copies are removed by the October 19 cleanup; historical lightweight evidence is retained under builds/evidence/history/. No app launch, screen control or physical tests. User visuals/listening, Intel/older-macOS runtime and Developer ID/notarization remain unestablished.
+
+**October 19 cleanup/source backup:** the user explicitly requested backing up the newer local version and removing redundant old local versions. This supersedes the prior local-only restriction for this delivery. v2.01 source, mobile-editor planning and cleanup improvements are prepared for GitHub backup. Latest published app download remains v1.15.1; no new release/tag is requested. The duplicated canonical demo is consolidated into the intact bundled regression fixture. Next independent development remains v2.02; hardware acceptance remains separate. See [cleanup record](PROJECT_CLEANUP_2026-10-19.md).
+
+**v2.01 detailed planning — October 14, 2026:** Created [Projector Output and Calibration plan](V2.01_PLAN.md), expanding the existing outline into routing/lifecycle, clean fullscreen rendering, recovery/UI, device calibration/timing and regression/local delivery slices. Defines explicit open/reopen, no live output relocation on disconnect, shared renderer/media ownership and separate automated/physical acceptance. Linked from the V2 roadmap/implementation plan. Documentation only; no implementation, app build/toolchain verification, version bump, screen use, commits or uploads. At that planning point, v2.01 remained planned.
+
+**Latest published correction: v1.15.1/build 13.** The missing Show readiness/audio controls are fixed and passed automated and short onscreen checks. The user explicitly requested GitHub/release correction; the full patch release is published as latest, preserving v1.15. See [patch verification](V1.15.1_VERIFICATION.md) and [acceptance evidence](V1.15_ACCEPTANCE.md).
 
 **v1.15 is the completed V1 app; the full GitHub release is published.** Universal **1.15/build 12**, portable format **9**. Adds bounded model/media undo/redo, coherent mapping/mask/slider transactions, saved-state media revision tracking, readiness diagnostics, temporary owner identification, scrollable narrow-window timeline controls, protected portable demo, help/welcome/About and app icon. **269 correctness tests passed in Debug and Release**, zero failures and zero runtime warnings; four opt-in benchmarks skipped and two legacy visible-window checks excluded. See [verification](V1.15_VERIFICATION.md) and [V1 guide](V1_USER_GUIDE.md).
 
-Signed app installed at app/ProjectionMapper.app and archived in builds/v1.15/. Previous installed v1.14 preserved at builds/v1.15/Previous-installed.app. Full V1 ZIP, checksum and install/usage notes prepared. Packaged/installed files match the tested Release product; architecture and strict signature checks passed. No screen control or app launch used. User visual/listening acceptance is pending, including actual audio routing/device loss and perceived sync/pitch. Runtime tests used Apple Silicon/macOS 27; Intel/older-macOS execution and physical projector output remain unverified. Developer ID/notarization have not been established; the app is locally ad-hoc signed.
+V1 delivery record: signed app was installed at app/ProjectionMapper.app and archived in builds/v1.15/. Previous installed v1.14 preserved at builds/v1.15/Previous-installed.app. Full V1 ZIP, checksum and install/usage notes prepared. Packaged/installed files match the tested Release product; architecture and strict signature checks passed. No screen control or app launch used. User visual/listening acceptance is pending, including actual audio routing/device loss and perceived sync/pitch. Runtime tests used Apple Silicon/macOS 27; Intel/older-macOS execution and physical projector output remain unverified. Developer ID/notarization have not been established; the app is locally ad-hoc signed.
 
-v1.14 source is already confirmed on GitHub at **ccb5df2** with delivery record **29ad795**. v1.15 tested source was successfully committed and pushed to GitHub main at **60e838d**, fast-forwarded from 29ad795; the full v1.15 release is now published with its annotated tag and four verified downloadable assets. V1 implementation is finished; user visual/listening acceptance remains pending. Repository visibility stays private. **Next development milestone is v2.01 physical fullscreen projector output and calibration**, retaining Test Mode. Music/song transport and waveforms follow in v2.02.
+v1.14 source is already confirmed on GitHub at **ccb5df2** with delivery record **29ad795**. v1.15 tested source was successfully committed and pushed to GitHub main at **60e838d**, fast-forwarded from 29ad795; the full v1.15 release is now published with its annotated tag and four verified downloadable assets. V1 implementation is finished; user visual/listening acceptance remains pending. Repository visibility stays private. **v2.01 is now locally implemented above; next independent development is v2.02 music/song transport and waveforms.** Physical projector acceptance remains pending.
 
 ## GitHub version history
 
@@ -506,3 +514,25 @@ The user explicitly authorized uploading the tested Show-controls correction. v1
 ## Confirmed patch publication
 
 Published [v1.15.1](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15.1) at 2026-10-10T22:50:58Z as the latest full release, not draft/prerelease. Annotated tag points to **a2fa5188a91fe92cafb29cabd4bf953b9f35ddf1**. Main source was successfully pushed; original v1.15 tag/release/assets are preserved. Four assets uploaded: universal app ZIP, SHA256SUMS.txt, guide and build identity. All four downloaded assets match local bytes; checksum, extracted app file hashes, strict signature and bundle 1.15.1/build 13 passed. ZIP SHA-256: **ee397193fc0c885c72414ade1c0e43c6ea66d493ab600f13be8bcc4751fc6cef**. Corrected app is installed at app/ProjectionMapper.app and archived under builds/v1.15.1/. Quit/reopen an older running copy. No new listening/device-unplug/long-session acceptance claim.
+
+## V2 mobile editor planning — October 14, 2026
+
+Added the approved mobile web editor to existing v2.10 without renumbering the roadmap: local Wi-Fi/QR pairing with face/object selection, corner/mask editing, effects, playback, undo and Mac-side saving; then mobile timeline and bounded preview; optional private-VPN internet access later. Recorded Mac-authoritative state/timing, session permissions, edit locks, revision/conflict/disconnect behavior and actual iPhone/Android acceptance gates. Native phone apps, Bluetooth and hosted relay remain later alternatives. Updated V2 roadmap, implementation steps and development requirements. Documentation only; no app changes, server enablement, builds, screen control, commits or GitHub uploads.
+
+
+## v2.01 local implementation and delivery — October 14, 2026
+
+Completed the authorized local implementation using Xcode 27.0 beta 5 (27A5237l). Fifteen added correctness tests cover routing/lifecycle/identity, shared GPU output, calibration profiles/fixtures and teardown; final Debug/Release each passed 284 correctness tests. Two sustained HD workloads and full-resolution effects matrix passed with documented limits. Universal 2.01/build 14 installed and archived with verified signature/file hashes/ZIP extraction; previous installed app preserved. No GitHub delivery, commits or routine screen use. Projector presentation/alignment/reconnect and optical measurements remain pending user/hardware acceptance. See V2.01_VERIFICATION.md.
+
+
+## Cleanup and development improvements — October 19, 2026
+
+- [x] Verify existing GitHub main/releases and the pinned Xcode 27A5237l.
+- [x] Preserve eight saved mapping projects from build folders, with complete file-hash comparisons, under local-only assets/local-projects/; retain three scratch helpers and lightweight historical reports.
+- [x] Remove 34 obsolete build folders (42.99 GiB logical file bytes), preserving source/history/tags and read-only references.
+- [x] Add repeatable pinned-toolchain build/test commands, one cache and preview-first cache cleanup; simplify current instructions and keep the bundled demo as the single protected fixture.
+- [x] Fix rejected projector opens getting stuck in opening; add resource-release/retry regression.
+- [x] Final Debug and Release each passed 285 correctness tests, zero failures/recorded runtime warnings. Four optional benchmarks skipped, two visible-window tests excluded.
+- [x] Install verified current universal app in app/ and Applications; remove obsolete external project-cache.
+- [ ] Final current archive and source backup confirmation.
+- No routine app launch or screen control. Hardware/listening/visual acceptance remains pending.

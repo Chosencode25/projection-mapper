@@ -53,12 +53,15 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
 
     func openOutput() {
         guard !isPrompting else { return }
-        session.testOutput.open(for: session.output.destination, resolution: session.output.testResolution)
+        let requested = session.output.destination
+        if requested != .testWindow { displayDiscovery.refresh() }
+        guard session.output.destination == requested else { return }
+        session.openOutput()
     }
 
     func windowWillClose(_ notification: Notification) {
         if let closing = notification.object as? NSWindow, closing === editorWindow {
-            session.testOutput.close()
+            session.closeOutput()
             closing.contentView = nil
             closing.delegate = nil
             editorWindow = nil
@@ -67,7 +70,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
 
     func applicationWillTerminate(_ notification: Notification) {
         session.releaseRuntimeResources()
-        session.testOutput.close()
+        session.closeOutput()
         editorWindow?.contentView = nil
         editorWindow?.delegate = nil
         editorWindow = nil
@@ -134,7 +137,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         showEditor()
         guard !isPrompting, let window = editorWindow else { return }
         let alert = NSAlert(); alert.messageText = "Welcome to Projection Mapper"
-        alert.informativeText = "Map effects, images and video onto faces or connected objects, then arrange them on the timeline. V1 includes a resizable Test Window. Start with the portable demo or read the guide. Opening the demo protects unsaved work with Save / Discard / Cancel."
+        alert.informativeText = "Map effects, images and video onto faces or connected objects, then arrange them on the timeline. Use a resizable Test Window or explicitly open one external fullscreen projector output. Start with the portable demo or read the guide. Opening the demo protects unsaved work with Save / Discard / Cancel."
         alert.addButton(withTitle: "Open Demo"); alert.addButton(withTitle: "Guide"); alert.addButton(withTitle: "Keep Editing")
         isPrompting = true
         alert.beginSheetModal(for: window) { [weak self] response in
@@ -145,7 +148,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
     func showHelp() {
         let alert = NSAlert(); alert.messageText = "Projection Mapper · V1 Guide"
-        alert.informativeText = "Add faces, drag their corners, and group checked faces into an object. Continuous mode shares one canvas; input maps and edge links establish continuity. Repeat shows the same content on each face.\n\nChoose effects, PNG/JPEG images or SDR H.264/HEVC MP4/MOV. Capture content with + in an object timeline row. Empty rows show live content; gaps in populated rows are dark. Move clips to move timing, drag edges to trim, and scrub the ruler. Audio starts muted.\n\nCommand-Z / Shift-Command-Z undo and redo project edits. Save with Command-S; .projectionmap packages include referenced media. Open the V1 Demo from Help; unsaved work is protected. Check Playback Readiness in Show before playback. Identification temporarily isolates the selected owner; Finish Identification restores normal output.\n\nV1 uses a resizable Test Window. Fullscreen projector output, music waveforms/sequencing, lights and layered crossfades remain V2."
+        alert.informativeText = "Add faces, drag their corners, and group checked faces into an object. Continuous mode shares one canvas; input maps and edge links establish continuity. Repeat shows the same content on each face.\n\nChoose effects, PNG/JPEG images or SDR H.264/HEVC MP4/MOV. Capture content with + in an object timeline row. Empty rows show live content; gaps in populated rows are dark. Move clips to move timing, drag edges to trim, and scrub the ruler. Audio starts muted.\n\nCommand-Z / Shift-Command-Z undo and redo project edits. Save with Command-S; .projectionmap packages include referenced media. Open the V1 Demo from Help; unsaved work is protected. Check Playback Readiness in Show before playback. Identification temporarily isolates the selected owner; Finish Identification restores normal output.\n\nSelect Test Window for rehearsal, or an independent external display and Open Projector Output. Disconnect/sleep/mode changes close projector output; reopen explicitly. Output Calibration offers boundary identification and a 60 fps timing fixture; timing preferences are local to this Mac. Physical projector acceptance is pending. Music waveforms/sequencing, lights and layered crossfades arrive in later V2 milestones."
         alert.addButton(withTitle: "Done")
         if let window = editorWindow { alert.beginSheetModal(for: window) { _ in } }
     }

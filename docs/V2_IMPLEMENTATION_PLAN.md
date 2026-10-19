@@ -1,6 +1,6 @@
 # V2 — Ordered Implementation and Acceptance Plan
 
-Status: show milestones planned, October 5, 2026; early timeline foundation added October 9, 2026. See [V2 roadmap](V2_ROADMAP.md) for scope and research, and [V1 foundations](V1_REMAINING_PLAN.md) for prerequisites. No numbered V2 milestone is complete; the early timeline foundation below is already implemented in V1. Each milestone can be split into smaller implementation slices before coding; keep its number and acceptance contract consistent across documents.
+Status: show milestones planned, October 5, 2026; early timeline foundation added October 9, 2026. See [V2 roadmap](V2_ROADMAP.md) for scope and research, and [V1 foundations](V1_REMAINING_PLAN.md) for prerequisites. v2.01 code is now implemented locally and automatically verified, with physical acceptance pending; v2.02 onward remain planned. The early timeline foundation below is already implemented in V1. Each milestone can be split into smaller implementation slices before coding; keep its number and acceptance contract consistent across documents.
 
 ## Early timeline foundation — October 9, 2026
 
@@ -17,6 +17,8 @@ One authoritative transport supplies song position and discontinuity events (see
 Simulation tests use known beats/cue timestamps, frame-number video and deterministic seeds. Before timing acceptance, choose a supported resolution/frame cadence and document a measurable error budget for the tested system. Record steady offset, jitter and cumulative drift separately. Use a one-output-frame alignment target after calibration where feasible; report measured results/limits instead of promising zero latency or universal frame accuracy. Timing budgets for hardware/network workflows are established before claiming support.
 
 ## v2.01 — Projector Output and Calibration
+
+Detailed staged work, operator behavior and acceptance gates: [v2.01 milestone plan](V2.01_PLAN.md), created October 14, 2026. Implementation is locally verified; physical acceptance is pending. See [verification](V2.01_VERIFICATION.md) and [output guide](V2.01_USER_GUIDE.md).
 
 1. Confirm V1 acceptance and migration prerequisites. Define Test Window versus physical-display output routing explicitly; preserve selected display identity and normalized mapping. Plan one projector/output first.
 2. Implement a programmatic fullscreen output on the selected eligible external display using the same renderer/content snapshot. Handle resolution, backing scale, screen coordinates, mirroring/eligibility, focus and clean output; editor decorations/reference photos remain excluded.
@@ -88,13 +90,33 @@ Simulation tests use known beats/cue timestamps, frame-number video and determin
 4. Add explicit arming and readiness gates, persistent schedule configuration and conservative restart recovery. Scheduling works only with supported app-running/power conditions; clearly expose whether the app must remain open. Do not promise OS launch/wake/always-on behavior without implementing and testing it.
 5. Test using an injected clock over DST/holiday/midnight/conflict scenarios, then perform a multi-night rehearsal on available hardware. Verify preload, intros/outros, idle scenes, graceful endings, manual overrides and restart behavior. Reject or flag schedules whose required dependencies are missing.
 
-## v2.10 — Local Remote Control
+## v2.10 — Mobile Web Editor and Remote Control
 
-1. Define a small local-network command/status service bound only when explicitly enabled. Provide pairing/token access, controllable interface binding, revocation and clear connection state; no public Internet exposure or cloud account is assumed.
-2. Build a phone/browser interface for playlist selection, play/pause/stop, brightness, blackout, audio mute and readiness/status. Remote controls execute the same validated command path and Show Mode permissions as local controls.
-3. Define idempotent requests, state revisions and controller conflict policy. Handle stale clients, duplicate commands, reconnect and revocation without accidental restarts or bypassing edit locks.
-4. Optionally add a tested hardware-button/controller binding profile through v2.07 adapters. Keep it a capability with documented hardware requirements, not mandatory hardware purchase or an unsupported plugin promise.
-5. Verify unauthorized/stale requests, command rates, pairing/revocation, duplicate requests and multiple clients. Check phone controls on the actual local network; losing remote connection leaves local controls functional and follows the chosen show policy.
+Approved October 14, 2026. Expand the existing remote-control milestone without renumbering other V2 work. The phone is a separate browser client; the Mac interface stays native SwiftUI/programmatic AppKit. All stages below are planned, not implemented. No native phone app, public server or Bluetooth connection is required for the first delivery.
+
+### Stage 1 — Local Wi-Fi editor and controls
+
+1. Add an explicitly enabled Mac-hosted web service and bundled responsive phone interface. Show connection status, a QR code and a manual address fallback. Support a phone and Mac on the same local network without internet. Bind only approved interfaces; make disabling remote access and revoking a phone reachable on the Mac. Investigate discovery/address changes, firewall/local-network permission behavior and secure browser-compatible pairing/session transport before selecting the implementation. Do not require users to bypass certificate warnings or expose an unauthenticated editor.
+2. Pair deliberately with an expiring invitation and Mac approval or equivalent verified code exchange. Separate viewer, editor and operator permissions; start with one authorized editing controller. Validate origins, session expiry, request size/rate and target IDs. A QR invitation must not grant permanent unrestricted access. Route every edit/action through the same validated Mac command path as local controls; do not expose arbitrary files or operating-system commands.
+3. Supply face/object lists, selected-owner identification/Finish, corner dragging, magnified corner editing and precise nudge buttons. Use normalized mapping coordinates, preserve shared membership/input maps and expose geometry locks. Add face-local boundary/hole mask editing with the same validity rules and intentional gesture completion as on the Mac. Selection/identification stays runtime-only; a completed mapping/mask gesture is one undo action.
+4. Add effect parameters, colors/palettes, brightness, Play/Pause/Stop/Seek, visual blackout/restore, deliberate audio enable/mute and readiness/status. Keep blackout separate from audio mute. Show Mode permits operator actions but rejects geometry/timeline edits; remote access must not bypass those locks or automatically arm a show. Mac validation and acknowledgment determine what the phone displays as applied.
+5. Add project Undo/Redo and Save through Mac document/recovery handling. Save updates the existing Mac document; an unsaved project requests a destination on the Mac and shows that pending state on the phone. Do not assume a phone browser can operate native Save As dialogs. New/Open/destructive project changes are outside the first phone scope. Asset import/relink remains on the Mac initially.
+6. Define state revisions, request/gesture IDs, acknowledgments and controller ownership. Reject stale edits and duplicate commands; broadcast Mac edits to the phone. Coalesce high-frequency drags and bound queues so remote interaction cannot starve rendering/audio. Define gesture timeout/disconnect completion or rollback explicitly, retaining a coherent undo boundary. Reconnect loads current Mac state and never replays old edits or Play commands. Show connection loss visibly; existing output continues under Mac policy and local controls remain available.
+7. Verify protocol/authorization/validation/conflict/rate-limit cases automatically before phone checks. Accept a practical task: stand away from the Mac, pair, identify a face, align its corners/mask, change an effect, undo/redo and save, then reopen on the Mac with the same mapping/media. Test actual iPhone Safari and Android Chrome, portrait/landscape and touch/scroll interactions; no cross-platform claim before those checks. Measure edit acknowledgment latency and confirm playback/output remains stable during drags and disconnects. Test a normal LAN and, when available, a dedicated-router setup. Guest-network isolation, hotspot and permissions failures receive clear guidance rather than a compatibility assumption.
+
+### Stage 2 — Mobile timeline and preview
+
+1. Extend the phone client with compact object lanes, clip selection, move/trim, source-range editing and useful zoom/snap controls. Reuse stable owner/clip IDs, shared song time and existing undo transactions; preserve geometry and connected-face media ownership. Defer advanced desktop-equivalent authoring until explicit scope is chosen.
+2. Add an optional bounded preview generated by the Mac, starting with snapshots or a modest refresh rate. Keep source assets/files on the Mac and avoid a second renderer/player/audio clock on the phone. Expose preview age/latency; a delayed phone preview is not evidence of physical projector/music synchronization. Higher-rate streaming is optional only after measuring bandwidth, encode overhead and output impact.
+3. Verify gesture cancellation, stale/deleted clips, transitions, connected ownership, save/reopen, browser background/foreground and multiple read-only clients. Accept timeline edits made on a phone and confirmed on the Mac, with preview enabled/disabled and under network loss. Maintain the single-editor/conflict policy and Show Mode restrictions.
+
+### Stage 3 — Optional internet access through a private VPN
+
+1. Reuse the same editor and authenticated command protocol over a deliberately configured private VPN, such as Tailscale. Require the Mac to remain running and reachable and both devices to have authorized network access. Provide address/QR guidance for the chosen private route; VPN setup is explicit, not automatic enrollment or a cloud dependency for local editing.
+2. Keep pairing, revocation, permissions and Show Mode locks in force over the VPN. A VPN alone does not authorize app editing. Do not add automatic router port forwarding, public tunnels or our own hosted relay. Handle higher latency and changing connectivity without stale command replay or unwanted show starts.
+3. Verify phone access from a genuinely different network/cellular connection, private access boundaries, disconnect/reconnect and unchanged local operation. Record setup/version/network limitations. Internet support remains optional/pending if unavailable, rather than blocking the verified local V2 release or being advertised without acceptance.
+
+Optional tested hardware-button bindings can still reuse v2.07 adapters; they are independent of the phone editor and do not require hardware purchases. A native companion app, Bluetooth/Bluetooth LE fallback and a hosted internet relay remain later alternatives requiring separate feasibility, security, distribution and hardware/browser acceptance plans.
 
 ## v2.11 — Export and Portable Delivery
 
@@ -107,7 +129,7 @@ Simulation tests use known beats/cue timestamps, frame-number video and determin
 ## v2.12 — Acceptance, Packaging and Release
 
 1. Finish migration/undo/autosave/recovery regression coverage from V1 through every V2 schema revision. Verify old layouts retain their mapping, media and mute defaults, and all malformed/incompatible files fail without destroying the current session.
-2. Run a realistic house/prop show through authoring, templates, manual recording, music timing, export, integration, operator controls, schedules and local remote control. Include long sessions, repeated loops, missing media, device/network loss and recovery. Recheck pinned Xcode and target architectures/OS availability.
+2. Run a realistic house/prop show through authoring, templates, manual recording, music timing, export, integration, operator controls, schedules and mobile web editing/local remote control. Cover phone mapping/timeline edits, pairing/revocation and confirmed Mac saves; exercise internet access only if that optional stage is delivered. Include long sessions, repeated loops, missing media, device/network loss and recovery. Recheck pinned Xcode and target architectures/OS availability.
 3. Measure CPU/GPU/memory, timing error/jitter/drift, media decode headroom and resource teardown under documented workloads. Set supported hardware/OS/integration expectations from measured results; distinguish unavailable physical tests from passing simulations.
 4. Prepare demonstrations, setup/rehearsal/install instructions, compatibility matrix, known limits and actionable errors. A real Christmas-show example must have physical projection/audio/light evidence before being advertised as verified; a Test Mode demonstration is labeled accordingly.
 5. Finalize version/build, signing/distribution/notarization requirements, matching source/tag and immutable archives/checksums. Perform publication under the established user-authorized destination/visibility; private GitHub remains the default and public exposure is a separate decision. Verify uploaded/downloaded artifacts and record the actual release link/results.
@@ -118,7 +140,7 @@ Simulation tests use known beats/cue timestamps, frame-number video and determin
 - v2.02 is the clock foundation for v2.03–v2.04 and for continuous following in v2.07. Do not implement synchronization by counting rendered frames.
 - v2.05 defines composition/region targets before v2.06 template assignment. Existing V1 tags are metadata; target-role assignment is explicit.
 - v2.07 compatibility is proven per workflow. A limited export/control bridge can ship accurately labeled; unsupported follow adapters remain pending work.
-- v2.08 readiness is required before v2.09 unattended operation or v2.10 remote arming. v2.11 generic export uses timeline determinism even if a hardware adapter is unavailable.
+- v2.08 readiness is required before v2.09 unattended operation or v2.10 remote arming. v2.10 phone editing reuses v2.03 edit transactions and v2.08 locks; local editing does not require the optional VPN stage. v2.11 generic export uses timeline determinism even if a hardware adapter is unavailable.
 - The final show release is gated on its advertised physical/integration capabilities. Test-only slices do not erase pending hardware work, and pending hardware does not prevent independent editing progress.
 
 ## Later feature backlog and admission criteria

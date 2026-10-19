@@ -18,7 +18,7 @@ struct OutputSelectorView: View {
         }
         .menuStyle(.borderlessButton)
         .frame(maxWidth: compact ? 190 : .infinity)
-        .help("Output: \(output.selectedName). Test Window output is available; projector output is deferred.")
+        .help("Output: \(output.selectedName). Select Test Window or one independent external display; output opens explicitly.")
         .accessibilityLabel("Output destination")
         .accessibilityValue(output.selectedName)
     }

@@ -71,6 +71,7 @@ final class EditorSession {
     private func updateOutputScene() {
         videoPlayback.configure(scene: scene,assets: project.videoAssets,urls: videoFiles,audio: project.videoAudio,enabled: videoAudioEnabled)
         testOutput.setScene(scene)
+        projectorOutput.setScene(scene)
     }
     func seekPlayback(to seconds: Double, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard seconds.isFinite, (0...3600).contains(seconds), uptime.isFinite else { return }
@@ -267,6 +268,7 @@ final class EditorSession {
         if let object = selectedObject { return object.source }
         return selectedSurface.map { project.source(for: $0) }
     }
+    let projectorOutput: ProjectorOutputCoordinator
     let testOutput: TestOutputCoordinator
     var isSidebarVisible = true
     var isInspectorVisible = true
@@ -324,6 +326,7 @@ final class EditorSession {
     }
     func load(_ document: ProjectDocument, from url: URL, recovering: Bool = false, store: ProjectPackageStore = ProjectPackageStore(), loadedMedia: (pixels: [UUID:ImagePixels], files: [UUID:Data], problems: [UUID:String])? = nil, loadedVideos: (urls: [UUID:URL],posters: [UUID:ImagePixels],problems: [UUID:String])? = nil) throws {
         try ProjectCodec.validate(document)
+        closeOutput()
         clearEditHistory(); mediaStamps.removeAll(); savedMediaStamps.removeAll()
         identifyingSourceID = nil
         if !recovering || project.id != document.project.id { clearRecovery() }
@@ -367,13 +370,15 @@ final class EditorSession {
     var editMessage: String?
 
     init(presentOutput: @escaping (NSWindow) -> Void = { $0.makeKeyAndOrderFront(nil) },
-         project: MappingProject = MappingProject(), output: OutputSelectionState = OutputSelectionState()) {
-        self.project = project; self.savedBaseline = project; self.output = output
+         project: MappingProject = MappingProject(), output: OutputSelectionState = OutputSelectionState(),
+         projectorOutput: ProjectorOutputCoordinator = ProjectorOutputCoordinator()) {
+        self.project = project; self.savedBaseline = project; self.output = output; self.projectorOutput = projectorOutput
         isRecovered = !project.hasDefaultContent
         selectedSurfaceID = project.surfaces.first?.id
         testOutput = TestOutputCoordinator(presentWindow: presentOutput, scene: project.renderScene)
         editCheckpoint = snapshotForHistory()
-        videoPlayback.changed = { [weak self] in guard let self else { return }; self.testOutput.setScene(self.scene) }
+        videoPlayback.changed = { [weak self] in guard let self else { return }; self.testOutput.setScene(self.scene); self.projectorOutput.setScene(self.scene) }
+        output.changed = { [weak self] in self?.outputDestinationChanged() }
     }
     private func changed(now: Date = .now) {
         let active = Set(project.surfaces.map { project.source(for: $0).id })
@@ -404,6 +409,28 @@ final class EditorSession {
         }
         return result
     }
+    var isOutputOpen: Bool { testOutput.isOpen || projectorOutput.isOpen }
+    var outputStatusText: String {
+        if let message = projectorOutput.message { return message }
+        return output.destination == .testWindow ? testOutput.statusText : projectorOutput.statusText
+    }
+    var canOpenOutput: Bool {
+        output.destination == .testWindow || output.selectedDisplay.map { ProjectorOutputCoordinator.validTarget($0, in: output.displays) } == true
+    }
+    func outputDestinationChanged() {
+        testOutput.destinationDidChange(output.destination)
+        projectorOutput.reconcile(destination: output.destination, snapshot: output.displays)
+    }
+    func openOutput() {
+        if output.destination == .testWindow {
+            projectorOutput.close()
+            testOutput.open(for: .testWindow, resolution: output.testResolution)
+        } else {
+            testOutput.close()
+            projectorOutput.open(output.selectedDisplay, snapshot: output.displays, scene: scene)
+        }
+    }
+    func closeOutput() { testOutput.close(); projectorOutput.close() }
     func setTestResolution(_ resolution: TestResolution) { output.setTestResolution(resolution); testOutput.setResolution(resolution) }
     func renameProject(_ name: String, now: Date = .now) {
         guard name != project.name else { return }; project.name = name; changed(now: now)
@@ -792,6 +819,7 @@ final class EditorSession {
         project.objects[i].links.removeAll { $0.id == linkID }; changed()
     }
     func resetProject(now: Date = .now) {
+        projectorOutput.close()
         clearEditHistory(); mediaStamps.removeAll(); savedMediaStamps.removeAll(); identifyingSourceID = nil
         imagePixels.removeAll(); imageFiles.removeAll(); imageProblems.removeAll(); mediaGeneration = UUID(); referencePhotoVisible = true
         clearRecovery(); documentURL = nil; assetSourceURL = nil; isRecovered = false; fileMessage = nil
@@ -1383,6 +1411,7 @@ extension EditorSession {
         boundHistory(); updateOutputScene(); scheduleRecovery()
     }
     func releaseRuntimeResources() {
+        closeOutput()
         autosaveTask?.cancel(); videoImportTask?.cancel(); saveWorker?.cancel()
         videoPlayback.reset(); clearEditHistory(); videoFiles.removeAll(); cleanupManagedVideos()
     }
@@ -1451,13 +1480,18 @@ extension EditorSession {
             add("audio-device",.warning,"Chosen audio device is unavailable. Select System default or a connected device, then Enable Audio again.")
         }
         if !videoAudioEnabled { add("audio-muted",.information,"Audio is safely disabled. Enable Audio deliberately after choosing output and volume.") }
-        if output.destination != .testWindow { add("output",.blocker,"V1 supports the Test Window. Select Test Window; fullscreen projector output is planned for V2.") }
-        else if !testOutput.isOpen { add("output",.information,"Test Window is closed. Use Show Output to inspect clean output.") }
+        if !canOpenOutput { add("output",.blocker,"Selected output is unavailable. Refresh Displays and select an independent external display or Test Window.") }
+        else if !isOutputOpen { add("output",.information,"Output is closed. Explicitly open the selected output to inspect it.") }
+        if let message = projectorOutput.message { add("output-recovery",.warning,message) }
+        if projectorOutput.diagnostic != .normal { add("output-diagnostic",.information,"Full-output calibration is active. Finish Output Calibration to restore content.") }
+        if let profile = output.calibrationProfile, let display = output.selectedDisplay, !profile.matches(display) {
+            add("output-profile",.warning,"Display mode changed since calibration. Remeasure and save a profile for this mode.")
+        }
         if project.surfaces.isEmpty { add("empty",.warning,"No surfaces. Add a surface or open the V1 Demo from Help.") }
         if showOutput.isBlackout || project.masterOutput.brightness == 0 { add("dark",.warning,"Output is blacked out or master brightness is zero. Restore Output or increase brightness.") }
         if calibration.pattern.isActive { add("calibration",.information,"Calibration is active. Choose Normal Content to see timeline content.") }
         if identifyingSourceID != nil { add("identify",.information,"Object identification is active. Finish Identification to restore all owners.") }
-        add("resource-scope",.information,"Inspection checks loaded media, ranges and reported decoder failures without autoplay. Smooth playback and audio timing require the user check; real projector output is deferred.")
+        add("resource-scope",.information,"Inspection checks loaded media, ranges and reported decoder failures without autoplay. Smooth playback and audio timing require the user check; physical projector alignment, reconnect and optical delay require hardware acceptance.")
         return PlaybackReadinessReport(issues: issues,blockerCount: blockers,warningCount: warnings,omittedCount: omitted,checkedAt: .now)
     }
 }

@@ -11,24 +11,24 @@ struct OutputWindowControls: View {
                 if compact {
                     Image(systemName: "macwindow.badge.plus")
                 } else {
-                    Text("Show Output")
+                    Text(session.output.destination == .testWindow ? "Show Test Output" : "Open Projector Output")
                 }
             }
-            .disabled(session.output.destination != .testWindow)
+            .disabled(!session.canOpenOutput)
             .accessibilityLabel("Show Output")
             .help(session.output.destination == .testWindow
                   ? "Show the Test Window (Control–Command–O), restoring it if minimized"
-                  : "Select Test Window to open output. Projector output is deferred.")
-            Button(action: { session.testOutput.close() }) {
+                  : "Open clean fullscreen output on the selected external display")
+            Button(action: { session.closeOutput() }) {
                 if compact {
                     Image(systemName: "xmark.rectangle")
                 } else {
                     Text("Close Output")
                 }
             }
-            .disabled(!session.testOutput.isOpen)
+            .disabled(!session.isOutputOpen)
             .accessibilityLabel("Close Output")
-            .help("Close test output and keep the editor open")
+            .help("Close output and keep the editor and playback controls available")
         }
     }
 }

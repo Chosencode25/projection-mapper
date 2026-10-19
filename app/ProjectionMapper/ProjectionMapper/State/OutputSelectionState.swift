@@ -9,6 +9,7 @@ final class OutputSelectionState {
     private(set) var testResolution: TestResolution
     private(set) var recoveryMessage: String?
     private(set) var savedPreference: SavedOutputPreference
+    @ObservationIgnored var changed: (() -> Void)?
     private var didRestore = false
     private let preferences: OutputPreferences
 
@@ -41,6 +42,7 @@ final class OutputSelectionState {
     }
 
     func select(_ choice: OutputDestination) {
+        defer { changed?() }
         switch choice {
         case .testWindow:
             destination = choice
@@ -58,6 +60,7 @@ final class OutputSelectionState {
 
     /// Restoration is attempted once, after the editor has a screen and discovery succeeds.
     func update(_ snapshot: [DisplayDescriptor], error: String? = nil) {
+        defer { changed?() }
         let previous = selectedDisplay
         displays = snapshot
         if let error {
@@ -72,7 +75,7 @@ final class OutputSelectionState {
         }
         guard case .display(let id) = destination else { return }
         // A driver's runtime ID may change while the same uniquely identified display remains online.
-        let sameID = displays.first { $0.id == id && $0.uuid == previous?.uuid }
+        let sameID = displays.first { $0.id == id && $0.uuid == previous?.uuid && ($0.uuid == nil || displays.filter { $0.uuid == previous?.uuid }.count == 1) }
         let identityMatches = previous?.uuid.map { uuid in displays.filter { $0.uuid == uuid } } ?? []
         let resolved = sameID ?? (identityMatches.count == 1 ? identityMatches.first : nil)
         guard let current = resolved else {
@@ -88,6 +91,7 @@ final class OutputSelectionState {
     }
 
     func restoreProjectPreference(_ value: SavedOutputPreference, resolution: TestResolution) {
+        defer { changed?() }
         savedPreference = value; preferences.save(value); setTestResolution(resolution)
         destination = .testWindow; didRestore = true; recoveryMessage = nil; restore()
     }
@@ -108,6 +112,17 @@ final class OutputSelectionState {
         }
         destination = .display(display.id)
         recoveryMessage = nil
+    }
+    private(set) var calibrationRevision = 0
+    var calibrationProfile: OutputCalibrationProfile? {
+        _ = calibrationRevision
+        guard let display = selectedDisplay, let uuid = display.uuid,
+              displays.filter({ $0.uuid == uuid }).count == 1 else { return nil }
+        return preferences.loadCalibration(for: display)
+    }
+    func saveCalibration(_ profile: OutputCalibrationProfile) {
+        guard let display = selectedDisplay, ProjectorOutputCoordinator.validTarget(display, in: displays), profile.matches(display) else { return }
+        preferences.saveCalibration(profile); calibrationRevision += 1; changed?()
     }
     private func persist(_ value: SavedOutputPreference) {
         savedPreference = value

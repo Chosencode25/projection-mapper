@@ -12,3 +12,7 @@ xcuserdata/
 
 # macOS metadata
 .DS_Store
+
+# Local working projects rescued from generated build folders
+/assets/local-projects/
+__pycache__/

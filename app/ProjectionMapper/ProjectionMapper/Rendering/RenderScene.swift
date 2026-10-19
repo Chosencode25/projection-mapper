@@ -124,6 +124,7 @@ struct RenderScene: Equatable, Sendable {
     let surfaces: [RenderSurface]
     var images: [UUID:ImagePixels] = [:]
     var videoFrames: [UUID:VideoFrame] = [:]
+    var outputTimingFixtureActive = false
     var editorTransparentBackground = false
     var transport = AnimationTransport()
     var masterBrightness: Float = 1
@@ -151,6 +152,7 @@ struct RenderScene: Equatable, Sendable {
     /// The renderer supplies eligibility cached alongside its prepared geometry.
     func needsContinuousRendering(at uptime: TimeInterval, hasVisibleSurface: Bool, hasRunningAnimation: Bool) -> Bool {
         guard calibration.isValid, calibration.pattern != .black, masterBrightness.isFinite, masterBrightness > 0, !showOutput.isBlackout else { return false }
+        if outputTimingFixtureActive, effectiveGain(at: uptime) > 0 { return true }
         if showOutput.isFading(at: uptime), hasVisibleSurface { return true }
         return !calibration.pattern.isActive && effectiveGain(at: uptime) > 0 && transport.isPlaying && (hasRunningAnimation || (hasVisibleSurface && surfaces.contains { !$0.timelineClips.isEmpty }))
     }

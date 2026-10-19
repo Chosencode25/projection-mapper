@@ -37,7 +37,7 @@ struct EditorWindowView: View {
         .tint(.purple)
         .onChange(of: session.project) { _, _ in projectChanged() }
         .onChange(of: session.output.destination) { _, destination in
-            session.testOutput.destinationDidChange(destination)
+            session.outputDestinationChanged()
         }
     }
 }

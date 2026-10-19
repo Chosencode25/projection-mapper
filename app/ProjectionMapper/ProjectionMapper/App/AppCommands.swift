@@ -58,9 +58,9 @@ struct AppCommands: Commands {
             Divider()
             Button("Show Output") { coordinator.openOutput() }
                 .keyboardShortcut("o", modifiers: [.command, .control])
-                .disabled(coordinator.session.output.destination != .testWindow)
-            Button("Close Output") { coordinator.session.testOutput.close() }
-                .disabled(!coordinator.session.testOutput.isOpen)
+                .disabled(!coordinator.session.canOpenOutput)
+            Button("Close Output") { coordinator.session.closeOutput() }
+                .disabled(!coordinator.session.isOutputOpen)
         }
         CommandGroup(after: .sidebar) {
             Menu("Editor Guides") { EditorDisplayMenu(session: coordinator.session) }

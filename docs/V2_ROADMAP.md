@@ -1,12 +1,14 @@
 # V2 Roadmap — Music and Show Playback
 
-Status updated October 10, 2026: numbered V2 milestones remain planned. V1 through v1.15 is implemented and automatically verified: owner rows, effect/image/video clips, embedded audio, undo/redo, readiness and local development packaging. Installed 1.15/build 12 uses format 9; 269 correctness tests passed in each Debug/Release run. User visual/listening acceptance and separately authorized publication remain pending. V2 migrates/reuses the existing rows, clips, stable media/layout identities and transport. Next is v2.01 physical output; milestone numbers do not authorize publication.
+Status updated October 14, 2026: **v2.01 is implemented locally and automatically verified; physical projector acceptance remains pending.** Local app is 2.01/build 14, portable format 9; Debug/Release each passed 284 correctness tests. No GitHub delivery is authorized for this build. Latest published app remains v1.15.1. v2.02–v2.12 remain planned; next independent development is music/song transport and waveforms in v2.02. V1 listening/device-unplug and long-session acceptance remain unverified. v2.10 includes the approved mobile web editor. See [v2.01 verification](V2.01_VERIFICATION.md).
 
 V2 turns the V1 mapper into a native Mac workspace for building repeatable projection shows to music, rehearsing them, coordinating with an existing lighting system and running playlists. Map the display once, reuse it across songs, and keep Test Mode available for editing without hardware. Preserve connected object faces and their shared content coordinates.
 
 Read [V1 remaining plan](V1_REMAINING_PLAN.md), [development requirements](PROJECT_DEVELOPMENT.md), [GitHub workflow](GITHUB_WORKFLOW.md) and the [detailed V2 steps](V2_IMPLEMENTATION_PLAN.md) before implementation. The project remains pinned to Xcode 27.0 beta 5 (27A5237l); a future toolchain change requires an explicit project decision.
 
 ## Ordered milestones
+
+The first milestone has a dedicated [v2.01 projector output and calibration plan](V2.01_PLAN.md) with implementation slices and separate automated/physical acceptance gates.
 
 | Milestone | Scope | Acceptance outcome |
 |---|---|---|
@@ -19,9 +21,15 @@ Read [V1 remaining plan](V1_REMAINING_PLAN.md), [development requirements](PROJE
 | 2.07 — External Synchronization and Lighting Integration | One verified xLights/FPP workflow first; external clock follow versus triggers; MIDI/OSC controls and latency adjustment. | A reference projection/music/light sequence stays aligned on the tested systems, including seeks and sync loss. |
 | 2.08 — Show Mode and Readiness | Editing lock, preload, readiness report, live status, stop/blackout/audio mute, identification and recovery policies. | A rehearsed show can run with predictable operator controls and visible failure states. |
 | 2.09 — Playlists and Scheduling | Intro/main/closing sections, idle scenes, nightly/holiday rules, graceful finish, timezone/DST and restart behavior. | A simulated and physical nightly schedule starts/stops correctly without duplicate playback. |
-| 2.10 — Local Remote Control | Local-network phone/browser controls and status; explicit pairing/access; optional tested hardware-button bindings. | Authorized controls operate the same show state; loss of remote connectivity does not stop local controls. |
+| 2.10 — Mobile Web Editor and Remote Control | Mac-hosted phone editor: local Wi-Fi/QR pairing first; face/object selection, mapping/masks, effects and playback; then mobile timeline and bounded preview. Later optional internet access through a private VPN reuses the same editor. | Authorized phone edits use Mac validation, undo and saves; Show Mode locks remain enforced. Disconnects preserve Mac rendering and local control. Actual iPhone/Android browser acceptance is required. |
 | 2.11 — Export and Portable Delivery | Collect assets; render projection video from explicit show time; distinguish content-canvas versus mapped-output exports. | Export timing and appearance match the chosen output; the portable show opens without its original asset folders. |
 | 2.12 — Acceptance, Packaging and Release | Long-session rehearsal, migration/undo/recovery regressions, measured timing/resource limits, documentation and verified packaging/upload. | Published claims match the tested app, integration versions and actual hardware coverage. |
+
+## Mobile editing direction — October 14, 2026
+
+The approved first approach is a mobile web editor hosted by the running Mac app, opened by scanning a QR code on the Mac. Phone and Mac join the same local Wi-Fi network; internet is not required. A dedicated router is an alternative when venue/guest Wi-Fi isolates clients. Hotspot operation is a separately tested setup, not assumed compatibility.
+
+Keep the existing milestone order: expand v2.10 into three stages—local editing/controls, mobile timeline and preview, then optional private-VPN internet access. The Mac owns rendering, audio/show timing, validation, undo/recovery and project files; the phone sends edits and receives confirmed state. Native phone apps, Bluetooth fallback and our own cloud relay remain later alternatives, not initial dependencies or V2 release blockers. See [detailed stages](V2_IMPLEMENTATION_PLAN.md#v210--mobile-web-editor-and-remote-control).
 
 ## Scope boundaries
 
