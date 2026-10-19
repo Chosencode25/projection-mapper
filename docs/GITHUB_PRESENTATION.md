@@ -19,8 +19,13 @@ The banner/social artwork uses the existing app icon's orange/magenta/cyan palet
 
 ## Verification and delivery
 
-Exact pinned Xcode reverified using the development helper. No app source or Xcode configuration changed, so the existing 285 Debug/Release correctness results remain the applicable app evidence. Documentation links, SVG/media dimensions, issue-form syntax/fields, Git diff hygiene and actual GitHub rendering are being checked. The description and ten topics were successfully applied through the GitHub API. The user signed into GitHub in the browser, and the social image upload completed with the artwork visible in repository settings. Repository-file delivery and final live README/issue-form rendering remain to be completed.
+Exact pinned Xcode reverified using the development helper. No app source or Xcode configuration changed, so the existing 285 Debug/Release correctness results remain the applicable app evidence. 63 local documentation/media links, SVG/media dimensions, issue-form syntax/field IDs and diff hygiene passed. Live GitHub rendering also passed: all README images/buttons and the expanded GIF loaded with nonzero native dimensions, and GitHub rendered the chooser and both issue forms with their intended fields. No issue was submitted. The description and ten topics were successfully applied through the GitHub API. The user signed into GitHub in the browser, and the social image upload completed with the artwork visible in repository settings. Repository files were successfully pushed on main at **4d6d42542b5cd13051b0a646689415afa0a93c33**, from **9107838**. Live README/media and both issue forms were verified after that push. Compact evidence is in docs/verification/2026-10-19/GitHub-presentation.json. The documentation-only verification record follows the presentation commit; app sources and published releases/tags remain unchanged.
 
 ## Visibility observation
 
 GitHub's API and signed-in repository settings reported this repository as **public** at the start of this presentation work, despite the earlier local private-visibility records. Main still matched the last confirmed 9107838 delivery. Visibility was not changed by this work; no date or cause for the prior visibility change is inferred. Screenshots include only the bundled demo. Earlier private-visibility statements are historical records, not a current access guarantee.
+
+
+Temporary raw captures and the intermediate image render were removed after the final
+media were verified. Retained project media total about 1.9 MiB. The repository page
+is left open on the redesigned README. No browser viewport override was applied.

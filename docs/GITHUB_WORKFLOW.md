@@ -122,5 +122,8 @@ improvements. This is a delivery exception for documentation/media, with no app 
 bump, release/tag/asset replacement or app-source changes. Exact Xcode 27A5237l was
 reverified; existing 285 Debug/Release results remain applicable. See
 [GITHUB_PRESENTATION.md](GITHUB_PRESENTATION.md) for provenance and checks.
-The description/topics and custom social preview are applied; repository-file delivery
-and live rendering verification are being completed.
+The description/topics and custom social preview are applied. Repository files were
+successfully pushed on main at **4d6d425**, from **9107838**; live README images/GIF
+and both issue forms were verified. A documentation-only verification record follows.
+App source/configuration, existing releases/tags and observed public visibility are
+unchanged. Compact evidence: docs/verification/2026-10-19/GitHub-presentation.json.

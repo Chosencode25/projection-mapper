@@ -545,6 +545,6 @@ Completed the authorized local implementation using Xcode 27.0 beta 5 (27A5237l)
 - [x] Getting-started guide, documentation hub, contribution guide and bug/feature issue forms.
 - [x] Updated description and ten relevant topics; uploaded the custom 1280×640 social preview using the user-signed-in GitHub session.
 - [x] Verified 63 local documentation/media links, SVG/media dimensions, YAML syntax/field IDs and diff hygiene. Exact pinned Xcode reverified; app source is unchanged, so no app rebuild/test repetition is required.
-- [ ] GitHub file push and final live README/issue-form verification.
+- [x] Successful main push **9107838 → 4d6d425**. Verified the live README assets and expanded GIF load, plus the chooser and both rendered issue forms; no issue submitted. Temporary raw captures removed after final media verification.
 - App-window captures used only the bundled demo under the user's explicit screenshot/demo request. End state is paused at zero with Test Output closed. This is presentation media, not new routine user acceptance, audio/hardware or performance evidence.
 - GitHub was already public when this work began; visibility is unchanged. See [presentation record](GITHUB_PRESENTATION.md).

@@ -1,0 +1,33 @@
+{
+  "localLinksChecked": 63,
+  "svgSyntax": "passed",
+  "issueForms": "Ruby YAML parsing and field/id checks passed",
+  "socialPreviewSize": [
+    1280,
+    640
+  ],
+  "appCodeChanged": false,
+  "appBuildRequired": false,
+  "date": "2026-10-19",
+  "publishedCommit": "4d6d42542b5cd13051b0a646689415afa0a93c33",
+  "remotePush": "9107838..4d6d425 main -> main confirmed",
+  "liveREADMEImages": "hero, download/build links, editor, clean output and expanded GIF loaded with nonzero native dimensions",
+  "liveIssueForms": "chooser and both rendered forms verified; no issue submitted",
+  "repositoryDescription": "updated",
+  "repositoryTopics": [
+    "appkit",
+    "creative-coding",
+    "macos",
+    "metal",
+    "projection-mapping",
+    "swift",
+    "swiftui",
+    "timeline-editor",
+    "video",
+    "visual-effects"
+  ],
+  "socialPreview": "uploaded through signed-in GitHub settings and visually verified",
+  "socialPreviewSHA256": "b1db939593d88198f64470f4c76ca6fe5d43ae321b03804ca80dd3e3d43f1450",
+  "visibilityObserved": "public before changes; unchanged",
+  "physicalAcceptance": "pending; media capture adds no hardware acceptance"
+}
