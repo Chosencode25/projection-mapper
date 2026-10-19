@@ -537,3 +537,14 @@ Completed the authorized local implementation using Xcode 27.0 beta 5 (27A5237l)
 - [x] Current archive extracted/signature/file-hash verified in builds/current/; successful GitHub main source push at **0f8b517**, from **ecb57fe**. No release/tag/assets published.
 - [x] Remove superseded local v2.01 copies and the new disposable build cache after delivery; builds/ is now about 38 MiB instead of about 45 GiB. Preserve all rescued projects, reports and current app/archive.
 - No routine app launch or screen control. Hardware/listening/visual acceptance remains pending.
+
+
+## GitHub presentation — October 19, 2026
+
+- [x] Product-led README with branding, two real app screenshots and a short Test Mode GIF, stable v1.15.1 download versus v2.01 source, features, concise limits and navigation.
+- [x] Getting-started guide, documentation hub, contribution guide and bug/feature issue forms.
+- [x] Updated description and ten relevant topics; uploaded the custom 1280×640 social preview using the user-signed-in GitHub session.
+- [x] Verified 63 local documentation/media links, SVG/media dimensions, YAML syntax/field IDs and diff hygiene. Exact pinned Xcode reverified; app source is unchanged, so no app rebuild/test repetition is required.
+- [ ] GitHub file push and final live README/issue-form verification.
+- App-window captures used only the bundled demo under the user's explicit screenshot/demo request. End state is paused at zero with Test Output closed. This is presentation media, not new routine user acceptance, audio/hardware or performance evidence.
+- GitHub was already public when this work began; visibility is unchanged. See [presentation record](GITHUB_PRESENTATION.md).

@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest an improvement and explain the workflow it would help.
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: Check the V2 roadmap first. Planned features still benefit from concrete use cases.
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What are you trying to do?
+      description: Describe the task and where the current workflow gets in your way.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired result
+      description: Explain the behavior you would like, with an example if possible.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or current workaround
+      description: Optional. What have you tried, and why is it insufficient?
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Optional. Relevant layout, media, hardware, or roadmap milestone. Share only details intended for a public issue.

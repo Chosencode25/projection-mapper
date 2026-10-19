@@ -2,7 +2,7 @@
 
 Repository: https://github.com/Chosencode25/projection-mapper
 
-Visibility: **Private**. Local working folder: `/Users/keith/Documents/Projection Mapping`.
+Visibility: **Public as observed October 19, 2026** in the API and repository settings; this presentation work did not change visibility. Earlier entries retain their historical private-visibility records. Local working folder: `/Users/keith/Documents/Projection Mapping`.
 
 ## What is tracked
 
@@ -112,3 +112,15 @@ optical timing, user visual/listening, Intel/older-macOS runtime and notarizatio
 remain pending/unestablished. Main is the tested v2.01 source baseline; subsequent
 v2.02 implementation must start on a codex/ feature branch. This documentation-only
 delivery record follows the tested source commit under the same explicit request.
+
+
+## GitHub presentation — October 19, 2026
+
+The user explicitly authorized the suggested README, screenshots/demo, download/source
+navigation, documentation hub, description/topics, social preview and issue-template
+improvements. This is a delivery exception for documentation/media, with no app version
+bump, release/tag/asset replacement or app-source changes. Exact Xcode 27A5237l was
+reverified; existing 285 Debug/Release results remain applicable. See
+[GITHUB_PRESENTATION.md](GITHUB_PRESENTATION.md) for provenance and checks.
+The description/topics and custom social preview are applied; repository-file delivery
+and live rendering verification are being completed.

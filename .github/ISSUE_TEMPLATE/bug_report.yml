@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a reproducible problem in the editor, media, saving, or output.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: Use the bundled demo when possible. Include only media and details you intend to share publicly.
+  - type: input
+    id: version
+    attributes:
+      label: App version and build
+      description: Check About Projection Mapper; say whether you downloaded a release or built from source.
+      placeholder: v2.01 / build 14, built from main
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Mac and macOS
+      placeholder: MacBook Pro, Apple Silicon, macOS version
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Mapping or connected surfaces
+        - Effects or timeline
+        - Image or video import and playback
+        - Saving, recovery, or undo
+        - Test Window
+        - External display or calibration
+        - Build or installation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal sequence and whether it happens with the bundled demo.
+      placeholder: "1. Open the demo\n2. …\n3. …"
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: What should happen, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output setup, if relevant
+      description: Test Window or external display; model, resolution/refresh, and cable/adapter if known. Note any disconnect or sleep event.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or diagnostic details
+      description: Optional. Remove personal media and unneeded file paths before sharing.

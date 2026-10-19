@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="Projection Mapper. Make every surface a canvas.">
+<defs>
+  <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0a1228"/><stop offset="1" stop-color="#19213b"/></linearGradient>
+  <linearGradient id="face"><stop stop-color="#d32cf0"/><stop offset="1" stop-color="#7a46ff"/></linearGradient>
+  <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#ffffff" stroke-opacity=".035"/></pattern>
+</defs>
+<rect width="1280" height="640" rx="24" fill="url(#bg)"/>
+<rect width="1280" height="640" rx="24" fill="url(#grid)"/>
+<g font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif">
+  <text x="64" y="136" fill="#1ad1df" font-size="13" font-weight="600" letter-spacing="2.8">MAKE EVERY SURFACE A CANVAS</text>
+  <text x="60" y="231" fill="#ffffff" font-size="82" font-weight="700" letter-spacing="-3">Projection</text>
+  <text x="60" y="314" fill="#ffffff" font-size="82" font-weight="700" letter-spacing="-3">Mapper</text>
+  <text x="65" y="366" fill="#c7cfdf" font-size="25">Map. Animate. Rehearse.</text>
+  <text x="65" y="404" fill="#97a6be" font-size="18">A native Mac workspace for mapped visual effects.</text>
+  <rect x="64" y="435" width="139" height="34" rx="17" fill="#ffffff" fill-opacity=".075" stroke="#ffffff" stroke-opacity=".13"/>
+  <text x="83" y="457" fill="#e2e8f1" font-size="14">Native macOS</text>
+  <rect x="214" y="435" width="166" height="34" rx="17" fill="#ffffff" fill-opacity=".075" stroke="#ffffff" stroke-opacity=".13"/>
+  <text x="234" y="457" fill="#e2e8f1" font-size="14">SwiftUI · Metal</text>
+</g>
+<g transform="translate(820 134)">
+  <ellipse cx="180" cy="310" rx="180" ry="18" fill="#000000" opacity=".18"/>
+  <path d="M180 0L350 98L180 196L10 98Z" fill="#ff9326"/>
+  <path d="M10 98L180 196V310L10 212Z" fill="url(#face)"/>
+  <path d="M180 196L350 98V212L180 310Z" fill="#00c8d8"/>
+  <path d="M10 157L180 255L350 157" stroke="#ffffff" stroke-width="7" fill="none"/>
+  <g fill="#0c142a" stroke="#e7eefb" stroke-width="2"><circle cx="180" cy="0" r="5"/><circle cx="10" cy="98" r="5"/><circle cx="350" cy="98" r="5"/><circle cx="180" cy="310" r="5"/></g>
+</g>
+<path d="M64 544H1216" stroke="#ffffff" stroke-opacity=".13"/>
+<text x="64" y="586" fill="#9eabc1" font-family="-apple-system, Arial, sans-serif" font-size="20">github.com/Chosencode25/projection-mapper</text>
+</svg>

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read the guides
+    url: https://github.com/Chosencode25/projection-mapper/blob/main/docs/README.md
+    about: Getting started, authoring, output, and development documentation.
+  - name: Check the roadmap
+    url: https://github.com/Chosencode25/projection-mapper/blob/main/docs/V2_ROADMAP.md
+    about: Planned music, choreography, control, and output capabilities.
