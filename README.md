@@ -38,7 +38,7 @@ Format 9 migrates formats 1–8; project open starts paused/audio-disabled with 
 ## GitHub and old versions
 
 Private repository: [Chosencode25/projection-mapper](https://github.com/Chosencode25/projection-mapper).
-The October 19 request authorizes backing up the newer v2.01 source and cleanup work;
+The newer v2.01 source and cleanup work were backed up on GitHub main at **0f8b517**;
 see [GitHub workflow](docs/GITHUB_WORKFLOW.md) for confirmed delivery status.
 Latest published app download remains [v1.15.1](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15.1).
 Earlier releases/tags/source history are preserved on GitHub. Redundant local old

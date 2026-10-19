@@ -2,7 +2,7 @@
 
 ## v2.01 maintenance and source backup — October 19, 2026
 
-- Back up the previously local v2.01 implementation and mobile-editor planning under the user’s explicit delivery exception; published v1.15.1 releases/assets remain unchanged.
+- Successfully back up the previously local v2.01 implementation and mobile-editor planning on GitHub main at **0f8b517** under the user’s explicit delivery exception; published v1.15.1 releases/assets remain unchanged.
 - Fix a display-change race leaving projector output stuck in opening, release the rejected renderer and support explicit retry. Final Debug/Release each pass 285 checks with zero failures/recorded runtime warnings; four benchmarks skip and two visible-window tests are excluded.
 - Consolidate development commands around the exact pinned Xcode and one disposable cache, with dated test evidence and preview-first cleanup.
 - Rescue saved projects from generated output, consolidate the protected demo, remove redundant old app/build copies and simplify current documentation. Version stays 2.01/build 14; no release/version bump is manufactured.

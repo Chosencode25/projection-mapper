@@ -53,7 +53,15 @@ legacy visible-window tests excluded. Compact summaries are tracked under
 `docs/verification/2026-10-19/`. Universal Release build, strict signature and all
 11 file hashes passed; matching app copies are installed in app/ and Applications.
 The old Applications v1.15 copy and obsolete project-specific Library cache have
-been removed. App packaging and GitHub delivery are being completed. No routine app
+been removed. Source **0f8b517492825a8b5e5214ea15e83acadd1b59da** was successfully
+pushed to GitHub main from **ecb57fe**; the later documentation record changes no app code.
+The current archive was extracted and every app file/signature reverified; its
+SHA-256 is **f12c6ebee5dfd6d59e34e791e0179110bc7e1850d8f4a7f30e3ff57455db64a2**.
+Current delivery identity/checksum are in builds/current/; compact delivery evidence
+is tracked alongside the test summaries. Removed superseded pre-correction v2.01
+outputs and the disposable cache after packaging. Final builds/ is about **38 MiB**,
+down from about **45 GiB**; the complete workspace is about **64 MiB**, including
+local Git history. Disk free space increased from about 53 to 99 GiB during the work. No routine app
 launch or screen control is used. Physical projector, optical timing, listening,
 Intel/older-macOS runtime and Developer ID/notarization remain pending/unestablished.
 The October 14 workload profiling remains applicable except for the narrowly

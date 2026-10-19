@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-19",
+  "sourceCommit": "0f8b517492825a8b5e5214ea15e83acadd1b59da",
+  "appFilesMatched": 11,
+  "archiveSHA256": "f12c6ebee5dfd6d59e34e791e0179110bc7e1850d8f4a7f30e3ff57455db64a2",
+  "strictSignatureVerified": true,
+  "universalArchitectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "installedCopies": [
+    "app/ProjectionMapper.app",
+    "/Applications/ProjectionMapper.app"
+  ]
+}

@@ -87,3 +87,28 @@ The user explicitly authorized uploading the tested Show-controls correction. v1
 ## Confirmed patch publication
 
 Published [v1.15.1](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15.1) at 2026-10-10T22:50:58Z as the latest full release, not draft/prerelease. Annotated tag points to **a2fa5188a91fe92cafb29cabd4bf953b9f35ddf1**. Main source was successfully pushed; original v1.15 tag/release/assets are preserved. Four assets uploaded: universal app ZIP, SHA256SUMS.txt, guide and build identity. All four downloaded assets match local bytes; checksum, extracted app file hashes, strict signature and bundle 1.15.1/build 13 passed. ZIP SHA-256: **ee397193fc0c885c72414ade1c0e43c6ea66d493ab600f13be8bcc4751fc6cef**. Corrected app is installed at app/ProjectionMapper.app and archived under builds/v1.15.1/. Quit/reopen an older running copy. No new listening/device-unplug/long-session acceptance claim.
+
+
+## Confirmed v2.01 source backup and local cleanup — October 19, 2026
+
+The user explicitly requested backing up the newer local version and cleaning old
+local versions, overriding the October 14 local-only restriction for this delivery.
+Tested **v2.01/build 14**, format **9**, including mobile-editor planning and the
+opening-race/cleanup improvements, was committed at **0f8b517492825a8b5e5214ea15e83acadd1b59da**.
+Main fast-forwarded from **ecb57fe** and was successfully pushed to origin; this
+successful push is the remote confirmation. Final Debug/Release each passed **285**
+correctness tests with zero failures/recorded runtime warnings; four benchmarks
+skipped and two legacy visible-window tests excluded. Xcode remains **27A5237l**.
+
+Current app copies in app/ and Applications, plus the extracted current local ZIP,
+match all 11 tested Release files; strict signatures and universal slices verified.
+Archive/identity/checksum live in builds/current/. Earlier local build folders and
+the obsolete Library project cache were removed after rescuing saved projects and
+lightweight evidence; see [cleanup record](PROJECT_CLEANUP_2026-10-19.md).
+
+No new release, tag, app asset upload or visibility change. Latest published app
+remains **v1.15.1**. Prior release assets/tags are preserved. Physical projector,
+optical timing, user visual/listening, Intel/older-macOS runtime and notarization
+remain pending/unestablished. Main is the tested v2.01 source baseline; subsequent
+v2.02 implementation must start on a codex/ feature branch. This documentation-only
+delivery record follows the tested source commit under the same explicit request.

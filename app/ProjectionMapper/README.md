@@ -30,5 +30,5 @@ See [verification](../../docs/V2.01_VERIFICATION.md),
 [output guide](../../docs/V2.01_USER_GUIDE.md),
 [authoring guide](../../docs/V1_USER_GUIDE.md) and
 [cleanup record](../../docs/PROJECT_CLEANUP_2026-10-19.md).
-GitHub source backup is authorized by the October 19 request; latest published
+GitHub main source backup is confirmed at **0f8b517** on October 19; latest published
 download remains v1.15.1. Next independent milestone: v2.02 music/song transport.
