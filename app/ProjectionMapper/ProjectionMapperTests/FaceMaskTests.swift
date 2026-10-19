@@ -55,6 +55,63 @@ struct FaceMaskTests {
         m = mask(); #expect(m.contains(SIMD2(0.1,0.3)) && !m.contains(SIMD2(0.4,0.5)))
         m.holes[0].points.reverse(); #expect(m.validationMessage == nil && !m.contains(SIMD2(0.5,0.5)))
     }
+    @Test func canvasPickingRevealsLowerFacesThroughMaskHolesAndOutsideBoundary() {
+        var front = MappingSurface(name: "Masked front",corners: rect()); front.mask = mask()
+        let back = MappingSurface(name: "Back",corners: rect())
+        var project = MappingProject(surface: front); project.surfaces.append(back)
+        let session = EditorSession(presentOutput: { _ in },project: project)
+        let dirty = session.hasUserChanges
+        for point: SIMD2<Float> in [SIMD2(0.25,0.25),SIMD2(0.1,0.3)] {
+            session.selectSurface(at: point)
+            #expect(session.selectedSurfaceID == front.id)
+        }
+        for point: SIMD2<Float> in [SIMD2(0.5,0.5),SIMD2(0.4,0.5),SIMD2(0.05,0.5)] {
+            session.selectSurface(at: point)
+            #expect(session.selectedSurfaceID == back.id)
+        }
+        #expect(session.project == project && session.hasUserChanges == dirty)
+        session.setVisible(false,faceID: back.id)
+        let before = session.project
+        session.selectSurface(at: SIMD2(0.5,0.5))
+        #expect(session.selectedSurfaceID == nil && session.project == before)
+    }
+    @Test func canvasPickingProjectsMasksInFaceUVIndependentlyOfContentMapping() throws {
+        let skew = NormalizedRectangle(topLeft: SIMD2(0.05,0.15),topRight: SIMD2(0.9,0.05),bottomRight: SIMD2(0.8,0.95),bottomLeft: SIMD2(0.2,0.8))
+        var front = MappingSurface(name: "Skewed front",corners: skew); front.mask = mask()
+        front.layout.inputMap = FaceInputMap(origin: SIMD2(0.2,0.1),size: SIMD2(0.4,0.6),quarterTurns: 3,mirrored: true)
+        front.appearance.crop = ContentCrop(origin: SIMD2(0.1,0.2),size: SIMD2(0.3,0.4))
+        front.appearance.flipHorizontal = true; front.appearance.flipVertical = true
+        let back = MappingSurface(name: "Back",corners: rect())
+        var project = MappingProject(surface: front); project.surfaces.append(back)
+        let session = EditorSession(presentOutput: { _ in },project: project)
+        let dirty = session.hasUserChanges
+        let transform = try #require(PerspectiveTransform(skew))
+        let samples: [(SIMD2<Double>,UUID)] = [(SIMD2(0.25,0.25),front.id),(SIMD2(0.5,0.5),back.id),(SIMD2(0.05,0.5),back.id)]
+        for (uv,expected) in samples {
+            let point = transform.project(uv)
+            session.selectSurface(at: SIMD2(Float(point.x),Float(point.y)))
+            #expect(session.selectedSurfaceID == expected)
+        }
+        #expect(session.project == project && session.hasUserChanges == dirty)
+    }
+    @Test func canvasPickingSuppressesInvalidEnabledMasksButDisabledMasksUseWholeQuad() {
+        var front = MappingSurface(name: "Invalid mask",corners: rect())
+        var invalid = mask(); invalid.boundary.points = [SIMD2(0,0),SIMD2(1,1),SIMD2(0,1),SIMD2(1,0)]
+        front.mask = invalid
+        let back = MappingSurface(name: "Back",corners: rect())
+        var project = MappingProject(surface: front); project.surfaces.append(back)
+        let session = EditorSession(presentOutput: { _ in },project: project)
+        let dirty = session.hasUserChanges
+        session.selectSurface(at: SIMD2(0.25,0.25))
+        #expect(session.selectedSurfaceID == back.id && session.project == project && session.hasUserChanges == dirty)
+        invalid.isEnabled = false; session.setMask(invalid,faceID: front.id)
+        let before = session.project
+        for point: SIMD2<Float> in [SIMD2(0.5,0.5),SIMD2(0.05,0.5)] {
+            session.selectSurface(at: point)
+            #expect(session.selectedSurfaceID == front.id)
+        }
+        #expect(session.project == before)
+    }
     @Test func degeneracyIntersectionsAndResourceBounds() {
         for points: [SIMD2<Float>] in [[],[SIMD2(0,0),SIMD2(1,1)], [SIMD2(0,0),SIMD2(1,1),SIMD2(0,1),SIMD2(1,0)], [SIMD2(0,0),SIMD2(1,0),SIMD2(0.5,0)], [SIMD2(0,0),SIMD2(1,0),SIMD2(1,0),SIMD2(0,1)]] {
             let m = FaceMask(boundary: MaskPolygon(points: points)); #expect(m.isBounded && m.validationMessage != nil && !m.allowsRendering)

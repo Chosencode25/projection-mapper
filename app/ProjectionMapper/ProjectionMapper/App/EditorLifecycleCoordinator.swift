@@ -6,6 +6,8 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     let session = EditorSession()
     private lazy var displayDiscovery = DisplayDiscoveryService(output: session.output)
     private var editorWindow: NSWindow?
+    private var shortcutsWindow: NSWindow?
+    private let commandFocus = EditorCommandFocus()
     private var isPrompting = false
     private var isTerminationPending = false
     private let recovery = ProjectRecoveryStore(directory: ProjectRecoveryStore.defaultDirectory)
@@ -20,7 +22,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
 
     func showEditor() {
         if editorWindow == nil {
-            let window = NSWindow(
+            let window = EditorShortcutWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable],
                 backing: .buffered,
@@ -31,6 +33,12 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
             window.isReleasedWhenClosed = false
             window.appearance = NSAppearance(named: .darkAqua)
             window.delegate = self
+            window.shortcutsBlocked = { [weak self] in self?.isPrompting ?? true }
+            window.performShortcut = { [weak self] action in
+                guard let self, self.session.canPerformEditorAction(action) else { return false }
+                self.session.performEditorAction(action); return true
+            }
+            window.cancelEditing = { [weak self] in self?.session.cancelEditorSelection() }
             window.contentView = NSHostingView(rootView: EditorWindowView(
                 session: session,
                 newProject: { [weak self] in self?.newProject() },
@@ -50,6 +58,14 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func windowDidChangeScreen(_ notification: Notification) { displayDiscovery.scheduleRefresh() }
+
+    func applicationDidUpdate(_ notification: Notification) {
+        let window = NSApp.keyWindow
+        let accepts = EditorKeyRouting.accepts(firstResponder: window?.firstResponder,
+            hasSheet: window?.attachedSheet != nil || editorWindow?.attachedSheet != nil, hasModal: NSApp.modalWindow != nil)
+        let signature = "\(window?.windowNumber ?? -1):\(accepts):\(isPrompting)"
+        if commandFocus.signature != signature { commandFocus.signature = signature }
+    }
 
     func openOutput() {
         guard !isPrompting else { return }
@@ -121,11 +137,44 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     // Keep text-field undo in the native field editor; project history applies outside text editing.
-    private var textEditor: NSTextView? { editorWindow?.firstResponder as? NSTextView }
-    var canUndo: Bool { textEditor?.undoManager?.canUndo ?? session.canUndo }
-    var canRedo: Bool { textEditor?.undoManager?.canRedo ?? session.canRedo }
-    func undo() { if let editor = textEditor { editor.undoManager?.undo() } else { session.undoProjectEdit(); updateWindowTitle() } }
-    func redo() { if let editor = textEditor { editor.undoManager?.redo() } else { session.redoProjectEdit(); updateWindowTitle() } }
+    private var textEditor: NSTextView? { NSApp.keyWindow?.firstResponder as? NSTextView }
+    var canUndo: Bool {
+        _ = commandFocus.signature
+        return textEditor?.undoManager?.canUndo ?? (!isPrompting && editorWindow?.isKeyWindow == true && session.canUndo)
+    }
+    var canRedo: Bool {
+        _ = commandFocus.signature
+        return textEditor?.undoManager?.canRedo ?? (!isPrompting && editorWindow?.isKeyWindow == true && session.canRedo)
+    }
+    func undo() { if let editor = textEditor { editor.undoManager?.undo() } else if canUndo { session.undoProjectEdit(); updateWindowTitle() } }
+    func redo() { if let editor = textEditor { editor.undoManager?.redo() } else if canRedo { session.redoProjectEdit(); updateWindowTitle() } }
+    func canPerform(_ action: EditorAction) -> Bool {
+        // Observe focus transitions so native text shortcuts are not claimed by a stale menu.
+        _ = commandFocus.signature
+        guard !isPrompting, let window = NSApp.keyWindow,
+              window === editorWindow || (action.isTransport && (window === session.testOutput.window || window === session.projectorOutput.window)),
+              EditorKeyRouting.accepts(firstResponder: window.firstResponder,
+                                       hasSheet: window.attachedSheet != nil || editorWindow?.attachedSheet != nil,
+                                       hasModal: NSApp.modalWindow != nil) else { return false }
+        return session.canPerformEditorAction(action)
+    }
+    func perform(_ action: EditorAction) {
+        guard canPerform(action) else { return }
+        if NSApp.currentEvent?.isARepeat == true && !action.allowsRepeat { return }
+        session.performEditorAction(action)
+    }
+    func showKeyboardShortcuts() {
+        if shortcutsWindow == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 630, height: 650),
+                                  styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+            window.title = "Keyboard Shortcuts"
+            window.isReleasedWhenClosed = false
+            window.minSize = NSSize(width: 630, height: 400)
+            window.contentView = NSHostingView(rootView: KeyboardShortcutsView())
+            window.center(); shortcutsWindow = window
+        }
+        shortcutsWindow?.makeKeyAndOrderFront(nil)
+    }
     func openDemo() {
         guard let url = Bundle.main.url(forResource: "V1-Demo",withExtension: "projectionmap") else {
             session.fileMessage = "The demo package is unavailable; reinstall the complete app."; return

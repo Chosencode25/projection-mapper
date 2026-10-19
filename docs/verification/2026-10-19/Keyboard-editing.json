@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-19",
+  "version": "2.01",
+  "build": "16",
+  "formatVersion": 9,
+  "xcodeVersion": "27.0 beta 5",
+  "xcodeBuild": "27A5237l",
+  "sourceBase": "58a75748412231fbd33f932c69c47414534c911a",
+  "debug": {
+    "passedTests": 312,
+    "failedTests": 0,
+    "skippedTests": 4,
+    "runtimeWarnings": [],
+    "visibleWindowTestsExcluded": 2,
+    "localEvidenceStem": "builds/checks/20261019T182641.080824Z-Debug-test"
+  },
+  "release": {
+    "passedTests": 312,
+    "failedTests": 0,
+    "skippedTests": 4,
+    "runtimeWarnings": [],
+    "visibleWindowTestsExcluded": 2,
+    "localEvidenceStem": "builds/checks/20261019T182829.495054Z-Release-test"
+  },
+  "shortcutActionCount": 40,
+  "shortcutReferenceMatchesAppCatalog": true,
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "strictAdHocSignatureVerified": true,
+  "matchingAppFiles": 11,
+  "archiveSHA256": "c9eec8c5ca6a956679c27607496ecbf549d01029e9ca5183315042793443b579",
+  "visualAcceptance": "pending",
+  "physicalProjectorAcceptance": "pending",
+  "developerIDNotarization": "not established",
+  "deliveryAuthorization": "User explicitly requested GitHub source delivery and the full shortcut reference; no new release requested.",
+  "documentationChecks": {
+    "localLinksValidated": 147,
+    "markdownFilesChecked": 14,
+    "readmeDetailsBalanced": true,
+    "all40ActionLabelsAndBindingsMatchApp": true,
+    "testedAppSourcesUnchangedSince312PassingRuns": true
+  }
+}

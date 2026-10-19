@@ -1,7 +1,7 @@
 import AppKit
 import Observation
 
-final class ProjectorWindow: NSWindow {
+final class ProjectorWindow: EditorShortcutWindow {
     var escape: (() -> Void)?
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
@@ -17,6 +17,7 @@ final class ProjectorOutputCoordinator: NSObject, NSWindowDelegate {
     private(set) var message: String?
     private(set) var activeDisplay: DisplayDescriptor?
     private(set) var window: NSWindow?
+    var performShortcut: ((EditorAction) -> Bool)?
     private(set) var scene = RenderScene.diagnostic
     private(set) var diagnostic: OutputDiagnostic = .normal
     private(set) var cadence = OutputCadence()
@@ -102,6 +103,10 @@ final class ProjectorOutputCoordinator: NSObject, NSWindowDelegate {
             guard let view = candidate.contentView as? MetalSceneView, view.renderingError == nil else { candidate.close(); throw OutputError.renderer("Output renderer is unavailable.") }
             self.scene = scene; activeDisplay = display; window = candidate; candidate.delegate = self
             (candidate as? ProjectorWindow)?.escape = { [weak self] in self?.close() }
+            if let keyboardWindow = candidate as? EditorShortcutWindow {
+                keyboardWindow.permitsEditing = false
+                keyboardWindow.performShortcut = { [weak self] in self?.performShortcut?($0) ?? false }
+            }
             view.renderingFailed = { [weak self, weak view] reason in
                 guard let self, let view, self.window?.contentView === view else { return }
                 self.close(); self.state = .failed; self.message = "Projector output failed: " + reason

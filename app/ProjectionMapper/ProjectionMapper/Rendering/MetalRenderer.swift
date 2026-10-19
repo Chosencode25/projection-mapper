@@ -36,12 +36,26 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     let commandQueue: any MTLCommandQueue
     let rectanglePipeline: any MTLRenderPipelineState
     let diagnosticTexture: any MTLTexture
-    private var prepared: [(RenderSurface, PerspectiveTransform, [SIMD2<UInt32>], [SIMD2<Float>])] = []
-    private static func prepare(_ scene: RenderScene) -> [(RenderSurface, PerspectiveTransform, [SIMD2<UInt32>], [SIMD2<Float>])] {
+    /// Geometry and mask payloads are immutable until the surface definition changes.
+    /// Cache their arrays and matrices so playback does not rebuild them for every frame.
+    private struct PreparedSurface {
+        let surface: RenderSurface
+        let positions: [SIMD2<Float>]
+        let inverse: simd_float3x3
+        let inputMap: simd_float3x3
+        let rings: [SIMD2<UInt32>]
+        let points: [SIMD2<Float>]
+    }
+    private var prepared: [PreparedSurface] = []
+    /// Lightweight diagnostic counter for checking preparation work independently of frame rate.
+    private(set) var surfacePreparationCount = 1
+    private static func prepare(_ scene: RenderScene) -> [PreparedSurface] {
         scene.effectiveSurfaces.compactMap { item in
             guard let perspective = item.perspective else { return nil }
             let mask = item.mask ?? FaceMask(isEnabled: false)
-            return (item,perspective,mask.shaderRings,mask.isEnabled ? mask.shaderPoints : [.zero])
+            return PreparedSurface(surface: item, positions: item.geometry.trianglePositions,
+                inverse: perspective.shaderInverse, inputMap: item.appearance.matrix * item.inputMap.matrix,
+                rings: mask.shaderRings, points: mask.isEnabled ? mask.shaderPoints : [.zero])
         }
     }
     private var videoCache: CVMetalTextureCache?
@@ -89,8 +103,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         self.device = device
         self.scene = scene
         prepared = Self.prepare(scene)
-        hasVisibleSurface = prepared.contains { $0.0.appearance.opacity > 0 }
-        hasRunningAnimation = prepared.contains { $0.0.appearance.opacity > 0 && $0.0.content.isAnimated && !$0.0.playback.isPaused }
+        hasVisibleSurface = prepared.contains { $0.surface.appearance.opacity > 0 }
+        hasRunningAnimation = prepared.contains { $0.surface.appearance.opacity > 0 && $0.surface.content.isAnimated && !$0.surface.playback.isPaused }
         guard let texture = DiagnosticTexture.make(device: device) else {
             throw MetalInitializationError.diagnosticTextureUnavailable
         }
@@ -144,21 +158,22 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         encoder.setFragmentBytes(&calibration, length: MemoryLayout<SIMD4<Float>>.stride, index: 11)
         var frameLeases: [VideoFrame] = []
         var textureLeases: [CVMetalTexture] = []
-        for (original, perspective, rings, points) in prepared {
+        encoder.setRenderPipelineState(rectanglePipeline)
+        for payload in prepared {
+            let original = payload.surface
             let item = original.evaluated(at: seconds, calibrationActive: scene.calibration.pattern.isActive)
             guard masterGain > 0, item.appearance.opacity > 0 else { continue }
-            encoder.setRenderPipelineState(rectanglePipeline)
-            let positions = item.geometry.trianglePositions
+            let positions = payload.positions
             positions.withUnsafeBytes {
                 encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 0)
             }
             var color = item.color
-            var inverse = perspective.shaderInverse
+            var inverse = payload.inverse
             var textured = item.content.shaderKind
             encoder.setFragmentBytes(&color, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
             encoder.setFragmentBytes(&inverse, length: MemoryLayout<simd_float3x3>.stride, index: 1)
             encoder.setFragmentBytes(&textured, length: MemoryLayout<UInt32>.stride, index: 2)
-            var inputMap = item.appearance.matrix * item.inputMap.matrix
+            var inputMap = payload.inputMap
             encoder.setFragmentBytes(&inputMap, length: MemoryLayout<simd_float3x3>.stride, index: 3)
             let settings = item.generator.isValid ? item.generator : .defaults
             var phaseValue = Float((item.playback.elapsed(at: seconds.isFinite ? seconds : 0) * Double(settings.rate)).truncatingRemainder(dividingBy: 8) / 8)
@@ -173,8 +188,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             encoder.setFragmentBytes(&secondary, length: MemoryLayout<SIMD4<Float>>.stride, index: 5)
             var appearance = SIMD2(item.appearance.opacity,item.appearance.brightness)
             encoder.setFragmentBytes(&appearance,length: MemoryLayout<SIMD2<Float>>.stride,index: 9)
-            rings.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 12) }
-            points.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 13) }
+            payload.rings.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 12) }
+            payload.points.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 13) }
             var imageScale = SIMD2<Float>(1,1)
             var videoUV = matrix_identity_float3x3
             if item.content == .video, !scene.calibration.pattern.isActive {
@@ -220,13 +235,23 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     }
 
     func setScene(_ scene: RenderScene) {
+        // Decoder frames, transport, master fades and fixture updates do not change geometry.
+        // RenderSurface equality intentionally ignores procedural owner IDs, but timeline
+        // clips may later evaluate to video, so preserve owner changes explicitly here.
+        let needsPreparation = scene.surfaces != self.scene.surfaces ||
+            !scene.surfaces.elementsEqual(self.scene.surfaces, by: { $0.sourceID == $1.sourceID }) ||
+            scene.calibration.isValid != self.scene.calibration.isValid ||
+            scene.calibration.pattern.isActive != self.scene.calibration.pattern.isActive
         self.scene = scene
         updateImageTextures()
         videoTextures = videoTextures.filter { scene.videoFrames[$0.key] != nil }
         lastContinuousDemand = nil
-        prepared = Self.prepare(scene)
-        hasVisibleSurface = prepared.contains { $0.0.appearance.opacity > 0 }
-        hasRunningAnimation = prepared.contains { $0.0.appearance.opacity > 0 && $0.0.content.isAnimated && !$0.0.playback.isPaused }
+        if needsPreparation {
+            prepared = Self.prepare(scene)
+            surfacePreparationCount += 1
+            hasVisibleSurface = prepared.contains { $0.surface.appearance.opacity > 0 }
+            hasRunningAnimation = prepared.contains { $0.surface.appearance.opacity > 0 && $0.surface.content.isAnimated && !$0.surface.playback.isPaused }
+        }
     }
 
     private func updateImageTextures() {

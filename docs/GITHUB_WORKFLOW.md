@@ -127,3 +127,29 @@ successfully pushed on main at **4d6d425**, from **9107838**; live README images
 and both issue forms were verified. A documentation-only verification record follows.
 App source/configuration, existing releases/tags and observed public visibility are
 unchanged. Compact evidence: docs/verification/2026-10-19/GitHub-presentation.json.
+
+
+## Build 16 polish and shortcut source delivery — October 19, 2026
+
+The user explicitly requested adding the tested current app to GitHub and showing
+all shortcuts in the repository description/README. This authorizes source commits
+and a main push of the combined workspace/performance polish and keyboard editing,
+including the complete README and standalone shortcut reference. It supersedes the
+prior local-only instruction for this delivery. It does not authorize a new release,
+tag, app asset upload or repository-visibility change.
+
+Current app/source is **2.01/build 16**, format **9**. Existing Debug/Release each
+passed **312 correctness tests**, zero failures/recorded runtime warnings; four
+optional benchmarks skipped and two legacy visible-window checks excluded. All 11
+app-file hashes, universal slices and strict signatures were verified against both
+installed copies and the extracted local archive. The pinned Xcode was rechecked.
+Only documentation changed during source-delivery preparation. All 40 app shortcut
+actions were extracted from the actual Swift definitions and checked against both
+README and standalone tables; file/history/panel/output/native keys are documented
+alongside them. Compact evidence: docs/verification/2026-10-19/Keyboard-editing.json.
+
+Source delivery is prepared from last confirmed main **58a7574**; a successful push
+will establish confirmation without polling. Published app remains v1.15.1 and
+prior history/releases/assets are preserved. Hardware/user/Intel/older-macOS and
+Developer ID/notarization acceptance remain pending/unestablished. Next independent
+milestone remains v2.02; future intermediate work stays local under normal policy.

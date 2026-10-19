@@ -6,14 +6,23 @@ struct EditorCanvasView: View {
     @State private var dropFaceID: UUID?
     @State private var dropOwnerID: UUID?
     var output: OutputSelectionState { session.output }
+    private var canvasHint: String {
+        if session.isMaskEditing { return "Edit mask · Drag points; finish drawing to apply a new polygon" }
+        if let face = session.selectedSurface {
+            if session.project.isGeometryLocked(face) { return face.name + " · Corners locked" }
+            return face.name + " · Drag a corner · Arrow keys nudge · Shift for larger steps"
+        }
+        if let object = session.selectedObject { return object.name + " · Drag the center handle to move its faces together" }
+        return "Click a visible face to select it · Add a surface or drop image/video media"
+    }
     var body: some View {
         GeometryReader { geometry in
-            let availableWidth = max(0, geometry.size.width - 56)
-            let availableHeight = max(0, geometry.size.height - 100)
+            let availableWidth = max(0, geometry.size.width - 40)
+            let availableHeight = max(0, geometry.size.height - 88)
             let ratio = output.aspectRatio
             let width = min(availableWidth, availableHeight * ratio)
             let height = width / ratio
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 ZStack {
                     Color.black
                     ReferencePhotoLayer(session: session)
@@ -71,14 +80,14 @@ struct EditorCanvasView: View {
                     }
                     return true
                 }
-                Text("\(output.selectedName) · \(output.renderSizeText) · Editor preview").font(.caption).foregroundStyle(.secondary)
+                Text(canvasHint).font(.caption).foregroundStyle(.secondary)
                     .lineLimit(2).multilineTextAlignment(.center)
                     .frame(maxWidth: max(0, availableWidth))
-                    .help("\(output.selectedName) · \(output.renderSizeText)")
+                    .help(canvasHint + " · " + output.selectedName + " · " + output.renderSizeText)
                 // Reserve warning space so validation changes cannot move the canvas during a drag.
                 Group {
-                    if session.scene.invalidCount > 0 || !session.project.joinWarnings.isEmpty || !session.imageProblems.isEmpty {
-                        Label("Check shapes, masks, joins or missing images in the inspector", systemImage: "exclamationmark.triangle")
+                    if session.scene.invalidCount > 0 || !session.project.joinWarnings.isEmpty || !session.imageProblems.isEmpty || !session.videoProblems.isEmpty || !session.videoPlayback.problems.isEmpty {
+                        Label("Check mapping or missing media in the inspector", systemImage: "exclamationmark.triangle")
                             .font(.caption).foregroundStyle(.orange).multilineTextAlignment(.center)
                     } else {
                         Color.clear.accessibilityHidden(true)

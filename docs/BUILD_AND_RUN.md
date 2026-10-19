@@ -6,9 +6,17 @@ Local signing is ad-hoc; Developer ID signing/notarization remain unestablished.
 
 ## Current app and source
 
-Open `app/ProjectionMapper.app` to use the current **2.01/build 14** app.
+Current source: **2.01/build 16 — workspace polish and keyboard editing**.
+In the maintained local workspace, open `app/ProjectionMapper.app`. A fresh clone
+contains source rather than generated apps; build it with the helper below and open
+the Release product path printed on success.
 Open `app/ProjectionMapper/ProjectionMapper.xcodeproj` in Xcode-beta to develop it;
 select ProjectionMapper / My Mac, then Command-R.
+
+The user explicitly authorized source delivery on October 19. The latest downloadable
+release remains v1.15.1; build 16 is available from source. See [all keyboard shortcuts](KEYBOARD_SHORTCUTS.md),
+[app improvements](LOCAL_APP_GUIDE.md), [shortcut verification](LOCAL_SHORTCUTS_VERIFICATION.md)
+and [earlier polish evidence](LOCAL_APP_POLISH_2026-10-19.md).
 
 Test Mode remains a separate resizable output window sharing the renderer with
 Projector Mode. Physical projector/optical timing acceptance remains pending.

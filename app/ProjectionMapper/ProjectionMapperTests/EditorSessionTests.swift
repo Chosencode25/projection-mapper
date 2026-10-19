@@ -10,6 +10,23 @@ struct EditorSessionTests {
         #expect(session.isSidebarVisible && session.isInspectorVisible)
     }
 
+    @Test func workspaceAndGroupingModesNeverChangeSavedProjectOrOutput() throws {
+        let session = EditorSession()
+        let document = try ProjectCodec.encode(session.document), scene = session.scene
+        session.isTimelineVisible = false
+        session.beginGroupingFaces()
+        session.toggleGrouping(session.project.surfaces[0].id)
+        #expect(session.isGroupingFaces && session.groupingSelection.count == 1)
+        session.cancelGroupingFaces()
+        #expect(!session.isGroupingFaces && session.groupingSelection.isEmpty)
+        #expect(!session.hasUserChanges && !session.canUndo)
+        #expect(try ProjectCodec.encode(session.document) == document)
+        #expect(session.scene == scene)
+        session.beginGroupingFaces()
+        session.resetProject()
+        #expect(!session.isGroupingFaces && !session.isTimelineVisible)
+    }
+
     @Test func renamePreservesIdentityAndCreationDate() {
         let created = Date(timeIntervalSince1970: 100)
         let changed = Date(timeIntervalSince1970: 200)

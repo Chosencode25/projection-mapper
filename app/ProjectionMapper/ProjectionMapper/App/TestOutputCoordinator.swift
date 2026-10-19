@@ -10,6 +10,7 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
     private let visibleFrames: () -> [CGRect]
     private(set) var scene: RenderScene
     private let presentWindow: (NSWindow) -> Void
+    var performShortcut: ((EditorAction) -> Bool)?
 
     init(presentWindow: @escaping (NSWindow) -> Void = { $0.makeKeyAndOrderFront(nil) },
          scene: RenderScene = .diagnostic, preferences: OutputPreferences = OutputPreferences(),
@@ -82,10 +83,12 @@ final class TestOutputCoordinator: NSObject, NSWindowDelegate {
     func open(for destination: OutputDestination, resolution: TestResolution = .hd) -> Bool {
         guard destination == .testWindow else { close(); return false }
         if window == nil {
-            let output = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 360),
+            let output = EditorShortcutWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 360),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
             output.title = "Test Output"
+            output.permitsEditing = false
+            output.performShortcut = { [weak self] in self?.performShortcut?($0) ?? false }
             output.contentMinSize = NSSize(width: 320, height: 180)
             output.isReleasedWhenClosed = false
             output.appearance = NSAppearance(named: .darkAqua)

@@ -27,7 +27,18 @@ struct AppCommands: Commands {
             Button(coordinator.session.redoTitle) { coordinator.redo() }.keyboardShortcut("z", modifiers: [.command,.shift])
                 .disabled(!coordinator.canRedo)
         }
+        CommandGroup(after: .pasteboard) {
+            Divider()
+            ForEach(EditorAction.editing) { action in shortcutButton(action) }
+        }
+        CommandGroup(after: .importExport) {
+            shortcutButton(.importImage)
+            shortcutButton(.importVideo)
+        }
         CommandGroup(replacing: .help) {
+            Button("Keyboard Shortcuts…") { coordinator.showKeyboardShortcuts() }
+                .keyboardShortcut("/", modifiers: .command)
+            Divider()
             Button("Welcome to Projection Mapper") { coordinator.showWelcome() }
             Button("Projection Mapper Guide") { coordinator.showHelp() }
             Button("Open V1 Demo…") { coordinator.openDemo() }
@@ -37,6 +48,15 @@ struct AppCommands: Commands {
             Button("About Projection Mapper") { coordinator.showAbout() }
         }
         CommandMenu("Show") {
+            shortcutButton(.playPause)
+            shortcutButton(.stop)
+            Menu("Seek Playback") {
+                ForEach([EditorAction.stepBack, .stepForward, .secondBack, .secondForward, .beginning, .sequenceEnd]) { action in
+                    shortcutButton(action)
+                }
+            }
+            shortcutButton(.muteAudio)
+            Divider()
             Button("Playback Readiness") { coordinator.session.isInspectorVisible = true; coordinator.session.inspectorTab = .show }
             Button("Identify Selected Object") { coordinator.session.identifySelectedObject() }.disabled(coordinator.session.selectedSource == nil)
             Button("Finish Identification") { coordinator.session.finishIdentification() }.disabled(coordinator.session.identifyingSourceID == nil)
@@ -52,6 +72,9 @@ struct AppCommands: Commands {
             Button("Restore Output") { coordinator.session.restoreOutput() }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
         }
+        CommandMenu("Timeline") {
+            ForEach(EditorAction.timeline) { action in shortcutButton(action) }
+        }
         CommandGroup(after: .windowArrangement) {
             Button("Show Editor") { coordinator.showEditor() }
                 .keyboardShortcut("e", modifiers: [.command, .control])
@@ -59,8 +82,7 @@ struct AppCommands: Commands {
             Button("Show Output") { coordinator.openOutput() }
                 .keyboardShortcut("o", modifiers: [.command, .control])
                 .disabled(!coordinator.session.canOpenOutput)
-            Button("Close Output") { coordinator.session.closeOutput() }
-                .disabled(!coordinator.session.isOutputOpen)
+            shortcutButton(.closeOutput)
         }
         CommandGroup(after: .sidebar) {
             Menu("Editor Guides") { EditorDisplayMenu(session: coordinator.session) }
@@ -71,6 +93,10 @@ struct AppCommands: Commands {
                 coordinator.session.toggleEditorLabels()
             }.keyboardShortcut("l",modifiers: [.control,.command])
             Divider()
+            shortcutButton(.editInspector)
+            shortcutButton(.showInspector)
+            shortcutButton(.projectInspector)
+            Divider()
             Button(coordinator.session.isSidebarVisible ? "Hide Sidebar" : "Show Sidebar") {
                 coordinator.session.isSidebarVisible.toggle()
             }
@@ -79,6 +105,15 @@ struct AppCommands: Commands {
                 coordinator.session.isInspectorVisible.toggle()
             }
             .keyboardShortcut("i", modifiers: [.command, .control])
+            Button(coordinator.session.isTimelineVisible ? "Hide Timeline" : "Show Timeline") {
+                coordinator.session.isTimelineVisible.toggle()
+            }.keyboardShortcut("t", modifiers: [.command, .control])
         }
+    }
+
+    private func shortcutButton(_ action: EditorAction) -> some View {
+        Button(action.title) { coordinator.perform(action) }
+            .keyboardShortcut(action.key, modifiers: action.modifiers)
+            .disabled(!coordinator.canPerform(action))
     }
 }

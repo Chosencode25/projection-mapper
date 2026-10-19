@@ -19,16 +19,24 @@ two legacy visible-window tests, saves check evidence and shares one disposable 
 `clean` previews; `clean --apply` removes only that cache.
 See [build instructions](../../docs/BUILD_AND_RUN.md) for details.
 
-Current runnable app: `../ProjectionMapper.app`, **2.01/build 14**, format **9**,
-local ad-hoc signing. Current archive: `../../builds/current/`.
-V1 authoring remains available. Test Window remains resizable; projector output
-requires explicit Open and closes on display/sleep changes. Physical projector,
-optical timing, user visual/listening and Intel/older-macOS runtime acceptance
-remain pending; Developer ID/notarization remain unestablished.
+Current source: **2.01/build 16 — workspace polish and keyboard editing**, format **9**.
+After building, open the Release app path printed by the helper. In the maintained
+local workspace, the verified app is also installed at `../ProjectionMapper.app`;
+local archives stay under `../../builds/current/` and are excluded from Git.
 
-See [verification](../../docs/V2.01_VERIFICATION.md),
-[output guide](../../docs/V2.01_USER_GUIDE.md),
-[authoring guide](../../docs/V1_USER_GUIDE.md) and
-[cleanup record](../../docs/PROJECT_CLEANUP_2026-10-19.md).
-GitHub main source backup is confirmed at **0f8b517** on October 19; latest published
-download remains v1.15.1. Next independent milestone: v2.02 music/song transport.
+Space plays/pauses; Command-D duplicates; Delete follows the selection;
+Command-/ opens the searchable reference. See [all shortcuts](../../docs/KEYBOARD_SHORTCUTS.md)
+and the [current app guide](../../docs/LOCAL_APP_GUIDE.md).
+
+Debug and Release each passed **312 correctness tests**, zero failures/recorded
+runtime warnings; four optional benchmarks skipped and two visible-window tests
+excluded. See [shortcut verification](../../docs/LOCAL_SHORTCUTS_VERIFICATION.md),
+[earlier polish evidence](../../docs/LOCAL_APP_POLISH_2026-10-19.md),
+[output guide](../../docs/V2.01_USER_GUIDE.md) and [authoring guide](../../docs/V1_USER_GUIDE.md).
+
+The user explicitly authorized GitHub source delivery of this update on October 19.
+The published app download remains v1.15.1; no new release/tag is part of this delivery.
+Test Window remains resizable; projector output requires explicit Open and closes
+on display/sleep changes. Physical projector/optical timing, user visual/listening
+and Intel/older-macOS runtime acceptance remain pending. Signing is local ad-hoc;
+Developer ID/notarization remain unestablished. Next independent milestone: v2.02.

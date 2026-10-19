@@ -6,7 +6,7 @@ Start with the included demo, rehearse in Test Mode, then create your own layout
 
 **Ready-to-download app:** [v1.15.1 for macOS](https://github.com/Chosencode25/projection-mapper/releases/download/v1.15.1/ProjectionMapper-v1.15.1-macOS-universal.zip), universal Apple Silicon/Intel, macOS 15 or later. Extract the archive and move ProjectionMapper.app to Applications. Read the included installation notes; this is a locally ad-hoc signed development app, without Developer ID signing/notarization.
 
-**Latest source:** v2.01 adds explicit external fullscreen output and local device calibration. Use [Build and Run](BUILD_AND_RUN.md) with the exact pinned Xcode 27.0 beta 5 (27A5237l). This source update has no published v2.01 app download. In an existing development workspace, its verified app may already be installed under app/ProjectionMapper.app.
+**Latest source:** v2.01/build 16 adds explicit external fullscreen output and local device calibration, a cleaner workspace, timeline tools and keyboard editing. Use [Build and Run](BUILD_AND_RUN.md) with the exact pinned Xcode 27.0 beta 5 (27A5237l). This source update has no published v2.01 app download. In an existing development workspace, its verified app may already be installed under app/ProjectionMapper.app.
 
 ## Explore the demo
 
@@ -18,6 +18,10 @@ Start with the included demo, rehearse in Test Mode, then create your own layout
 6. Stop playback and save a separate copy if you want to keep edits. The bundled original stays protected.
 
 ![Editor and timeline in the bundled demo](../assets/github/editor.png)
+
+## Keyboard editing in the latest source
+
+Press **Space** to play/pause, **Command-D** to duplicate, and **Delete** to remove the selected clip, face, object or mask point. Open **Help → Keyboard Shortcuts…** with **Command-/**. Normal typing retains spaces and native text editing. See [all keyboard shortcuts](KEYBOARD_SHORTCUTS.md); this expanded set requires build 16 rather than the older downloadable release.
 
 ## Create a layout
 

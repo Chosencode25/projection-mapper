@@ -1,5 +1,18 @@
 # Changelog
 
+## Local v2.01/build 16 keyboard editing — October 19, 2026
+
+- Add Space playback in editor and clean output windows, paused time stepping, stop, surface/clip duplicate/delete, grouping/locks/visibility/order and selection navigation, imports, clip nudging and source-preserving video split.
+- Add timeline zoom/fit/reveal/snap/follow, inspector navigation, output close and explicit audio mute, plus a searchable Help → Keyboard Shortcuts reference (Command-/). Preserve typing, native text editing, geometry locks, undo and physical-output Escape; protect masks/stale clip context and held Space/Delete.
+- Debug/Release each passed 312 correctness checks with zero failures/recorded runtime warnings; universal app/archive verified and installed locally after the user saved and quit the running app. Marketing version 2.01 and portable format 9 remain unchanged. Initially local; the user subsequently explicitly authorized GitHub source delivery and the complete README shortcut reference. No new release/tag or app asset upload. See docs/LOCAL_SHORTCUTS_VERIFICATION.md.
+
+## Local v2.01/build 15 polish — October 19, 2026
+
+- Improve toolbar hierarchy, direct Save/output/restoration, surface search/grouping, shared-content guidance and persistent edit/import status.
+- Give the canvas more room; add timeline hide/show, Fit, time jump, readable clip labels and a scrollable clip editor.
+- Respect mask cutouts when selecting overlapping faces; reuse renderer geometry/mask preparation across runtime frame updates and share one scene snapshot across output views.
+- Final Debug/Release each passed 293 correctness checks with zero failures/recorded runtime warnings; four optional benchmarks skipped and two visible-window tests excluded. Verified universal signed app installed locally. See docs/LOCAL_APP_POLISH_2026-10-19.md; user visual acceptance remains pending. No Git commits, pushes, releases or uploads.
+
 ## v2.01 maintenance and source backup — October 19, 2026
 
 - Successfully back up the previously local v2.01 implementation and mobile-editor planning on GitHub main at **0f8b517** under the user’s explicit delivery exception; published v1.15.1 releases/assets remain unchanged.

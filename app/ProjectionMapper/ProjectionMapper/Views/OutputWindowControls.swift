@@ -6,14 +6,15 @@ struct OutputWindowControls: View {
     var compact = false
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 6) {
             Button(action: openOutput) {
                 if compact {
-                    Image(systemName: "macwindow.badge.plus")
+                    Image(systemName: session.isOutputOpen ? "macwindow" : "play.rectangle")
                 } else {
-                    Text(session.output.destination == .testWindow ? "Show Test Output" : "Open Projector Output")
+                    Label(session.isOutputOpen ? "Show Output" : "Open Output", systemImage: "play.rectangle")
                 }
             }
+            .buttonStyle(.bordered).controlSize(.small)
             .disabled(!session.canOpenOutput)
             .accessibilityLabel("Show Output")
             .help(session.output.destination == .testWindow
@@ -23,7 +24,7 @@ struct OutputWindowControls: View {
                 if compact {
                     Image(systemName: "xmark.rectangle")
                 } else {
-                    Text("Close Output")
+                    Image(systemName: "xmark.rectangle")
                 }
             }
             .disabled(!session.isOutputOpen)

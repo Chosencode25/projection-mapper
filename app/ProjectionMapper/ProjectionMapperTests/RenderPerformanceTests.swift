@@ -1,4 +1,5 @@
 import AppKit
+import CoreVideo
 import Darwin
 import MetalKit
 import Testing
@@ -58,6 +59,123 @@ struct RenderPerformanceTests {
         renderer.draw(in: view)
         #expect(diagnostics.snapshot().submissions == 0)
         #expect(diagnostics.snapshot().skips["suspended"] == 1)
+    }
+
+    @Test func runtimeUpdatesReuseGeometryAndStillRenderNewVideoFrames() throws {
+        let owner = UUID(), asset = videoAsset()
+        let red = try videoFrame(asset, color: SIMD4(0,0,255,255))
+        let green = try videoFrame(asset, color: SIMD4(0,255,0,255))
+        var face = RenderSurface(geometry: .diagnostic, color: SIMD4(1,1,1,1), content: .video,
+            sourceID: owner, video: VideoContent(assetID: asset.id,outPoint: 4,placement: .stretch,canvasAspect: 1))
+        face.mask = FaceMask(holes: [MaskPolygon(points: [SIMD2(0.1,0.1),SIMD2(0.3,0.1),SIMD2(0.3,0.3),SIMD2(0.1,0.3)])])
+        var scene = RenderScene(surfaces: [face])
+        scene.videoFrames = [owner:red]
+        let renderer = try MetalRenderer(scene: scene)
+        let before = try pixels(renderer)
+        // Decoder/transport snapshots should not rerun mask validation or matrix/vertex
+        // preparation, while each newly published video texture still reaches output.
+        for index in 0..<120 {
+            scene.transport.seek(to: Double(index)/60,at: 100)
+            scene.videoFrames = [owner:index.isMultiple(of: 2) ? red : green]
+            scene.masterBrightness = index.isMultiple(of: 2) ? 1 : 0.75
+            scene.outputTimingFixtureActive = index.isMultiple(of: 2)
+            renderer.setScene(scene)
+        }
+        #expect(renderer.surfacePreparationCount == 1)
+        let after = try pixels(renderer)
+        #expect(before != after)
+        #expect(try pixels(MetalRenderer(scene: scene)) == after)
+        scene.showOutput.blackout(); renderer.setScene(scene)
+        #expect(renderer.surfacePreparationCount == 1)
+        let black = try pixels(renderer)
+        #expect(stride(from: 0,to: black.count,by: 4).allSatisfy { black[$0] == 0 && black[$0+1] == 0 && black[$0+2] == 0 })
+    }
+
+    @Test func cachedPayloadsFollowSurfaceAndCalibrationEdits() throws {
+        var face = RenderSurface(geometry: .diagnostic,color: SIMD4(1,0.3,0.1,1),content: .gradient)
+        face.mask = FaceMask()
+        let renderer = try MetalRenderer(scene: RenderScene(surfaces: [face]))
+        func verify(_ scene: RenderScene) throws {
+            renderer.setScene(scene)
+            #expect(try pixels(renderer) == pixels(MetalRenderer(scene: scene)))
+        }
+        face.inputMap.quarterTurns = 1
+        try verify(RenderScene(surfaces: [face]))
+        face.appearance.flipHorizontal = true
+        face.appearance.crop = ContentCrop(origin: SIMD2(0.1,0.1),size: SIMD2(0.7,0.8))
+        try verify(RenderScene(surfaces: [face]))
+        face.mask?.holes = [MaskPolygon(points: [SIMD2(0.25,0.25),SIMD2(0.75,0.25),SIMD2(0.75,0.75),SIMD2(0.25,0.75)])]
+        try verify(RenderScene(surfaces: [face]))
+        face = RenderSurface(geometry: NormalizedRectangle(topLeft: SIMD2(0.1,0.1),topRight: SIMD2(0.85,0.2),bottomRight: SIMD2(0.9,0.8),bottomLeft: SIMD2(0.2,0.9)),
+            color: face.color, content: face.content, inputMap: face.inputMap, appearance: face.appearance, mask: face.mask)
+        try verify(RenderScene(surfaces: [face]))
+        face.appearance.opacity = 0
+        var scene = RenderScene(surfaces: [face])
+        try verify(scene)
+        let normalCount = renderer.surfacePreparationCount
+        scene.calibration.pattern = .white
+        try verify(scene)
+        #expect(renderer.surfacePreparationCount == normalCount+1)
+        scene.calibration.pattern = .grid; scene.calibration.columns = 12
+        try verify(scene)
+        #expect(renderer.surfacePreparationCount == normalCount+1)
+        scene.calibration.columns = 0
+        try verify(scene)
+        #expect(renderer.surfacePreparationCount == normalCount+2)
+        scene.calibration.columns = 8; scene.calibration.pattern = .normal
+        try verify(scene)
+        #expect(renderer.surfacePreparationCount == normalCount+3)
+        try verify(RenderScene(surfaces: []))
+    }
+
+    @Test func sequencedVideoOwnerChangeDoesNotReuseThePreviousOwner() throws {
+        let firstOwner = UUID(), secondOwner = UUID(), asset = videoAsset()
+        let red = try videoFrame(asset,color: SIMD4(0,0,255,255))
+        let green = try videoFrame(asset,color: SIMD4(0,255,0,255))
+        let source = SurfaceSource(content: .video,video: VideoContent(assetID: asset.id,outPoint: 4,placement: .stretch,canvasAspect: 1))
+        let clip = EffectClip(sourceID: firstOwner,start: 0,duration: 4,source: SourceLook(source: source))
+        var first = RenderSurface(geometry: .diagnostic,color: SIMD4(1,1,1,1),content: .solid,sourceID: firstOwner,timelineClips: [clip])
+        var scene = RenderScene(surfaces: [first])
+        scene.videoFrames = [firstOwner:VideoFrame(buffer: red.pixelBuffer,asset: asset,clipID: clip.id,sourceTime: 0),
+                             secondOwner:VideoFrame(buffer: green.pixelBuffer,asset: asset,clipID: clip.id,sourceTime: 0)]
+        let renderer = try MetalRenderer(scene: scene), before = try pixels(renderer)
+        first.sourceID = secondOwner
+        var changed = RenderScene(surfaces: [first]); changed.videoFrames = scene.videoFrames
+        #expect(changed.surfaces == scene.surfaces) // Procedural source equality omits owner identity.
+        renderer.setScene(changed)
+        #expect(renderer.surfacePreparationCount == 2)
+        let after = try pixels(renderer)
+        #expect(before != after)
+        #expect(try pixels(MetalRenderer(scene: changed)) == after)
+    }
+
+    private func videoAsset() -> VideoAsset {
+        VideoAsset(name: "preparation fixture",fileExtension: "mp4",byteCount: 4096,duration: 4,width: 16,height: 16,
+            frameRate: 60,hasAudio: false,codec: "H.264",transform: [1,0,0,1,0,0])
+    }
+    private func videoFrame(_ asset: VideoAsset,color: SIMD4<UInt8>) throws -> VideoFrame {
+        var buffer: CVPixelBuffer?
+        #expect(CVPixelBufferCreate(kCFAllocatorDefault,16,16,kCVPixelFormatType_32BGRA,
+            [kCVPixelBufferIOSurfacePropertiesKey:[:]] as CFDictionary,&buffer) == kCVReturnSuccess)
+        let pixels = try #require(buffer)
+        CVPixelBufferLockBaseAddress(pixels,[])
+        defer { CVPixelBufferUnlockBaseAddress(pixels,[]) }
+        let base = try #require(CVPixelBufferGetBaseAddress(pixels)).assumingMemoryBound(to: UInt8.self)
+        for y in 0..<16 { for x in 0..<16 {
+            let offset = y*CVPixelBufferGetBytesPerRow(pixels)+x*4
+            for component in 0..<4 { base[offset+component] = color[component] }
+        } }
+        return VideoFrame(buffer: pixels,asset: asset,clipID: nil,sourceTime: 0)
+    }
+    private func pixels(_ renderer: MetalRenderer) throws -> [UInt8] {
+        let texture = try makeTexture(renderer,width: 32,height: 32)
+        let command = try #require(renderer.encodeScene(to: pass(texture),evaluationTime: 0.375,evaluationUptime: 100))
+        command.commit(); command.waitUntilCompleted()
+        #expect(command.status == .completed && command.error == nil)
+        var bytes = [UInt8](repeating: 0,count: 32*32*4)
+        bytes.withUnsafeMutableBytes { texture.getBytes($0.baseAddress!,bytesPerRow: 32*4,
+            from: MTLRegionMake2D(0,0,32,32),mipmapLevel: 0) }
+        return bytes
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PROJECTION_MAPPER_PERFORMANCE_OUTPUT"] != nil))

@@ -4,6 +4,24 @@ import MetalKit
 
 @Suite("Playback timeline") @MainActor
 struct TimelineTests {
+    @Test func timelineNavigationFitsShortAndHourLongSequences() {
+        // Fit includes the final clip plus breathing room, even for the saved one-hour limit.
+        for end in [0.0, 5, 75, 3599, 3600] {
+            let scale = TimelinePresentation.fitScale(contentEnd: end, viewportWidth: 720)
+            #expect((0.1...80).contains(scale))
+            #expect((end + 1) * scale <= 720)
+            #expect(Double(TimelinePresentation.tickStep(pixelsPerSecond: scale)) * scale >= 68)
+        }
+        #expect(TimelinePresentation.fitScale(contentEnd: 0, viewportWidth: 0) == 0.1)
+        #expect(TimelinePresentation.horizon(contentEnd: 0, playhead: 0) == 60)
+        #expect(TimelinePresentation.horizon(contentEnd: 74, playhead: 0) == 120)
+        #expect(TimelinePresentation.horizon(contentEnd: 10, playhead: 121) == 180)
+        #expect(TimelinePresentation.horizon(contentEnd: 0, playhead: 0, visibleDuration: 710) == 720)
+        #expect(TimelinePresentation.horizon(contentEnd: 3600, playhead: 7200) == 3600)
+        #expect(TimelinePresentation.timecode(-1) == "00:00.00")
+        #expect(TimelinePresentation.timecode(61.25) == "01:01.25")
+        #expect(TimelinePresentation.timecode(.infinity) == "00:00.00")
+    }
     @Test func boundariesGapsAndLocalPhase() {
         let owner = SurfaceSource()
         let clip = EffectClip(sourceID: owner.id, start: 5, duration: 3, source: SourceLook(source: owner))

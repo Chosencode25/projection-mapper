@@ -70,8 +70,9 @@ final class EditorSession {
     }
     private func updateOutputScene() {
         videoPlayback.configure(scene: scene,assets: project.videoAssets,urls: videoFiles,audio: project.videoAudio,enabled: videoAudioEnabled)
-        testOutput.setScene(scene)
-        projectorOutput.setScene(scene)
+        let snapshot = scene
+        testOutput.setScene(snapshot)
+        projectorOutput.setScene(snapshot)
     }
     func seekPlayback(to seconds: Double, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard seconds.isFinite, (0...3600).contains(seconds), uptime.isFinite else { return }
@@ -114,10 +115,28 @@ final class EditorSession {
         transport.setSpeed(value, at: uptime); updateOutputScene()
     }
     var selectedClipID: UUID?
+    var timelineViewRequest: TimelineViewRequest?
     var timelineMessage: String?
     var selectedClip: EffectClip? { project.timelineClips.first { $0.id == selectedClipID } }
     func selectTimelineTrack(_ track: TimelineTrack) {
+        let clipID = selectedClip?.sourceID == track.id ? selectedClipID : nil
+        clearMaskEditing()
         if track.isObject { selectObject(track.targetID) } else { selectSurface(track.targetID) }
+        selectedClipID = clipID
+    }
+    func splitSelectedVideoClip(at seconds: Double) {
+        guard let clip = selectedClip, clip.source.content == .video else { return }
+        guard seconds.isFinite, seconds - clip.start >= 0.1, clip.end - seconds >= 0.1 else {
+            timelineMessage = "Place the playhead inside the selected video clip, leaving at least 0.1 seconds on each side."
+            return
+        }
+        let left = clip.trimming(start: clip.start, duration: seconds - clip.start)
+        var right = clip.trimming(start: seconds, duration: clip.end - seconds)
+        right.id = UUID()
+        var candidate = project
+        candidate.timelineClips.removeAll { $0.id == clip.id }
+        candidate.timelineClips += [left, right]
+        if commitTimeline(candidate) { selectedClipID = right.id }
     }
     @discardableResult
     func addTimelineClip(sourceID: UUID, at seconds: Double, duration: Double = 5) -> UUID? {
@@ -272,6 +291,8 @@ final class EditorSession {
     let testOutput: TestOutputCoordinator
     var isSidebarVisible = true
     var isInspectorVisible = true
+    var isTimelineVisible = true
+    private(set) var isGroupingFaces = false
     var inspectorTab: InspectorTab = .edit
     private var savedBaseline: MappingProject
     private(set) var documentURL: URL?
@@ -357,8 +378,8 @@ final class EditorSession {
             if let saved = try? store.read(original), saved.project.id == project.id { documentURL = original; savedBaseline = saved.project }
         }
         output.restoreProjectPreference(document.output.destination,resolution: document.output.resolution)
-        selectedClipID = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
-        selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil
+        selectedClipID = nil; timelineViewRequest = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
+        selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); isGroupingFaces = false; editMessage = nil
         testOutput.setResolution(output.testResolution); testOutput.destinationDidChange(output.destination); updateOutputScene()
         fileMessage = isRecovered ? "Recovered unsaved project — Save to keep it" : "Opened \(url.lastPathComponent)"
         if !videoProblems.isEmpty { fileMessage = (fileMessage ?? "") + " · missing/damaged videos, relink in the inspector" }
@@ -376,8 +397,19 @@ final class EditorSession {
         isRecovered = !project.hasDefaultContent
         selectedSurfaceID = project.surfaces.first?.id
         testOutput = TestOutputCoordinator(presentWindow: presentOutput, scene: project.renderScene)
+        let outputShortcut: (EditorAction) -> Bool = { [weak self] action in
+            guard let self, action.isTransport, self.canPerformEditorAction(action) else { return false }
+            self.performEditorAction(action); return true
+        }
+        testOutput.performShortcut = outputShortcut
+        projectorOutput.performShortcut = outputShortcut
         editCheckpoint = snapshotForHistory()
-        videoPlayback.changed = { [weak self] in guard let self else { return }; self.testOutput.setScene(self.scene); self.projectorOutput.setScene(self.scene) }
+        videoPlayback.changed = { [weak self] in
+            guard let self else { return }
+            let snapshot = self.scene
+            self.testOutput.setScene(snapshot)
+            self.projectorOutput.setScene(snapshot)
+        }
         output.changed = { [weak self] in self?.outputDestinationChanged() }
     }
     private func changed(now: Date = .now) {
@@ -438,6 +470,7 @@ final class EditorSession {
     func finishNameEditing(now: Date = .now) { renameProject(cleanName(project.name, fallback: MappingProject.defaultName), now: now) }
     func selectSurface(_ id: UUID?) {
         guard id == nil || project.surfaces.contains(where: { $0.id == id }) else { return }
+        selectedClipID = nil
         if id != nil { inspectorTab = .edit }
         if id != selectedSurfaceID { selectedCorner = nil; clearMaskEditing() }
         selectedSurfaceID = id; selectedObjectID = nil; editMessage = nil
@@ -451,7 +484,9 @@ final class EditorSession {
                 let mapped = transform.inverse * SIMD3<Double>(Double(point.x), Double(point.y), 1)
                 guard mapped.z.isFinite, abs(mapped.z) > 1e-12 else { return false }
                 let uv = SIMD2(mapped.x, mapped.y) / mapped.z
-                return uv.x.isFinite && uv.y.isFinite && (-1e-7...1.0000001).contains(uv.x) && (-1e-7...1.0000001).contains(uv.y)
+                guard uv.x.isFinite, uv.y.isFinite, (-1e-7...1.0000001).contains(uv.x),
+                      (-1e-7...1.0000001).contains(uv.y) else { return false }
+                return face.mask?.contains(SIMD2(Float(uv.x), Float(uv.y))) ?? true
             }?.id
         }
         selectSurface(hit)
@@ -459,16 +494,23 @@ final class EditorSession {
     }
     func selectObject(_ id: UUID) {
         guard project.objects.contains(where: { $0.id == id }) else { return }
+        selectedClipID = nil
         inspectorTab = .edit
         clearMaskEditing(); selectedObjectID = id; selectedSurfaceID = nil; selectedCorner = nil; editMessage = nil
     }
-    func selectCorner(_ corner: SurfaceCorner?) { selectedCorner = selectedSurface == nil ? nil : corner }
+    func selectCorner(_ corner: SurfaceCorner?) {
+        selectedClipID = nil
+        selectedCorner = selectedSurface == nil ? nil : corner
+    }
     func toggleGrouping(_ id: UUID) {
         guard project.surfaces.contains(where: { $0.id == id }) else { return }
         if groupingSelection.contains(id) { groupingSelection.remove(id) } else { groupingSelection.insert(id) }
     }
+    func beginGroupingFaces() { isGroupingFaces = true; isSidebarVisible = true }
+    func cancelGroupingFaces() { groupingSelection.removeAll(); isGroupingFaces = false }
     func selectTag(_ tag: String) {
         groupingSelection = Set(project.surfaces.filter { face in face.tags.contains(tag) || project.object(for: face)?.tags.contains(tag) == true }.map(\.id))
+        isGroupingFaces = !groupingSelection.isEmpty
     }
     func renameSurface(_ id: UUID, _ name: String) {
         guard let i = project.surfaces.firstIndex(where: { $0.id == id }) else { return }
@@ -712,7 +754,7 @@ final class EditorSession {
             project.surfaces[i].layout.inputMap = FaceInputMap(origin: SIMD2(Float(n)/Float(faces.count),0), size: SIMD2(1/Float(faces.count),1))
             if n > 0 { object.links.append(FaceEdgeLink(firstFace: faces[n-1].id, firstEdge: .right, secondFace: face.id, secondEdge: .left)) }
         }
-        project.objects.append(object); groupingSelection.removeAll(); selectObject(object.id); changed()
+        project.objects.append(object); groupingSelection.removeAll(); isGroupingFaces = false; selectObject(object.id); changed()
     }
     func attachSurface(_ faceID: UUID, to objectID: UUID) {
         guard project.objects.contains(where: { $0.id == objectID }),
@@ -824,8 +866,8 @@ final class EditorSession {
         imagePixels.removeAll(); imageFiles.removeAll(); imageProblems.removeAll(); mediaGeneration = UUID(); referencePhotoVisible = true
         clearRecovery(); documentURL = nil; assetSourceURL = nil; isRecovered = false; fileMessage = nil
         videoPlayback.reset(); videoFiles.removeAll(); videoPosters.removeAll(); videoProblems.removeAll(); videoAudioEnabled = false; cleanupManagedVideos()
-        selectedClipID = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
-        selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); editMessage = nil; editCheckpoint = snapshotForHistory(); updateOutputScene()
+        selectedClipID = nil; timelineViewRequest = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
+        selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); isGroupingFaces = false; editMessage = nil; editCheckpoint = snapshotForHistory(); updateOutputScene()
     }
 }
 

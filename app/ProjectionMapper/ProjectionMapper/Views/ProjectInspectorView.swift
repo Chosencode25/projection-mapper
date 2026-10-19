@@ -96,8 +96,11 @@ private struct SourceInspector: View {
                 ForEach(SurfaceContent.allCases.filter { ($0 != .image || source.image != nil) && ($0 != .video || source.video != nil) }) { Text($0.title).tag($0) }
             }
             if session.project.timelineClips.contains(where: { $0.sourceID == source.id }) {
-                Text("This object is sequenced in the timeline. Edit content here, then Capture Current on a selected clip to apply these settings.")
-                    .font(.caption).foregroundStyle(.orange)
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "film.stack")
+                    Text("Timeline controls playback. Edit these settings, select a clip, then choose Apply Edited Content.")
+                }.font(.caption).foregroundStyle(.secondary).padding(8)
+                    .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
             }
             ImageContentControls(session: session)
             VideoContentControls(session: session)
@@ -136,7 +139,7 @@ private struct SourceInspector: View {
                 }.disabled(session.project.timelineClips.contains { $0.sourceID == source.id })
                 Text(session.selectedObject != nil || session.selectedSurface?.layout.objectID != nil ? "Owner playback affects every face in this object." : "Owner playback affects this independent face.")
                     .font(.caption).foregroundStyle(.secondary)
-                Text("Uses shared project playback. An object shares these colors across its faces.")
+                Text(session.selectedObject != nil || session.selectedSurface?.layout.objectID != nil ? "These colors and timing are shared by the object’s faces." : "This face uses the shared project clock.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             InspectorSection("Effect presets") { GeneratorPresetControls(session: session).id(source.id) }
@@ -267,6 +270,14 @@ private struct FaceInspector: View {
                 Button("Bring forward") { session.moveSurface(face.id, offset: -1) }.disabled(session.project.surfaces.first?.id == face.id)
                 Button("Send backward") { session.moveSurface(face.id, offset: 1) }.disabled(session.project.surfaces.last?.id == face.id)
                 Button("Delete", role: .destructive) { session.deleteSurface(face.id) }.disabled(session.project.isGeometryLocked(face))
+            }
+            if let object = session.project.object(for: face) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Label("Shared with " + object.name, systemImage: "cube.fill").font(.caption.weight(.medium))
+                    Text("Content edits affect every linked face. Corners and masks stay local to this face.").font(.caption).foregroundStyle(.secondary)
+                    Button("Edit shared object") { session.selectObject(object.id) }.buttonStyle(.borderless).font(.caption)
+                }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
             }
             InspectorSection("Content", expanded: true) { SourceInspector(session: session) }
             InspectorSection("Object membership & tags") {
