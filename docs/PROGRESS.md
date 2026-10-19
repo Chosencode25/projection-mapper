@@ -10,7 +10,7 @@ Last updated: October 19, 2026.
 
 The app was initially running; installation waited until the user explicitly reported saving and closing it. Both installed copies are now build 16. No app was launched or force-quit and no screen control was used. User visual/listening, projector/optical timing, Intel/older-macOS runtime and Developer ID/notarization acceptance remain pending/unestablished.
 
-**GitHub source delivery authorized — October 19:** the user explicitly requested uploading this tested update and documenting all shortcuts in the repository description/README. The combined build 15 polish and build 16 keyboard changes plus a complete README/standalone reference are prepared on codex/local-app-polish for main. Delivery confirmation follows after the push succeeds. The previously confirmed main baseline is **58a7574**; published app remains v1.15.1. This source-delivery request creates no new release/tag or app asset upload.
+**GitHub source delivery confirmed — October 19:** under the user’s explicit request, the combined build 15 polish and build 16 keyboard changes plus the complete README/standalone shortcut reference were committed at **ed0e9f220dcf5ac3cf71122898677d2b8ea92512**. Main fast-forwarded from **58a7574** and was successfully pushed to origin. This push result confirms delivery without polling. The published app remains v1.15.1; no new release/tag or app asset upload was requested or performed. Future intermediate work remains local under normal policy.
 
 **October 19 cleanup/source backup:** the user explicitly requested backing up the newer local version and removing redundant old local versions. This supersedes the prior local-only restriction for this delivery. v2.01 source, mobile-editor planning and cleanup improvements were successfully pushed to GitHub main at **0f8b517**. Latest published app download remains v1.15.1; no new release/tag is requested. The duplicated canonical demo is consolidated into the intact bundled regression fixture. Next independent development remains v2.02; hardware acceptance remains separate. See [cleanup record](PROJECT_CLEANUP_2026-10-19.md).
 
@@ -562,3 +562,13 @@ Completed the authorized local implementation using Xcode 27.0 beta 5 (27A5237l)
 - [x] Update current build instructions, local guide, changelog and evidence; retain previous lightweight identity records and one shared cache, with no extra app staging directories.
 - [ ] User visual acceptance of the new layout/navigation. No automated screen use or user acceptance inferred.
 - No Git commits, push or GitHub delivery. Next independent roadmap milestone remains v2.02; this work refines the current app.
+
+
+## Build 16 keyboard editing and source delivery — October 19, 2026
+
+- [x] Install the verified keyboard editing update after the user saved and quit the running app; keep native text editing, mask/clip context and focused projector Escape intact.
+- [x] Final Debug/Release each passed 312 correctness tests, including 19 shortcut regressions; zero failures/runtime warnings, four optional skips and two visible-window exclusions. Both installed universal app copies and extracted local ZIP match all 11 Release files and strict signatures.
+- [x] Under the subsequent explicit upload request, publish all 40 app-action shortcuts plus file/history/panel/output/native keys in README and docs/KEYBOARD_SHORTCUTS.md; add navigation and distinguish build 16 source from the v1.15.1 download.
+- [x] Validate the shortcut tables against the actual Swift catalog, 147 local documentation links and unchanged tested code/project/test source. No repeat app build was required for the final documentation edits.
+- [x] Successful main source push **58a7574 → ed0e9f2**. Generated builds/caches, app archives, local projects and personal state remain excluded; historical releases/tags are preserved.
+- User visual/listening, projector/optical, Intel/older-macOS and notarization acceptance remain pending. No new release/tag/asset upload or routine screen control. Next independent milestone remains v2.02.

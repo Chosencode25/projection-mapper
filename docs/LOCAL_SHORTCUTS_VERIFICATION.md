@@ -1,7 +1,8 @@
 # Local keyboard editing verification — October 19, 2026
 
 Status: implemented, automatically verified and installed locally. The user subsequently
-authorized GitHub source delivery; confirmation is recorded in PROGRESS.md and GITHUB_WORKFLOW.md.
+authorized GitHub source delivery, confirmed at **ed0e9f2** on main; details are
+recorded in PROGRESS.md and GITHUB_WORKFLOW.md.
 Baseline local app: v2.01/build 15. New local variant: v2.01/build 16, format 9.
 Plan: [local keyboard editing](LOCAL_SHORTCUTS_PLAN.md). Full bindings and behavior:
 [local app guide](LOCAL_APP_GUIDE.md). Pinned toolchain verified: Xcode 27.0 beta 5,

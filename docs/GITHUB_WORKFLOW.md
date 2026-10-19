@@ -148,8 +148,9 @@ actions were extracted from the actual Swift definitions and checked against bot
 README and standalone tables; file/history/panel/output/native keys are documented
 alongside them. Compact evidence: docs/verification/2026-10-19/Keyboard-editing.json.
 
-Source delivery is prepared from last confirmed main **58a7574**; a successful push
-will establish confirmation without polling. Published app remains v1.15.1 and
+Source commit **ed0e9f220dcf5ac3cf71122898677d2b8ea92512** was fast-forwarded onto main
+from **58a7574** and successfully pushed to origin. The push result confirms delivery
+without polling; this documentation-only confirmation follows the tested source commit. Published app remains v1.15.1 and
 prior history/releases/assets are preserved. Hardware/user/Intel/older-macOS and
 Developer ID/notarization acceptance remain pending/unestablished. Next independent
 milestone remains v2.02; future intermediate work stays local under normal policy.
