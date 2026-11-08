@@ -187,3 +187,172 @@ struct ProjectPersistenceTests {
     }
 
 }
+
+@MainActor
+struct LightingTests {
+    private let dmx = LightingController(name: "DMX", kind: .dmx)
+    private let arduino = LightingController(name: "Arduino", kind: .arduino)
+    private var setup: (ProjectLighting, PatchedFixture, PatchedFixture) {
+        let head = PatchedFixture(name: "Head", kind: .movingHead, controllerID: dmx.id)
+        let strip = PatchedFixture(name: "Roof", kind: .rgb, controllerID: arduino.id)
+        return (ProjectLighting(controllers: [dmx, arduino], fixtures: [head, strip]), head, strip)
+    }
+
+    @Test func patchValidationUsesFullFootprintsAndDistinctRelayOutputs() {
+        var (lighting, head, strip) = setup
+        var second = PatchedFixture(name: "Second", kind: .movingHead, controllerID: dmx.id, address: 9)
+        lighting.fixtures.append(second)
+        #expect(lighting.validationIssue() != nil)
+        second.address = 502
+        second.headChannels = 11
+        lighting.fixtures[2] = second
+        #expect(lighting.validationIssue() == nil)
+        lighting.fixtures[2].address += 1
+        #expect(lighting.validationIssue() != nil)
+        lighting.fixtures.removeLast()
+        strip.blue = strip.green
+        lighting.fixtures[1] = strip
+        #expect(lighting.validationIssue() != nil)
+        lighting.fixtures[1].blue = 9
+        #expect(lighting.validationIssue() != nil)
+        lighting.fixtures[1].blue = 3
+        head.controllerID = arduino.id
+        lighting.fixtures[0] = head
+        #expect(lighting.validationIssue() != nil)
+    }
+
+    @Test func evaluationReconstructsStateAcrossSeekAndWrap() {
+        let (_, head, strip) = setup
+        let warm = HeadLook(pan: 0.2, tilt: 0.3, dimmer: 0.7, color: 1, gobo: 2)
+        let cool = HeadLook(pan: 0.8, tilt: 0.9, dimmer: 0.4, color: 3, gobo: 4)
+        let first = LightingCue(name: "Warm", time: 4, lead: 2, entries: [.init(id: head.id, state: .head(warm))])
+        let second = LightingCue(name: "Cool", time: 10, lead: 3,
+                                 entries: [.init(id: head.id, state: .head(cool)), .init(id: strip.id, state: .rgb(.cyan))])
+        let schedule = LightingSchedule(cues: [second, first])
+        var leading = warm
+        leading.pan = cool.pan
+        leading.tilt = cool.tilt
+        #expect(schedule.state(for: head, at: 1.99) == head.kind.dark)
+        #expect(schedule.state(for: head, at: 2) == .head(HeadLook(pan: 0.2, tilt: 0.3)))
+        #expect(schedule.state(for: head, at: 4) == .head(warm))
+        #expect(schedule.state(for: head, at: 7) == .head(leading))
+        #expect(schedule.state(for: strip, at: 9.99) == .rgb(.off))
+        #expect(schedule.state(for: head, at: 10) == .head(cool))
+        #expect(schedule.state(for: strip, at: 40) == .rgb(.cyan))
+        #expect(schedule.state(for: strip, at: 0) == .rgb(.off))
+        #expect(schedule.state(for: head, at: 5) == .head(warm))
+    }
+
+    @Test func saveMigratesAndRoundTripsWithoutRuntimeState() throws {
+        var (lighting, head, strip) = setup
+        let look = FixtureLook(name: "Holiday", entries: [.init(id: head.id, state: .head(HeadLook(dimmer: 1))),
+                                                           .init(id: strip.id, state: .rgb(.white))])
+        let placement = FixturePreviewPlacement(
+            origin: FixturePreviewPoint(x: 0.2, y: 0.3),
+            stripEnd: FixturePreviewPoint(x: 0.8, y: 0.35)
+        )
+        lighting.fixtures[1].previewPlacement = placement
+        lighting.looks = [look]
+        lighting.cues = [LightingCue(name: look.name, time: 8, entries: look.entries)]
+        var project = MappingProject(name: "Holiday House")
+        project.lighting = lighting
+        let document = ProjectDocument(project: project)
+        let encoded = try ProjectCodec.encode(document)
+        #expect(try ProjectCodec.decode(encoded) == document)
+        var invalid = document
+        invalid.project.lighting.fixtures[1].previewPlacement?.origin.x = 2
+        #expect(throws: ProjectFileError.self) { try ProjectCodec.encode(invalid) }
+        var earlierFormat10 = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        var earlierProject = try #require(earlierFormat10["project"] as? [String: Any])
+        var earlierLighting = try #require(earlierProject["lighting"] as? [String: Any])
+        var earlierFixtures = try #require(earlierLighting["fixtures"] as? [[String: Any]])
+        earlierFixtures[1]["previewPlacement"] = nil
+        earlierLighting["fixtures"] = earlierFixtures
+        earlierProject["lighting"] = earlierLighting
+        earlierFormat10["project"] = earlierProject
+        let earlier = try ProjectCodec.decode(JSONSerialization.data(withJSONObject: earlierFormat10))
+        #expect(earlier.project.lighting.fixtures[1].previewPlacement == nil)
+        #expect(earlier.project.lighting.cues == document.project.lighting.cues)
+        var old = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        var oldProject = try #require(old["project"] as? [String: Any])
+        oldProject["lighting"] = nil
+        old["project"] = oldProject
+        old["formatVersion"] = 9
+        let migrated = try ProjectCodec.decode(JSONSerialization.data(withJSONObject: old))
+        project.lighting = ProjectLighting()
+        #expect(migrated.project == project)
+    }
+
+    @Test func simulationIsolatesFailuresAndHonorsBlackoutStopAndOverrides() throws {
+        var (lighting, head, strip) = setup
+        lighting.cues = [LightingCue(name: "On", time: 1,
+                                     entries: [.init(id: head.id, state: .head(HeadLook(dimmer: 1))),
+                                               .init(id: strip.id, state: .rgb(.yellow))])]
+        let simulation = LightingSimulation()
+        simulation.resume()
+        simulation.update(lighting, at: 1)
+        #expect(simulation.reports[arduino.id]?.fixtures.first?.relayValues == [true, true, false])
+        let first = try #require(simulation.reports[arduino.id]?.history.last)
+        simulation.update(lighting, at: 2)
+        #expect(simulation.reports[arduino.id]?.history.last == first)
+        simulation.setFailure(true, for: dmx.id)
+        simulation.override(.rgb(.cyan), for: strip)
+        simulation.update(lighting, at: 3)
+        #expect(simulation.reports[dmx.id]?.status == .failed)
+        #expect(simulation.reports[arduino.id]?.fixtures.first?.relayValues == [false, true, true])
+        simulation.blackout = true
+        simulation.update(lighting, at: 3)
+        #expect(simulation.reports[arduino.id]?.fixtures.first?.intended == .rgb(.cyan))
+        #expect(simulation.reports[arduino.id]?.fixtures.first?.effective == .rgb(.off))
+        simulation.stop()
+        simulation.blackout = false
+        simulation.override(.rgb(.red), for: strip)
+        simulation.update(lighting, at: 4)
+        #expect(simulation.overrides.isEmpty)
+        #expect(simulation.reports[arduino.id]?.fixtures.first?.effective == .rgb(.off))
+        simulation.resume()
+        simulation.update(lighting, at: 4)
+        #expect(simulation.reports[arduino.id]?.fixtures.first?.effective == .rgb(.yellow))
+        simulation.setFailure(false, for: dmx.id)
+        simulation.setFailure(true, for: arduino.id)
+        simulation.update(lighting, at: 5)
+        #expect(simulation.reports[dmx.id]?.status == .sent)
+        #expect(simulation.reports[arduino.id]?.status == .failed)
+        lighting.controllers[1].profile = .unsupported
+        simulation.update(lighting, at: 6)
+        #expect(simulation.reports[arduino.id]?.status == .unsupported)
+    }
+
+    @Test func sessionEditsAreAtomicAndUndoRestoresCueReferences() {
+        var (lighting, _, strip) = setup
+        let cue = LightingCue(name: "Roof", time: 3, entries: [.init(id: strip.id, state: .rgb(.red))])
+        lighting.cues = [cue]
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        #expect(session.editLighting { $0 = lighting })
+        #expect(!session.editLighting { $0.cues.append(LightingCue(name: "Conflict", time: 3, entries: cue.entries)) })
+        #expect(session.project.lighting == lighting)
+        #expect(session.editLighting { $0.removeFixture(strip.id) })
+        #expect(session.project.lighting.cues.isEmpty)
+        session.undoProjectEdit()
+        #expect(session.project.lighting == lighting)
+        session.setPlaying(true, at: 30)
+        session.seekPlayback(to: 3, at: 30)
+        session.setPlaying(false, at: 30)
+        #expect(session.lightingSimulation.reports[arduino.id]?.fixtures.first?.effective == .rgb(.red))
+        session.selectLightingCue(cue.id)
+        session.performEditorAction(.duplicate, at: 30)
+        #expect(session.project.lighting.cues.count == 1)
+        session.seekPlayback(to: 6, at: 30)
+        session.performEditorAction(.duplicate, at: 30)
+        #expect(session.project.lighting.cues.map(\.time) == [3, 6])
+        session.performEditorAction(.delete, at: 30)
+        #expect(session.project.lighting.cues == [cue])
+        #expect(session.project.surfaces.count == 1)
+        session.stopPlayback(at: 30)
+        session.seekPlayback(to: 3, at: 30)
+        #expect(session.lightingSimulation.reports[arduino.id]?.fixtures.first?.effective == .rgb(.off))
+        session.setPlaying(true, at: 30)
+        #expect(session.lightingSimulation.reports[arduino.id]?.fixtures.first?.effective == .rgb(.red))
+    }
+}

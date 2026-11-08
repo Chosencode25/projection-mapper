@@ -6,6 +6,7 @@ struct EditorToolbar: View {
     let openOutput: () -> Void
     var openProject: () -> Void = {}
     var saveProject: () -> Void = {}
+    var showFixtures: () -> Void = {}
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -66,6 +67,7 @@ struct EditorToolbar: View {
                 Menu("Calibration patterns") { CalibrationPatternMenu(session: session) }
                 Button(session.isTimelineVisible ? "Hide timeline" : "Show timeline") { session.isTimelineVisible.toggle() }
                 Divider()
+                Button("Fixtures & Simulation", action: showFixtures)
                 Button("Playback readiness & output settings") { showInspector(.show) }
                 Button("Restart playback") { session.restartPlayback() }
                 Button("Fade to black") { session.fadeToBlack() }

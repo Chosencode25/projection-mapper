@@ -30,6 +30,8 @@ Detailed staged work, operator behavior and acceptance gates: [v2.01 milestone p
 
 ## v2.02 — Fixture Patching and Simulation
 
+See the [v2.02 milestone plan](V2.02_PLAN.md) for build order, cue behavior and rehearsal acceptance.
+
 1. Add a fixture workspace with separate controller and fixture assignments. Start with moving head, switched plug and three-output binary RGB strip. Give each fixture a stable ID, editable label and group. Keep fixture patches with the layout and have show cues reference those IDs. Check DMX address ranges, relay-output bounds and conflicting assignments before applying a patch.
 2. Add manual test controls, reusable looks and a basic fixture lane on the existing elapsed-time timeline. Capture complete fixture states, use discrete color/gobo/relay changes, and allow explicit pan/tilt lead time. Define precedence among manual overrides, cues, stop and fixture blackout. Keep projector blackout and audio mute independent.
 3. Evaluate fixture state at the current timeline time. Seek and loop reconstruct the current look without replaying skipped cues. Save patches, looks and cues with migration/undo support. Keep live handles, arming and local port bindings outside portable show data.

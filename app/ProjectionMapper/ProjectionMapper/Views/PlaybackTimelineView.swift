@@ -15,13 +15,16 @@ struct PlaybackTimelineView: View {
     private var tickStep: Int { TimelinePresentation.tickStep(pixelsPerSecond: pixelsPerSecond) }
     private var anchorStep: Int { max(1, Int(ceil(60 / pixelsPerSecond))) }
 
+    private var lighting: ProjectLighting { session.project.lighting }
+    private var contentEnd: Double { session.project.timelineContentEnd }
+    private var selectedCue: LightingCue? { session.selectedLightingCue }
+
     var body: some View {
         // These collections and the clip editor stay outside the playback animation.
         // Only the transport readout and lightweight overlay redraw at clock cadence.
         let tracks = session.project.timelineTracks
         let clipsByTrack = Dictionary(grouping: session.project.timelineClips, by: \.sourceID)
         let time = session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)
-        let contentEnd = session.project.timelineClips.map(\.end).max() ?? 0
         let horizon = TimelinePresentation.horizon(contentEnd: contentEnd, playhead: max(time, playbackExtent),
             visibleDuration: viewportWidth / pixelsPerSecond)
         VStack(spacing: 0) {
@@ -36,6 +39,7 @@ struct PlaybackTimelineView: View {
                             Text("\(tracks.count)").monospacedDigit()
                         }.foregroundStyle(.secondary).padding(.horizontal, 10).frame(height: rulerHeight)
                         ForEach(tracks) { track in trackHeader(track) }
+                        if !lighting.fixtures.isEmpty { lightingHeader }
                     }.frame(width: 180)
                     Divider()
                     ScrollViewReader { proxy in
@@ -46,6 +50,7 @@ struct PlaybackTimelineView: View {
                                     ForEach(tracks) { track in
                                         lane(track, clips: clipsByTrack[track.id] ?? [], horizon: horizon)
                                     }
+                                    if !lighting.fixtures.isEmpty { lightingLane }
                                 }
                                 .background {
                                     TimelineGrid(spacing: Double(tickStep) * pixelsPerSecond)
@@ -75,9 +80,18 @@ struct PlaybackTimelineView: View {
             }
             Divider()
             ScrollView([.horizontal, .vertical]) {
-                VStack(alignment: .leading, spacing: 0) { clipEditor }
+                VStack(alignment: .leading, spacing: 0) {
+                    if let cue = selectedCue {
+                        cueEditor(cue)
+                    } else {
+                        if let message = session.lightingMessage {
+                            Text(message).font(.caption).foregroundStyle(.orange).padding(.horizontal, 10)
+                        }
+                        clipEditor
+                    }
+                }
             }
-            .frame(maxHeight: session.selectedClip?.source.content == .video ? 128 : session.selectedClip == nil ? 36 : 68)
+            .frame(maxHeight: selectedCue != nil ? 66 : session.selectedClip?.source.content == .video ? 128 : session.selectedClip == nil ? 36 : 68)
             .scrollIndicators(.automatic)
         }
         .background(Color(nsColor: .controlBackgroundColor))
@@ -95,7 +109,7 @@ struct PlaybackTimelineView: View {
         case .zoomIn: pixelsPerSecond = min(80, pixelsPerSecond * 1.5)
         case .zoomOut: pixelsPerSecond = max(0.1, pixelsPerSecond / 1.5)
         case .fit:
-            pixelsPerSecond = TimelinePresentation.fitScale(contentEnd: session.project.timelineClips.map(\.end).max() ?? 0, viewportWidth: viewportWidth)
+            pixelsPerSecond = TimelinePresentation.fitScale(contentEnd: contentEnd, viewportWidth: viewportWidth)
         case .snap: snap.toggle()
         case .follow: follow.toggle()
         case .playhead: break
@@ -155,7 +169,7 @@ struct PlaybackTimelineView: View {
 
     private func trackHeader(_ track: TimelineTrack) -> some View {
         HStack(spacing: 7) {
-            Button { session.selectTimelineTrack(track); session.selectedClipID = nil } label: {
+            Button { session.selectedLightingCueID = nil; session.selectTimelineTrack(track); session.selectedClipID = nil } label: {
                 HStack(spacing: 7) {
                     Image(systemName: track.isVisible ? (track.isObject ? "cube" : "square") : "eye.slash")
                     VStack(alignment: .leading, spacing: 1) {
@@ -168,6 +182,7 @@ struct PlaybackTimelineView: View {
             }.buttonStyle(.plain).help("Select " + track.name)
             Button {
                 let time = snapped(min(3595, session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)))
+                session.selectedLightingCueID = nil
                 session.addTimelineClip(sourceID: track.id, at: time)
             } label: { Image(systemName: "plus.circle") }
                 .buttonStyle(.borderless).help("Add current content at playhead").accessibilityLabel("Add clip for " + track.name)
@@ -210,7 +225,7 @@ struct PlaybackTimelineView: View {
                 TimelineClipBlock(clip: clip, selected: session.selectedClipID == clip.id,
                     pixelsPerSecond: pixelsPerSecond, snap: snap,
                     poster: clip.source.video.flatMap { session.videoPosters[$0.assetID] },
-                    select: { session.selectedClipID = clip.id; session.selectTimelineTrack(track) },
+                    select: { session.selectedLightingCueID = nil; session.selectedClipID = clip.id; session.selectTimelineTrack(track) },
                     commit: { _ = session.updateTimelineClip($0) })
                     .offset(x: clip.start * pixelsPerSecond)
                     .contextMenu {
@@ -223,9 +238,94 @@ struct PlaybackTimelineView: View {
         }.frame(height: laneHeight)
             .contentShape(Rectangle())
             .gesture(SpatialTapGesture(count: 2).onEnded { value in
+                session.selectedLightingCueID = nil
                 session.addTimelineClip(sourceID: track.id, at: snapped(min(3595, max(0, value.location.x / pixelsPerSecond))))
             })
             .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private var lightingHeader: some View {
+        HStack(spacing: 6) {
+            Label("Lighting", systemImage: "light.beacon.max").font(.caption.weight(.semibold))
+            Spacer(minLength: 0)
+            Picker("Lighting look", selection: $session.selectedFixtureLookID) {
+                Text("Look").tag(UUID?.none)
+                ForEach(lighting.looks) { Text($0.name).tag(Optional($0.id)) }
+            }.labelsHidden().controlSize(.small).help("Choose a captured lighting look")
+            Button {
+                addCue(at: session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime))
+            } label: {
+                Image(systemName: "plus.circle")
+            }.buttonStyle(.borderless)
+                .disabled(session.selectedFixtureLook == nil)
+                .help("Place the selected look at the playhead")
+                .accessibilityLabel("Add lighting cue")
+        }
+        .padding(.horizontal, 10).frame(height: laneHeight)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private var lightingLane: some View {
+        ZStack(alignment: .leading) {
+            Color.orange.opacity(0.08)
+            ForEach(lighting.cues) { cue in
+                Button {
+                    session.selectLightingCue(cue.id)
+                } label: {
+                    Image(systemName: session.selectedLightingCueID == cue.id ? "diamond.fill" : "diamond")
+                        .foregroundStyle(Color.orange)
+                        .frame(width: 18, height: 28)
+                }
+                .buttonStyle(.plain)
+                .help("\(cue.name) at \(TimelinePresentation.timecode(cue.time))")
+                .accessibilityLabel("\(cue.name) at \(TimelinePresentation.timecode(cue.time))")
+                .offset(x: cue.time * pixelsPerSecond)
+            }
+        }.frame(height: laneHeight)
+            .contentShape(Rectangle())
+            .gesture(SpatialTapGesture(count: 2).onEnded { value in
+                addCue(at: value.location.x / pixelsPerSecond)
+            })
+            .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private func addCue(at time: Double) {
+        guard let look = session.selectedFixtureLook else { return }
+        session.putLightingCue(LightingCue(name: look.name, time: snapped(min(3600, max(0, time))), entries: look.entries))
+    }
+
+    private func cueEditor(_ cue: LightingCue) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 8) {
+                Picker("Lighting cue", selection: Binding(get: { cue.id }, set: { session.selectLightingCue($0) })) {
+                    ForEach(lighting.cues.sorted(by: { $0.time < $1.time })) { choice in
+                        Text("\(TimelinePresentation.timecode(choice.time)) · \(choice.name)").tag(choice.id)
+                    }
+                }.labelsHidden().frame(width: 180).help("Select a lighting cue")
+                Text("Time (s)").font(.caption)
+                TextField("Cue time", value: Binding(get: { cue.time }, set: { value in
+                    var copy = cue
+                    copy.time = snapped(value)
+                    session.putLightingCue(copy)
+                }), format: .number.precision(.fractionLength(0...3))).frame(width: 70)
+                Text("Pan/tilt lead (s)").font(.caption)
+                TextField("Pan/tilt lead", value: Binding(get: { cue.lead }, set: { value in
+                    var copy = cue
+                    copy.lead = value
+                    session.putLightingCue(copy)
+                }), format: .number.precision(.fractionLength(0...3))).frame(width: 60)
+                    .disabled(!cue.entries.contains { $0.state.kind == .movingHead })
+                Button("Duplicate at Playhead") {
+                    let time = snapped(min(3600, session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)))
+                    session.duplicateLightingCue(cue, at: time)
+                }
+                Button("Delete", role: .destructive) {
+                    session.editLighting { $0.cues.removeAll { $0.id == cue.id } }
+                }
+            }
+            if let message = session.lightingMessage { Text(message).font(.caption).foregroundStyle(.orange) }
+        }
+        .controlSize(.small).padding(.horizontal, 10).padding(.vertical, 6)
     }
 
     @ViewBuilder private var clipEditor: some View {
@@ -319,7 +419,7 @@ private struct TimelineTransportControls: View {
         TimelineView(.animation(minimumInterval: 1.0 / 15, paused: !session.transport.isPlaying)) { _ in
             let time = session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)
             HStack(spacing: 8) {
-                Button { session.setPlaying(false); session.restartPlayback() } label: { Image(systemName: "stop.fill") }
+                Button { session.stopPlayback() } label: { Image(systemName: "stop.fill") }
                     .help("Stop and return to the beginning (Shift-Command-Return)").accessibilityLabel("Stop and return to beginning")
                 Button { session.seekPlayback(to: max(0, min(3600, time - 1))) } label: { Image(systemName: "backward.frame.fill") }
                     .help("Back one second").accessibilityLabel("Back one second")

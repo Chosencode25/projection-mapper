@@ -26,6 +26,7 @@ struct MappingProject: Equatable, Codable {
     var videoAssets: [VideoAsset] = []
     var videoAudio = VideoAudioSettings()
     var timelineClips: [EffectClip] = []
+    var lighting = ProjectLighting()
     var masterOutput = MasterOutputSettings.defaults
 
     init(id: UUID = UUID(), name: String = MappingProject.defaultName, now: Date = .now,
@@ -35,7 +36,10 @@ struct MappingProject: Equatable, Codable {
     }
     var hasDefaultContent: Bool {
         name == Self.defaultName && surfaces.count == 1 && surfaces[0].hasDefaultContent && objects.isEmpty && generatorPresets.isEmpty &&
-        palettes.isEmpty && looks.isEmpty && imageAssets.isEmpty && referencePhoto == nil && videoAssets.isEmpty && videoAudio == VideoAudioSettings() && timelineClips.isEmpty && masterOutput == .defaults
+        palettes.isEmpty && looks.isEmpty && imageAssets.isEmpty && referencePhoto == nil && videoAssets.isEmpty && videoAudio == VideoAudioSettings() && timelineClips.isEmpty && lighting == ProjectLighting() && masterOutput == .defaults
+    }
+    var timelineContentEnd: Double {
+        max(timelineClips.map(\.end).max() ?? 0, lighting.cues.map(\.time).max() ?? 0)
     }
     func object(for face: MappingSurface) -> MappingObject? { objects.first { $0.id == face.layout.objectID } }
     func source(for face: MappingSurface) -> SurfaceSource { object(for: face)?.source ?? face.source }

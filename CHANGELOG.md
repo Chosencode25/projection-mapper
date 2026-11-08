@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.02/build 18 — 2D Fixture Preview
+
+- Show moving-head aim, color and brightness, switched props, and RGB strip colors in a schematic preview tied to the lighting timeline.
+- Drag fixtures and strip endpoints, then save their positions with the project. Existing format 10 projects receive default preview positions on open.
+
+## v2.02 — Fixture Patching and Simulation
+
+- Add a fixture workspace for simulated DMX moving heads and Arduino plugs and RGB strips, with validated assignments, manual overrides and a controller monitor.
+- Capture reusable lighting looks and place independent cue snapshots on the existing timeline. Add pan and tilt lead, fixture blackout and Stop, and simulated controller failure reporting.
+- Save fixture patches, looks and cues in portable format 10 and migrate earlier packages with empty lighting data. Use the [lighting rehearsal](docs/V2.02_REHEARSAL.md) with Test Mode.
+- Debug and Release each passed 317 checks. A signed universal rehearsal build is available locally. User visual rehearsal remains pending. See [verification](docs/V2.02_VERIFICATION.md).
+
 ## Local v2.01/build 16 keyboard editing — October 19, 2026
 
 - Add Space playback in editor and clean output windows, paused time stepping, stop, surface/clip duplicate/delete, grouping/locks/visibility/order and selection navigation, imports, clip nudging and source-preserving video split.

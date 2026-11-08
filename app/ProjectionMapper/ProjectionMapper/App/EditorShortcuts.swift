@@ -202,8 +202,8 @@ extension EditorSession {
     func canPerformEditorAction(_ action: EditorAction) -> Bool {
         let busy = isSavingMedia || isImportingImage || isImportingVideo
         switch action {
-        case .duplicate: return !busy && (selectedClip != nil || selectedSurface != nil || selectedObject != nil) && !isMaskEditing
-        case .delete: return !busy && (selectedClip != nil || selectedSurface != nil || selectedObject != nil)
+        case .duplicate: return !busy && (selectedLightingCue != nil || selectedClip != nil || selectedSurface != nil || selectedObject != nil) && !isMaskEditing
+        case .delete: return !busy && (selectedLightingCue != nil || selectedClip != nil || selectedSurface != nil || selectedObject != nil)
         case .ungroup: return !busy && selectedObject != nil
         case .lock, .visibility: return !busy && (selectedSurface != nil || selectedObject != nil)
         case .forward, .backward: return !busy && selectedClip == nil && selectedSurface != nil
@@ -224,7 +224,7 @@ extension EditorSession {
         guard canPerformEditorAction(action), uptime.isFinite else { return }
         switch action {
         case .playPause: setPlaying(!transport.isPlaying, at: uptime)
-        case .stop: setPlaying(false, at: uptime); restartPlayback(at: uptime)
+        case .stop: stopPlayback(at: uptime)
         case .stepBack, .stepForward, .secondBack, .secondForward, .beginning, .sequenceEnd:
             let time = transport.elapsed(at: uptime)
             let target: Double
@@ -234,21 +234,25 @@ extension EditorSession {
             case .secondBack: target = time - 1
             case .secondForward: target = time + 1
             case .beginning: target = 0
-            default: target = project.timelineClips.map(\.end).max() ?? 0
+            default: target = project.timelineContentEnd
             }
             setPlaying(false, at: uptime); seekPlayback(to: min(3600, max(0, target)), at: uptime)
         case .addSurface: addSurface()
         case .duplicate:
-            if let clip = selectedClip { duplicateTimelineClip(clip.id) }
+            if let cue = selectedLightingCue {
+                duplicateLightingCue(cue, at: min(3600, transport.elapsed(at: uptime)))
+            } else if let clip = selectedClip { duplicateTimelineClip(clip.id) }
             else if let object = selectedObject { duplicateObject(object.id) }
             else if let face = selectedSurface { duplicateSurface(face.id) }
         case .delete:
             if isMaskEditing {
                 if maskDraft != nil { removeLastMaskDraftPoint() } else { deleteMaskPoint() }
+            } else if let cue = selectedLightingCue {
+                editLighting { $0.cues.removeAll { $0.id == cue.id } }
             } else if let clip = selectedClip { deleteTimelineClip(clip.id) }
             else if let object = selectedObject { deleteObject(object.id) }
             else if let face = selectedSurface { deleteSurface(face.id) }
-        case .deselect: selectedClipID = nil; selectSurface(nil); cancelGroupingFaces(); isMaskEditing = false; cancelMaskDrawing()
+        case .deselect: selectedLightingCueID = nil; selectedClipID = nil; selectSurface(nil); cancelGroupingFaces(); isMaskEditing = false; cancelMaskDrawing()
         case .group:
             if groupingSelection.count >= 2 { createObject(faceIDs: groupingSelection) } else { beginGroupingFaces() }
         case .ungroup: if let object = selectedObject { ungroupObject(object.id) }

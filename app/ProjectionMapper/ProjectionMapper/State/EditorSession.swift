@@ -6,6 +6,14 @@ import simd
 @MainActor
 @Observable
 final class EditorSession {
+    let lightingSimulation = LightingSimulation()
+    @ObservationIgnored private var lightingTask: Task<Void, Never>?
+    var lightingMessage: String?
+    var selectedLightingCueID: UUID?
+    var selectedLightingCue: LightingCue? { project.lighting.cues.first { $0.id == selectedLightingCueID } }
+    var selectedFixtureLookID: UUID?
+    var selectedFixtureLook: FixtureLook? { project.lighting.looks.first { $0.id == selectedFixtureLookID } }
+
     let videoPlayback = VideoPlaybackCoordinator()
     @ObservationIgnored private var managedVideoURLs = Set<URL>()
     @ObservationIgnored private var videoFileLeases = 0
@@ -68,7 +76,8 @@ final class EditorSession {
         result.videoFrames = videoPlayback.frames
         return result
     }
-    private func updateOutputScene() {
+    private func updateOutputScene(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        refreshLighting(at: uptime)
         videoPlayback.configure(scene: scene,assets: project.videoAssets,urls: videoFiles,audio: project.videoAudio,enabled: videoAudioEnabled)
         let snapshot = scene
         testOutput.setScene(snapshot)
@@ -81,7 +90,7 @@ final class EditorSession {
         for id in Array(sourcePlayback.keys) {
             if let frozen = sourcePlayback[id]?.frozenTime { sourcePlayback[id]?.frozenTime = max(0,frozen + delta) }
         }
-        updateOutputScene()
+        updateOutputScene(at: uptime)
     }
     func setSelectedPaused(_ paused: Bool, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard let source = selectedSource, uptime.isFinite else { return }
@@ -103,18 +112,30 @@ final class EditorSession {
         } else { timelineMessage = "The copied object uses live content: the project has reached its 2000-clip limit." }
     }
     func setPlaying(_ playing: Bool, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        transport.setPlaying(playing, at: uptime); updateOutputScene()
+        let starts = playing && !transport.isPlaying && uptime.isFinite
+        transport.setPlaying(playing, at: uptime)
+        if starts { lightingSimulation.resume() }
+        updateOutputScene(at: uptime)
     }
+    func stopPlayback(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard uptime.isFinite else { return }
+        lightingSimulation.stop()
+        setPlaying(false, at: uptime)
+        restartPlayback(at: uptime)
+    }
+
     func restartPlayback(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard uptime.isFinite else { return }
         transport.restart(at: uptime)
         for id in Array(sourcePlayback.keys) { sourcePlayback[id] = sourcePlayback[id]?.isPaused == true ? SourcePlayback(frozenTime: 0) : SourcePlayback() }
-        updateOutputScene()
+        updateOutputScene(at: uptime)
     }
     func setPlaybackSpeed(_ value: Double, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        transport.setSpeed(value, at: uptime); updateOutputScene()
+        transport.setSpeed(value, at: uptime); updateOutputScene(at: uptime)
     }
-    var selectedClipID: UUID?
+    var selectedClipID: UUID? {
+        didSet { if selectedClipID != nil { selectedLightingCueID = nil } }
+    }
     var timelineViewRequest: TimelineViewRequest?
     var timelineMessage: String?
     var selectedClip: EffectClip? { project.timelineClips.first { $0.id == selectedClipID } }
@@ -378,6 +399,7 @@ final class EditorSession {
             if let saved = try? store.read(original), saved.project.id == project.id { documentURL = original; savedBaseline = saved.project }
         }
         output.restoreProjectPreference(document.output.destination,resolution: document.output.resolution)
+        resetLighting()
         selectedClipID = nil; timelineViewRequest = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); isGroupingFaces = false; editMessage = nil
         testOutput.setResolution(output.testResolution); testOutput.destinationDidChange(output.destination); updateOutputScene()
@@ -411,6 +433,7 @@ final class EditorSession {
             self.projectorOutput.setScene(snapshot)
         }
         output.changed = { [weak self] in self?.outputDestinationChanged() }
+        refreshLighting()
     }
     private func changed(now: Date = .now) {
         let active = Set(project.surfaces.map { project.source(for: $0).id })
@@ -471,6 +494,7 @@ final class EditorSession {
     func selectSurface(_ id: UUID?) {
         guard id == nil || project.surfaces.contains(where: { $0.id == id }) else { return }
         selectedClipID = nil
+        selectedLightingCueID = nil
         if id != nil { inspectorTab = .edit }
         if id != selectedSurfaceID { selectedCorner = nil; clearMaskEditing() }
         selectedSurfaceID = id; selectedObjectID = nil; editMessage = nil
@@ -495,11 +519,13 @@ final class EditorSession {
     func selectObject(_ id: UUID) {
         guard project.objects.contains(where: { $0.id == id }) else { return }
         selectedClipID = nil
+        selectedLightingCueID = nil
         inspectorTab = .edit
         clearMaskEditing(); selectedObjectID = id; selectedSurfaceID = nil; selectedCorner = nil; editMessage = nil
     }
     func selectCorner(_ corner: SurfaceCorner?) {
         selectedClipID = nil
+        selectedLightingCueID = nil
         selectedCorner = selectedSurface == nil ? nil : corner
     }
     func toggleGrouping(_ id: UUID) {
@@ -866,6 +892,7 @@ final class EditorSession {
         imagePixels.removeAll(); imageFiles.removeAll(); imageProblems.removeAll(); mediaGeneration = UUID(); referencePhotoVisible = true
         clearRecovery(); documentURL = nil; assetSourceURL = nil; isRecovered = false; fileMessage = nil
         videoPlayback.reset(); videoFiles.removeAll(); videoPosters.removeAll(); videoProblems.removeAll(); videoAudioEnabled = false; cleanupManagedVideos()
+        resetLighting()
         selectedClipID = nil; timelineViewRequest = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); isGroupingFaces = false; editMessage = nil; editCheckpoint = snapshotForHistory(); updateOutputScene()
     }
@@ -1393,6 +1420,7 @@ extension EditorSession {
     private func editName(from old: MappingProject) -> String {
         if old.name != project.name { return "Rename Project" }
         if old.objects != project.objects { return "Edit Object" }
+        if old.lighting != project.lighting { return "Edit Lighting" }
         if old.timelineClips != project.timelineClips { return "Edit Timeline" }
         if old.imageAssets != project.imageAssets || old.videoAssets != project.videoAssets { return "Change Media" }
         if old.looks != project.looks { return "Edit Looks" }
@@ -1449,10 +1477,13 @@ extension EditorSession {
         groupingSelection.formIntersection(faces); selectedCorner = nil; clearMaskEditing()
         sourcePlayback = sourcePlayback.filter { id,_ in project.timelineTracks.contains { $0.id == id } }
         identifyingSourceID = nil; editCheckpoint = snapshotForHistory()
-        editMessage = nil; timelineMessage = nil; lastLookReport = nil
+        editMessage = nil; timelineMessage = nil; lightingMessage = nil; lastLookReport = nil
+        if selectedFixtureLook == nil { selectedFixtureLookID = nil }
+        if selectedLightingCue == nil { selectedLightingCueID = nil }
         boundHistory(); updateOutputScene(); scheduleRecovery()
     }
     func releaseRuntimeResources() {
+        resetLighting()
         closeOutput()
         autosaveTask?.cancel(); videoImportTask?.cancel(); saveWorker?.cancel()
         videoPlayback.reset(); clearEditHistory(); videoFiles.removeAll(); cleanupManagedVideos()
@@ -1535,5 +1566,78 @@ extension EditorSession {
         if identifyingSourceID != nil { add("identify",.information,"Object identification is active. Finish Identification to restore all owners.") }
         add("resource-scope",.information,"Inspection checks loaded media, ranges and reported decoder failures without autoplay. Smooth playback and audio timing require the user check; physical projector alignment, reconnect and optical delay require hardware acceptance.")
         return PlaybackReadinessReport(issues: issues,blockerCount: blockers,warningCount: warnings,omittedCount: omitted,checkedAt: .now)
+    }
+}
+
+
+extension EditorSession {
+    @discardableResult
+    func editLighting(_ edit: (inout ProjectLighting) -> Void) -> Bool {
+        var lighting = project.lighting
+        edit(&lighting)
+        if let issue = lighting.validationIssue() {
+            lightingMessage = issue
+            return false
+        }
+        lightingMessage = nil
+        guard lighting != project.lighting else { return true }
+        project.lighting = lighting
+        if !lighting.looks.contains(where: { $0.id == selectedFixtureLookID }) { selectedFixtureLookID = nil }
+        if !lighting.cues.contains(where: { $0.id == selectedLightingCueID }) { selectedLightingCueID = nil }
+        changed()
+        return true
+    }
+
+    func putLightingCue(_ cue: LightingCue) {
+        if editLighting({ lighting in
+            if let index = lighting.cues.firstIndex(where: { $0.id == cue.id }) {
+                lighting.cues[index] = cue
+            } else {
+                lighting.cues.append(cue)
+            }
+        }) {
+            selectLightingCue(cue.id)
+        }
+    }
+
+    func duplicateLightingCue(_ cue: LightingCue, at time: Double) {
+        var copy = cue
+        copy.id = UUID()
+        copy.time = time
+        putLightingCue(copy)
+    }
+
+    func selectLightingCue(_ id: UUID?) {
+        if id != nil {
+            clearMaskEditing()
+            selectedClipID = nil
+        }
+        selectedLightingCueID = id
+    }
+
+    private func resetLighting() {
+        lightingTask?.cancel()
+        lightingTask = nil
+        selectedLightingCueID = nil
+        selectedFixtureLookID = nil
+        lightingMessage = nil
+        lightingSimulation.reset()
+    }
+
+    func refreshLighting(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        lightingSimulation.update(project.lighting, at: transport.elapsed(at: uptime))
+        if !transport.isPlaying || project.lighting.controllers.isEmpty {
+            lightingTask?.cancel()
+            lightingTask = nil
+        } else if lightingTask == nil {
+            lightingTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    do { try await Task.sleep(for: .milliseconds(33)) }
+                    catch { break }
+                    guard let self else { break }
+                    self.refreshLighting()
+                }
+            }
+        }
     }
 }

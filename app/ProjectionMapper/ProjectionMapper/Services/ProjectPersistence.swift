@@ -11,7 +11,7 @@ struct RecoveryMetadata: Codable, Equatable {
     var savedAt: Date = .now
 }
 struct ProjectDocument: Codable, Equatable {
-    static let currentVersion = 9
+    static let currentVersion = 10
     var formatVersion = currentVersion
     var project: MappingProject
     var output = ProjectOutputSettings()
@@ -99,6 +99,11 @@ enum ProjectCodec {
                 project["videoAssets"] = []; project["videoAudio"] = ["volume":1]
                 json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
             }
+            if version <= 9 {
+                guard var project = json["project"] as? [String:Any] else { throw ProjectFileError.invalid("missing project") }
+                project["lighting"] = ["controllers": [], "fixtures": [], "looks": [], "cues": []] as [String: [String]]
+                json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
+            }
             let migrated = try JSONSerialization.data(withJSONObject: json)
             let document = try JSONDecoder().decode(ProjectDocument.self, from: migrated)
             try validate(document); return document
@@ -109,6 +114,7 @@ enum ProjectCodec {
         func check(_ condition: Bool, _ text: String) throws { if !condition { throw ProjectFileError.invalid(text) } }
         let p = document.project
         try check(document.formatVersion == ProjectDocument.currentVersion, "unsupported write version")
+        if let issue = document.project.lighting.validationIssue() { throw ProjectFileError.invalid(issue) }
         try check(!p.name.isEmpty && p.name.count <= 80, "project name")
         try check(p.createdAt.timeIntervalSince1970.isFinite && p.modifiedAt.timeIntervalSince1970.isFinite, "timestamps")
         try check(p.surfaces.count <= 1000 && p.objects.count <= 1000 && p.generatorPresets.count <= 100 && p.palettes.count <= 100 && p.looks.count <= 100 && p.objects.reduce(0, { $0 + $1.links.count }) <= 10000, "collection limits")

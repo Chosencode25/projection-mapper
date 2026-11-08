@@ -1,15 +1,15 @@
 # V2 Roadmap — Projection, Lighting and Show Playback
 
-Updated November 8, 2026. The current local app is **v2.01/build 16**, with portable format 9 and automated verification. Physical projector and optical timing acceptance remain pending. The latest published download remains v1.15.1. See [progress](PROGRESS.md), [current verification](LOCAL_SHORTCUTS_VERIFICATION.md) and [projector verification](V2.01_VERIFICATION.md).
+Updated November 8, 2026. The local rehearsal build is **v2.02/build 18**, with portable format 10 and automated verification. Build 18 is installed in Applications. Physical projector and optical timing acceptance remain pending. The latest published download remains v1.15.1. See [progress](PROGRESS.md), [current verification](LOCAL_SHORTCUTS_VERIFICATION.md) and [projector verification](V2.01_VERIFICATION.md).
 
-The next work is **native fixture support** for the moving head and Arduino, followed by **song sync**. A local phone editor follows the desktop cue foundation. Projection, fixtures and music share show time, and the existing Test Mode remains available. V2.02 onward is planning. Read the [detailed implementation steps](V2_IMPLEMENTATION_PLAN.md), [development requirements](PROJECT_DEVELOPMENT.md) and [GitHub workflow](GITHUB_WORKFLOW.md) before implementing or delivering a milestone.
+The next work is **native fixture support** for the moving head and Arduino, followed by **song sync**. A local phone editor follows the desktop cue foundation. Projection, fixtures and music share show time, and the existing Test Mode remains available. v2.03 onward is planning. Read the [detailed implementation steps](V2_IMPLEMENTATION_PLAN.md), [development requirements](PROJECT_DEVELOPMENT.md) and [GitHub workflow](GITHUB_WORKFLOW.md) before implementing or delivering a milestone.
 
 ## Core milestones
 
 | Milestone | Scope |
 |---|---|
 | v2.01 · Projector Output and Calibration | Fullscreen single-projector output, reconnect and calibration. Implemented and automatically verified. Physical checks remain pending. |
-| v2.02 · Fixture Patching and Simulation | Patch moving heads, plugs and RGB strips. Edit looks and timeline cues with simulated outputs and an intended-state monitor. |
+| v2.02 · Fixture Patching and Simulation | Patch moving heads, plugs and RGB strips. Edit looks and timeline cues with simulated outputs, an intended-state monitor and a 2D fixture preview. Implemented and [automatically verified](V2.02_VERIFICATION.md). User rehearsal pending. |
 | v2.03 · Native USB-DMX Moving Head | Add selectable USB-DMX profiles and documented 9-/11-channel controls. Verify output when the adapter is identified. |
 | v2.04 · Native Arduino Relay and RGB Control | Add serial profiles and settings, switched plugs and binary RGB strips. Verify the existing firmware when its commands are known. |
 | v2.05 · Music and Show Transport | Import songs and waveforms, route audio and sync projection and lights to one song clock through seeks and loops. |

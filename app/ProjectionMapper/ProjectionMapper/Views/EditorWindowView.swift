@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EditorWindowView: View {
     @Bindable var session: EditorSession
+    @State private var showsFixtures = false
     let newProject: () -> Void
     let projectChanged: () -> Void
     let refreshDisplays: () -> Void
@@ -12,24 +13,31 @@ struct EditorWindowView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            EditorToolbar(session: session, newProject: newProject, openOutput: openOutput, openProject: openProject, saveProject: saveProject)
+            EditorToolbar(session: session, newProject: newProject, openOutput: openOutput, openProject: openProject, saveProject: saveProject, showFixtures: { showsFixtures.toggle() })
             Divider()
             VSplitView {
-            HStack(spacing: 0) {
-                if session.isSidebarVisible {
-                    SurfaceSidebarView(session: session).frame(width: 244)
-                    Divider()
+                Group {
+                    if showsFixtures {
+                        LightingWorkspace(session: session) { showsFixtures = false }
+                    } else {
+                        HStack(spacing: 0) {
+                            if session.isSidebarVisible {
+                                SurfaceSidebarView(session: session).frame(width: 244)
+                                Divider()
+                            }
+                            EditorCanvasView(session: session).frame(maxWidth: .infinity, maxHeight: .infinity)
+                            if session.isInspectorVisible {
+                                Divider()
+                                ProjectInspectorView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput)
+                                    .frame(width: 320)
+                            }
+                        }
+                    }
                 }
-                EditorCanvasView(session: session).frame(maxWidth: .infinity, maxHeight: .infinity)
-                if session.isInspectorVisible {
-                    Divider()
-                    ProjectInspectorView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput).frame(width: 320)
+                .frame(minHeight: 240)
+                if session.isTimelineVisible {
+                    PlaybackTimelineView(session: session).frame(minHeight: 184, idealHeight: 224, maxHeight: 300)
                 }
-            }
-            .frame(minHeight: 240)
-            if session.isTimelineVisible {
-                PlaybackTimelineView(session: session).frame(minHeight: 184, idealHeight: 224, maxHeight: 300)
-            }
             }
             Divider()
             EditorStatusView(session: session)
