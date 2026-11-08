@@ -1,8 +1,12 @@
 # Project Progress
 
-Last updated: October 19, 2026.
+Last updated: November 8, 2026.
 
 ## Current state
+
+**November 8 V2 replanning:** The [roadmap](V2_ROADMAP.md) and [implementation plan](V2_IMPLEMENTATION_PLAN.md) now define v2.01–v2.16 core milestones and v2.17–v2.30 optional follow-ons. Next is v2.02 fixture patching and simulation, then native USB-DMX and Arduino serial, followed by the shared song clock in v2.05 and local phone editing in v2.07. Unidentified hardware can be simulated, with physical verification tracked separately. The user authorized GitHub delivery of this documentation update.
+
+**November 8 native DMX reference:** Recorded the user-supplied moving-head manual’s 9- and 11-channel maps and a proposed first hardware check in the [fixture reference](NATIVE_DMX_FIXTURE_REFERENCE.md). USB adapter identification, native output implementation and hardware verification are pending.
 
 **Current local app: v2.01/build 16 — local polish and keyboard editing, October 19, 2026.** Installed and verified in the workspace and Applications. Adds Space playback in editor/Test/projector windows, contextual duplicate/delete, surface editing/navigation, imports, clip capture/nudging/video split, timeline navigation/zoom/snap/follow, inspector shortcuts, explicit mute/output close and a searchable Help → Keyboard Shortcuts reference (Command-/). Normal typing, mask editing, locked geometry, native text editing/undo and focused projector Escape are preserved. Earlier build 15 toolbar/sidebar/timeline/performance improvements remain included; portable format stays 9. See the [local guide](LOCAL_APP_GUIDE.md), [shortcut verification](LOCAL_SHORTCUTS_VERIFICATION.md) and [earlier polish evidence](LOCAL_APP_POLISH_2026-10-19.md).
 
@@ -12,7 +16,7 @@ The app was initially running; installation waited until the user explicitly rep
 
 **GitHub source delivery confirmed — October 19:** under the user’s explicit request, the combined build 15 polish and build 16 keyboard changes plus the complete README/standalone shortcut reference were committed at **ed0e9f220dcf5ac3cf71122898677d2b8ea92512**. Main fast-forwarded from **58a7574** and was successfully pushed to origin. This push result confirms delivery without polling. The published app remains v1.15.1; no new release/tag or app asset upload was requested or performed. Future intermediate work remains local under normal policy.
 
-**October 19 cleanup/source backup:** the user explicitly requested backing up the newer local version and removing redundant old local versions. This supersedes the prior local-only restriction for this delivery. v2.01 source, mobile-editor planning and cleanup improvements were successfully pushed to GitHub main at **0f8b517**. Latest published app download remains v1.15.1; no new release/tag is requested. The duplicated canonical demo is consolidated into the intact bundled regression fixture. Next independent development remains v2.02; hardware acceptance remains separate. See [cleanup record](PROJECT_CLEANUP_2026-10-19.md).
+**October 19 cleanup/source backup:** the user explicitly requested backing up the newer local version and removing redundant old local versions. This supersedes the prior local-only restriction for this delivery. v2.01 source, mobile-editor planning and cleanup improvements were successfully pushed to GitHub main at **0f8b517**. Latest published app download remains v1.15.1; no new release/tag is requested. The duplicated canonical demo is consolidated into the intact bundled regression fixture. Hardware acceptance remains separate. See [cleanup record](PROJECT_CLEANUP_2026-10-19.md).
 
 **v2.01 detailed planning — October 14, 2026:** Created [Projector Output and Calibration plan](V2.01_PLAN.md), expanding the existing outline into routing/lifecycle, clean fullscreen rendering, recovery/UI, device calibration/timing and regression/local delivery slices. Defines explicit open/reopen, no live output relocation on disconnect, shared renderer/media ownership and separate automated/physical acceptance. Linked from the V2 roadmap/implementation plan. Documentation only; no implementation, app build/toolchain verification, version bump, screen use, commits or uploads. At that planning point, v2.01 remained planned.
 
@@ -22,7 +26,7 @@ The app was initially running; installation waited until the user explicitly rep
 
 V1 delivery record: signed app was installed at app/ProjectionMapper.app and archived in builds/v1.15/. Previous installed v1.14 preserved at builds/v1.15/Previous-installed.app. Full V1 ZIP, checksum and install/usage notes prepared. Packaged/installed files match the tested Release product; architecture and strict signature checks passed. No screen control or app launch used. User visual/listening acceptance is pending, including actual audio routing/device loss and perceived sync/pitch. Runtime tests used Apple Silicon/macOS 27; Intel/older-macOS execution and physical projector output remain unverified. Developer ID/notarization have not been established; the app is locally ad-hoc signed.
 
-v1.14 source is already confirmed on GitHub at **ccb5df2** with delivery record **29ad795**. v1.15 tested source was successfully committed and pushed to GitHub main at **60e838d**, fast-forwarded from 29ad795; the full v1.15 release is now published with its annotated tag and four verified downloadable assets. V1 implementation is finished; user visual/listening acceptance remains pending. Repository visibility stays private. **v2.01 is now locally implemented above; next independent development is v2.02 music/song transport and waveforms.** Physical projector acceptance remains pending.
+v1.14 source is already confirmed on GitHub at **ccb5df2** with delivery record **29ad795**. v1.15 tested source was successfully committed and pushed to GitHub main at **60e838d**, fast-forwarded from 29ad795; the full v1.15 release is now published with its annotated tag and four verified downloadable assets. V1 implementation is finished; user visual/listening acceptance remains pending. Repository visibility stays private. **v2.01 is now locally implemented above; next independent development is v2.02 fixture patching and simulation.** Physical projector acceptance remains pending.
 
 ## GitHub version history
 

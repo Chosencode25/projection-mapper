@@ -1,43 +1,56 @@
-# V2 Roadmap — Music and Show Playback
+# V2 Roadmap — Projection, Lighting and Show Playback
 
-Status updated October 19, 2026: **v2.01 is implemented and automatically verified; physical projector acceptance remains pending.** Current source/app is 2.01/build 16, portable format 9, with workspace/performance polish and keyboard editing. Debug/Release each passed 312 correctness tests. The user explicitly authorized GitHub source delivery of this update; see [current progress](PROGRESS.md). Latest downloadable app remains v1.15.1. v2.02–v2.12 remain planned; next independent development is music/song transport and waveforms in v2.02. V1 listening/device-unplug and long-session acceptance remain unverified. v2.10 includes the approved mobile web editor. See [current verification](LOCAL_SHORTCUTS_VERIFICATION.md) and [projector verification](V2.01_VERIFICATION.md).
+Updated November 8, 2026. The current local app is **v2.01/build 16**, with portable format 9 and automated verification. Physical projector and optical timing acceptance remain pending. The latest published download remains v1.15.1. See [progress](PROGRESS.md), [current verification](LOCAL_SHORTCUTS_VERIFICATION.md) and [projector verification](V2.01_VERIFICATION.md).
 
-V2 turns the V1 mapper into a native Mac workspace for building repeatable projection shows to music, rehearsing them, coordinating with an existing lighting system and running playlists. Map the display once, reuse it across songs, and keep Test Mode available for editing without hardware. Preserve connected object faces and their shared content coordinates.
+The next work is **native fixture support** for the moving head and Arduino, followed by **song sync**. A local phone editor follows the desktop cue foundation. Projection, fixtures and music share show time, and the existing Test Mode remains available. V2.02 onward is planning. Read the [detailed implementation steps](V2_IMPLEMENTATION_PLAN.md), [development requirements](PROJECT_DEVELOPMENT.md) and [GitHub workflow](GITHUB_WORKFLOW.md) before implementing or delivering a milestone.
 
-Read [V1 remaining plan](V1_REMAINING_PLAN.md), [development requirements](PROJECT_DEVELOPMENT.md), [GitHub workflow](GITHUB_WORKFLOW.md) and the [detailed V2 steps](V2_IMPLEMENTATION_PLAN.md) before implementation. The project remains pinned to Xcode 27.0 beta 5 (27A5237l); a future toolchain change requires an explicit project decision.
+## Core milestones
 
-## Ordered milestones
+| Milestone | Scope |
+|---|---|
+| v2.01 · Projector Output and Calibration | Fullscreen single-projector output, reconnect and calibration. Implemented and automatically verified. Physical checks remain pending. |
+| v2.02 · Fixture Patching and Simulation | Patch moving heads, plugs and RGB strips. Edit looks and timeline cues with simulated outputs and an intended-state monitor. |
+| v2.03 · Native USB-DMX Moving Head | Add selectable USB-DMX profiles and documented 9-/11-channel controls. Verify output when the adapter is identified. |
+| v2.04 · Native Arduino Relay and RGB Control | Add serial profiles and settings, switched plugs and binary RGB strips. Verify the existing firmware when its commands are known. |
+| v2.05 · Music and Show Transport | Import songs and waveforms, route audio and sync projection and lights to one song clock through seeks and loops. |
+| v2.06 · Timeline and Cues | Add song-aware tracks, beat/lyric/section markers, curves, fades and manual cues. |
+| v2.07 · Phone Browser Editor and Remote | Pair over local Wi-Fi by QR code. Edit corners, masks and effects, operate playback, see fixture status, undo and save. |
+| v2.08 · Holiday Choreography | Add holiday effects, chases, waves, crossfades, beat-aligned triggers and optional live audio reaction. |
+| v2.09 · Layers, Regions and Text | Add layered visuals, target regions, text, countdowns and authored singing-face animation. |
+| v2.10 · Reusable Shows and Layouts | Assign reusable layout roles, share templates and record cue performances against song time. |
+| v2.11 · Show Mode and Readiness | Preload and validate media and fixtures, lock edits, and add operator controls, separate blackouts and failure recovery. |
+| v2.12 · External Synchronization and Lighting Integration | Verify a specific xLights/FPP workflow and MIDI/OSC controls. Measure trigger/follow behavior and timing offsets. |
+| v2.13 · Playlists and Scheduling | Build playlists, idle scenes, schedule rules, graceful endings and restart handling. |
+| v2.14 · Phone Timeline and Preview | Move and trim clips, edit cue timing and view a lightweight Mac-generated preview. |
+| v2.15 · Export and Portable Delivery | Collect portable show assets and export mapped output or unmapped content with explicit audio and timing. |
+| v2.16 · Acceptance, Packaging and Release | Rehearse the full show, measure timing, record compatibility, and prepare a release for separately authorized publication. |
 
-The first milestone has a dedicated [v2.01 projector output and calibration plan](V2.01_PLAN.md) with implementation slices and separate automated/physical acceptance gates.
+## Hardware that is still unidentified
 
-| Milestone | Scope | Acceptance outcome |
-|---|---|---|
-| 2.01 — Projector Output and Calibration | One fullscreen external output; display identity/reconnect; device calibration and timing measurements; existing renderer/masks. | Test Mode stays independent; real projector operation is claimed only after recorded physical checks. |
-| 2.02 — Music and Show Transport | Portable song assets, waveform, audio routing, one song clock, play/pause/stop/restart/seek and rehearsal loops. | Seek/pause/restart keeps generators, video and music at the intended song position. |
-| 2.03 — Timeline and Cues | Extend V1 owner tracks/clips with song-aware named object/tag tracks, beat/lyric/section markers, parameter curves and manual cue triggering. | A song can be choreographed, saved and replayed with repeatable results. |
-| 2.04 — Holiday Choreography | Snow/twinkle/candy-cane effects, object chases, spatial waves, palette changes, transitions and optional audio reaction. | Coordinated looks work across separate objects and connected faces without disturbing alignment. |
-| 2.05 — Layers, Regions and Text | Bounded visual layer stacks, masks/named regions, outlines, countdowns and projected singing-face animation. | A window border, center and overlay can be composed and sequenced independently. |
-| 2.06 — Reusable Shows and Layouts | Display roles, selection groups, layout-target assignment, templates, effect packs and recording manual cue performances. | A song template can be assigned to another house layout without moving its mapping. |
-| 2.07 — External Synchronization and Lighting Integration | One verified xLights/FPP workflow first; external clock follow versus triggers; MIDI/OSC controls and latency adjustment. | A reference projection/music/light sequence stays aligned on the tested systems, including seeks and sync loss. |
-| 2.08 — Show Mode and Readiness | Editing lock, preload, readiness report, live status, stop/blackout/audio mute, identification and recovery policies. | A rehearsed show can run with predictable operator controls and visible failure states. |
-| 2.09 — Playlists and Scheduling | Intro/main/closing sections, idle scenes, nightly/holiday rules, graceful finish, timezone/DST and restart behavior. | A simulated and physical nightly schedule starts/stops correctly without duplicate playback. |
-| 2.10 — Mobile Web Editor and Remote Control | Mac-hosted phone editor: local Wi-Fi/QR pairing first; face/object selection, mapping/masks, effects and playback; then mobile timeline and bounded preview. Later optional internet access through a private VPN reuses the same editor. | Authorized phone edits use Mac validation, undo and saves; Show Mode locks remain enforced. Disconnects preserve Mac rendering and local control. Actual iPhone/Android browser acceptance is required. |
-| 2.11 — Export and Portable Delivery | Collect assets; render projection video from explicit show time; distinguish content-canvas versus mapped-output exports. | Export timing and appearance match the chosen output; the portable show opens without its original asset folders. |
-| 2.12 — Acceptance, Packaging and Release | Long-session rehearsal, migration/undo/recovery regressions, measured timing/resource limits, documentation and verified packaging/upload. | Published claims match the tested app, integration versions and actual hardware coverage. |
+Start in **Simulation** for each unknown controller. Fixture controls, saved patches and cues, playback and output monitoring work against simulated devices. Distinguish simulated sends, actual writes and any device acknowledgment. Show that a protocol is unknown or unsupported and leave physical output disarmed. Let the user select a port and choose among implemented DMX profiles or configure documented serial settings and a supported command format. Bring up a verified transport when the adapter or firmware is identified. Confirm each supported combination on real hardware before claiming compatibility. See the [moving-head reference](NATIVE_DMX_FIXTURE_REFERENCE.md).
 
-## Mobile editing direction — October 14, 2026
+Direct fixture output works independently of Lightkey or xLights/FPP once a supported transport is available. The separate external-sync milestone tests interoperability. Published tags and prior milestone records retain their original meaning.
 
-The approved first approach is a mobile web editor hosted by the running Mac app, opened by scanning a QR code on the Mac. Phone and Mac join the same local Wi-Fi network; internet is not required. A dedicated router is an alternative when venue/guest Wi-Fi isolates clients. Hotspot operation is a separately tested setup, not assumed compatibility.
+## Optional follow-ons
 
-Keep the existing milestone order: expand v2.10 into three stages—local editing/controls, mobile timeline and preview, then optional private-VPN internet access. The Mac owns rendering, audio/show timing, validation, undo/recovery and project files; the phone sends edits and receives confirmed state. Native phone apps, Bluetooth fallback and our own cloud relay remain later alternatives, not initial dependencies or V2 release blockers. See [detailed stages](V2_IMPLEMENTATION_PLAN.md#v210--mobile-web-editor-and-remote-control).
+These have numbered steps and acceptance checks. Each can proceed independently once its prerequisites are available.
 
-## Scope boundaries
-
-The first lighting integration uses an existing sequencer/player rather than building a full pixel/fixture sequencer inside V2. Choose the precise interoperable path in v2.07 after a protocol/export feasibility check. An exported movie, OSC trigger or matching file name is not by itself proof of synchronization or format compatibility. Do not advertise direct XSQ/FSEQ support without implementation and fixtures.
-
-Single-projector support comes first. Multiple projector outputs, edge blending/color matching, mesh/3D mapping, camera calibration, direct pixel/DMX control, live video capture and autonomous playback hardware are a prioritized later backlog, not V2 release blockers. Basic V1 polygon masks remain in V1; more elaborate compositing/regions arrive in v2.05.
-
-Hardware deferral is preserved. v2.01 can implement and verify non-hardware behavior while physical checks remain pending; later editing work can proceed in Test Mode. Actual projected-show and synchronized-lighting claims must wait for the corresponding hardware gates. No hardware purchase is assumed.
+| Milestone | Scope |
+|---|---|
+| v2.17 · Private VPN Phone Access | Extend the paired phone editor to a private VPN. Verify a phone connecting from outside the local network. |
+| v2.18 · Expanded DMX and Pixel Output | Add more fixture profiles and effects, plus addressed pixels with bounded output rates. |
+| v2.19 · Multiple Projectors and Edge Blending | Route and calibrate multiple projectors, blend overlaps and match color. |
+| v2.20 · Mesh and Curved-Surface Mapping | Author and validate warped meshes for curved surfaces. |
+| v2.21 · Camera-Assisted Alignment | Use measured camera correspondences to suggest editable alignment corrections. |
+| v2.22 · 3D Import and Surface Reconstruction | Import supported 3D meshes and evaluate reconstruction from calibrated capture. |
+| v2.23 · Live Video Inputs | Evaluate camera, capture-device, NDI and Syphon sources, with measured latency. |
+| v2.24 · Projector Power and Input Control | Add documented power/input commands and readiness handling. |
+| v2.25 · Assisted Music and Cue Authoring | Evaluate editable beat, lyric, phoneme and stem analysis for cue authoring. |
+| v2.26 · Standalone Show Player | Test a portable show package on a dedicated playback platform. |
+| v2.27 · Native Phone Companion | Evaluate a native companion using the Mac’s existing permissions and commands. |
+| v2.28 · Bluetooth Remote Fallback | Evaluate a paired fallback for basic status and operator actions. |
+| v2.29 · Hosted Remote Access | Evaluate an explicitly enabled, authenticated hosted relay. |
+| v2.30 · Public Template and Effect Library | Evaluate publishing and discovering compatible templates and effects. |
 
 ## Research that informed this plan
 
