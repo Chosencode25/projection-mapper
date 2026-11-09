@@ -214,7 +214,7 @@ extension EditorSession {
         case .previousSurface, .nextSurface: return !project.surfaces.isEmpty
         case .splitVideo: return !busy && selectedClip?.source.content == .video
         case .closeOutput: return isOutputOpen
-        case .muteAudio: return videoAudioEnabled
+        case .muteAudio: return project.song != nil || videoAudioEnabled
         default: return true
         }
     }
@@ -297,7 +297,8 @@ extension EditorSession {
         case .showInspector: isInspectorVisible = true; inspectorTab = .show
         case .projectInspector: isInspectorVisible = true; inspectorTab = .project
         case .closeOutput: closeOutput()
-        case .muteAudio: enableVideoAudio(false)
+        case .muteAudio:
+            if project.song != nil { songMuted = true } else { enableVideoAudio(false) }
         }
     }
     private func requestTimeline(_ action: TimelineViewRequest.Action) {

@@ -17,6 +17,7 @@ final class ProjectorOutputCoordinator: NSObject, NSWindowDelegate {
     private(set) var message: String?
     private(set) var activeDisplay: DisplayDescriptor?
     private(set) var window: NSWindow?
+    var didClose: (() -> Void)?
     var performShortcut: ((EditorAction) -> Bool)?
     private(set) var scene = RenderScene.diagnostic
     private(set) var diagnostic: OutputDiagnostic = .normal
@@ -170,6 +171,7 @@ final class ProjectorOutputCoordinator: NSObject, NSWindowDelegate {
         (old?.contentView as? MetalSceneView)?.stopRendering()
         old?.delegate = nil; (old as? ProjectorWindow)?.escape = nil; old?.contentView = nil; old?.close()
         state = .closed; message = nil
+        if old != nil { didClose?() }
     }
     func windowWillClose(_ notification: Notification) { if notification.object as? NSWindow === window { close() } }
     func windowDidChangeScreen(_ notification: Notification) {

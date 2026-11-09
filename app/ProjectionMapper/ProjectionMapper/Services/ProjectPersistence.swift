@@ -11,7 +11,7 @@ struct RecoveryMetadata: Codable, Equatable {
     var savedAt: Date = .now
 }
 struct ProjectDocument: Codable, Equatable {
-    static let currentVersion = 10
+    static let currentVersion = 11
     var formatVersion = currentVersion
     var project: MappingProject
     var output = ProjectOutputSettings()
@@ -104,6 +104,7 @@ enum ProjectCodec {
                 project["lighting"] = ["controllers": [], "fixtures": [], "looks": [], "cues": []] as [String: [String]]
                 json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
             }
+            if version == 10 { json["formatVersion"] = ProjectDocument.currentVersion }
             let migrated = try JSONSerialization.data(withJSONObject: json)
             let document = try JSONDecoder().decode(ProjectDocument.self, from: migrated)
             try validate(document); return document
@@ -114,6 +115,7 @@ enum ProjectCodec {
         func check(_ condition: Bool, _ text: String) throws { if !condition { throw ProjectFileError.invalid(text) } }
         let p = document.project
         try check(document.formatVersion == ProjectDocument.currentVersion, "unsupported write version")
+        try check(document.project.song?.isValid != false, "invalid soundtrack")
         if let issue = document.project.lighting.validationIssue() { throw ProjectFileError.invalid(issue) }
         try check(!p.name.isEmpty && p.name.count <= 80, "project name")
         try check(p.createdAt.timeIntervalSince1970.isFinite && p.modifiedAt.timeIntervalSince1970.isFinite, "timestamps")
@@ -210,7 +212,7 @@ final class ProjectPackageStore {
         guard info.isRegularFile == true, info.isSymbolicLink != true, (info.fileSize ?? Int.max) <= 16*1024*1024 else { throw ProjectFileError.invalid("manifest is unavailable or unsafe") }
         return try ProjectCodec.decode(Data(contentsOf: manifest))
     }
-    func write(_ document: ProjectDocument, to destination: URL, assetsFrom source: URL? = nil, imageFiles: [UUID:Data] = [:], videoFiles: [UUID:URL] = [:]) throws {
+    func write(_ document: ProjectDocument, to destination: URL, assetsFrom source: URL? = nil, imageFiles: [UUID:Data] = [:], videoFiles: [UUID:URL] = [:], songBytes: Data? = nil) throws {
         let data = try ProjectCodec.encode(document)
         let parent = destination.deletingLastPathComponent()
         let stage = parent.appendingPathComponent(".\(destination.lastPathComponent).\(UUID().uuidString).staging",isDirectory: true)
@@ -229,6 +231,11 @@ final class ProjectPackageStore {
             try files.createDirectory(at: assets,withIntermediateDirectories: false)
             var videoNames = Set(document.project.videoAssets.map(\.fileName))
             if let old = try? read(oldAssets.deletingLastPathComponent()) { videoNames.formUnion(old.project.videoAssets.map(\.fileName)) }
+            if let song = document.project.song { videoNames.insert(song.fileName) }
+            if let oldSong = (try? read(oldAssets.deletingLastPathComponent()))?.project.song {
+                videoNames.insert(oldSong.fileName)
+            }
+            // Videos and songs are handled separately from the inherited assets.
             // Videos always use cancellable chunked I/O below, including Save As/recovery.
             for item in try files.contentsOfDirectory(at: oldAssets,includingPropertiesForKeys: nil) where !videoNames.contains(item.lastPathComponent) {
                 try Task.checkCancellation()
@@ -267,6 +274,18 @@ final class ProjectPackageStore {
             let decoded = try ImageImportService.read(target)
             guard decoded.pixels.width == asset.width, decoded.pixels.height == asset.height else { throw ProjectFileError.invalid("image dimensions") }
         }
+        if let song = document.project.song {
+            let target = assets.appendingPathComponent(song.fileName)
+            if let songBytes {
+                guard songBytes.count == song.byteCount else { throw ProjectFileError.invalid("Soundtrack size changed.") }
+                try songBytes.write(to: target, options: .atomic)
+            } else if let oldAssets {
+                try VideoImportService.copy(oldAssets.appendingPathComponent(song.fileName), to: target)
+            }
+            guard (try? VideoImportService.safeFile(target)) == Int64(song.byteCount) else {
+                throw ProjectFileError.invalid("Missing soundtrack; replace or remove it before saving.")
+            }
+        }
         try data.write(to: stage.appendingPathComponent("manifest.json"),options: .atomic)
         _ = try read(stage)
         try Task.checkCancellation()
@@ -299,10 +318,10 @@ final class ProjectRecoveryStore {
             guard let doc = try? packages.read(url), doc.recovery != nil else { return nil }; return Entry(url: url,document: doc)
         }.sorted { ($0.document.recovery?.savedAt ?? .distantPast) > ($1.document.recovery?.savedAt ?? .distantPast) }
     }
-    func save(_ document: ProjectDocument, original: URL?, assetsFrom: URL? = nil, imageFiles: [UUID:Data] = [:], videoFiles: [UUID:URL] = [:]) throws {
+    func save(_ document: ProjectDocument, original: URL?, assetsFrom: URL? = nil, imageFiles: [UUID:Data] = [:], videoFiles: [UUID:URL] = [:], songBytes: Data? = nil) throws {
         try FileManager.default.createDirectory(at: directory,withIntermediateDirectories: true)
         var copy = document; copy.recovery = RecoveryMetadata(originalPath: original?.path)
-        try packages.write(copy,to: directory.appendingPathComponent("\(copy.project.id).projectionmap"),assetsFrom: assetsFrom ?? original, imageFiles: imageFiles, videoFiles: videoFiles)
+        try packages.write(copy,to: directory.appendingPathComponent("\(copy.project.id).projectionmap"),assetsFrom: assetsFrom ?? original, imageFiles: imageFiles, videoFiles: videoFiles, songBytes: songBytes)
         for entry in entries().dropFirst(10) { try? FileManager.default.removeItem(at: entry.url) }
     }
     func remove(projectID: UUID) { try? FileManager.default.removeItem(at: directory.appendingPathComponent("\(projectID).projectionmap")) }

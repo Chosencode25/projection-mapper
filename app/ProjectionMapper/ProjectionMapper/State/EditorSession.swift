@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import UniformTypeIdentifiers
 import Observation
 import simd
@@ -6,6 +7,29 @@ import simd
 @MainActor
 @Observable
 final class EditorSession {
+    private(set) var songPeaks: [Float] = []
+    private(set) var songMessage: String?
+    private(set) var songBusy = false
+    private(set) var songDevices: [AudioOutputDevice] = []
+    private(set) var songDeviceID: String?
+    var songVolume: Float = 1 { didSet { songPlayer?.volume = songVolume } }
+    var songMuted = false { didSet { songPlayer?.isMuted = songMuted } }
+    var songAudioOnly = false {
+        didSet {
+            if oldValue && !songAudioOnly && songRequested { lightingSimulation.resume() }
+            if oldValue != songAudioOnly { updateOutputScene() }
+        }
+    }
+    @ObservationIgnored private var songPlayer: AVPlayer?
+    @ObservationIgnored private var songFile: URL?
+    @ObservationIgnored private var songBytes: Data?
+    @ObservationIgnored private var songWork: Task<Void, Never>?
+    @ObservationIgnored private var songTicker: Task<Void, Never>?
+    @ObservationIgnored private var songSeekID = UUID()
+    @ObservationIgnored private var songSeeking = false
+    @ObservationIgnored private var songRequested = false
+    @ObservationIgnored private var songDeviceCheck = 0.0
+
     let lightingSimulation = LightingSimulation()
     @ObservationIgnored private var lightingTask: Task<Void, Never>?
     var lightingMessage: String?
@@ -15,6 +39,8 @@ final class EditorSession {
     var selectedFixtureLook: FixtureLook? { project.lighting.looks.first { $0.id == selectedFixtureLookID } }
 
     let videoPlayback = VideoPlaybackCoordinator()
+    private let compensatedVideo = VideoPlaybackCoordinator()
+    @ObservationIgnored private var compensationActive = false
     @ObservationIgnored private var managedVideoURLs = Set<URL>()
     @ObservationIgnored private var videoFileLeases = 0
     private(set) var videoFiles: [UUID:URL] = [:]
@@ -33,6 +59,8 @@ final class EditorSession {
     var referencePhotoVisible = true
     private struct EditSnapshot {
         var project: MappingProject
+        var songBytes: Data?
+        var songPeaks: [Float]
         var pixels: [UUID:ImagePixels]
         var imageFiles: [UUID:Data]
         var imageProblems: [UUID:String]
@@ -68,7 +96,7 @@ final class EditorSession {
             var face = face; face.playback = face.sourceID.flatMap { sourcePlayback[$0] } ?? SourcePlayback(); return face
         }
         var result = RenderScene(surfaces: identifyingSourceID.map { id in faces.filter { $0.sourceID == id } } ?? faces, transport: transport)
-        result.masterBrightness = project.masterOutput.brightness; result.showOutput = showOutput; result.calibration = calibration
+        result.masterBrightness = songAudioOnly && project.song != nil ? 0 : project.masterOutput.brightness; result.showOutput = showOutput; result.calibration = calibration
         if identifyingSourceID != nil {
             result.calibration.pattern = .white
         }
@@ -78,13 +106,49 @@ final class EditorSession {
     }
     private func updateOutputScene(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         refreshLighting(at: uptime)
-        videoPlayback.configure(scene: scene,assets: project.videoAssets,urls: videoFiles,audio: project.videoAudio,enabled: videoAudioEnabled)
+        videoPlayback.configure(scene: scene,assets: project.videoAssets,urls: videoFiles,audio: project.videoAudio,enabled: videoAudioEnabled && project.song == nil)
         let snapshot = scene
         testOutput.setScene(snapshot)
-        projectorOutput.setScene(snapshot)
+        if let compensated = compensatedScene(from: snapshot) {
+            compensationActive = true
+            compensatedVideo.configure(scene: compensated, assets: project.videoAssets, urls: videoFiles,
+                                       audio: project.videoAudio, enabled: false)
+            updateProjectorScene()
+        } else {
+            resetCompensatedOutput()
+            projectorOutput.setScene(snapshot)
+        }
     }
+
+    private func compensatedScene(from scene: RenderScene) -> RenderScene? {
+        guard let song = project.song, scene.transport.followsSong,
+              let display = projectorOutput.activeDisplay, let profile = output.calibrationProfile,
+              profile.matches(display), profile.compensationMilliseconds != 0 else { return nil }
+        var result = scene
+        let time = song.projectionPosition(at: scene.transport.position,
+                                           compensationMilliseconds: profile.compensationMilliseconds)
+        result.transport.sampleSong(time, playing: scene.transport.isPlaying)
+        result.videoFrames = compensatedVideo.frames
+        return result
+    }
+
+    private func resetCompensatedOutput() {
+        guard compensationActive else { return }
+        compensationActive = false
+        compensatedVideo.reset()
+    }
+
+    private func updateProjectorScene() {
+        let snapshot = scene
+        projectorOutput.setScene(compensatedScene(from: snapshot) ?? snapshot)
+    }
+
     func seekPlayback(to seconds: Double, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard seconds.isFinite, (0...3600).contains(seconds), uptime.isFinite else { return }
+        if let song = project.song {
+            seekSong(to: min(seconds, song.duration), resume: songRequested)
+            return
+        }
         let delta = seconds - transport.elapsed(at: uptime)
         transport.seek(to: seconds, at: uptime)
         for id in Array(sourcePlayback.keys) {
@@ -112,6 +176,10 @@ final class EditorSession {
         } else { timelineMessage = "The copied object uses live content: the project has reached its 2000-clip limit." }
     }
     func setPlaying(_ playing: Bool, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        if project.song != nil {
+            setSongPlaying(playing)
+            return
+        }
         let starts = playing && !transport.isPlaying && uptime.isFinite
         transport.setPlaying(playing, at: uptime)
         if starts { lightingSimulation.resume() }
@@ -126,11 +194,16 @@ final class EditorSession {
 
     func restartPlayback(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard uptime.isFinite else { return }
+        if project.song != nil {
+            seekSong(to: 0, resume: songRequested)
+            return
+        }
         transport.restart(at: uptime)
         for id in Array(sourcePlayback.keys) { sourcePlayback[id] = sourcePlayback[id]?.isPaused == true ? SourcePlayback(frozenTime: 0) : SourcePlayback() }
         updateOutputScene(at: uptime)
     }
     func setPlaybackSpeed(_ value: Double, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard project.song == nil else { return }
         transport.setSpeed(value, at: uptime); updateOutputScene(at: uptime)
     }
     var selectedClipID: UUID? {
@@ -347,27 +420,28 @@ final class EditorSession {
         videoFileLeases += 1
         defer { videoFileLeases -= 1; cleanupManagedVideos() }
         let data = try ProjectCodec.encode(document), original = documentURL, source = assetSourceURL
-        let images = imageFiles, videos = videoFiles, directory = recoveryStore.directory
+        let images = imageFiles, videos = videoFiles, soundtrack = songBytes, directory = recoveryStore.directory
         let worker = Task.detached(priority: .utility) {
             let document = try ProjectCodec.decode(data)
-            try ProjectRecoveryStore(directory: directory).save(document,original: original,assetsFrom: source,imageFiles: images,videoFiles: videos)
+            try ProjectRecoveryStore(directory: directory).save(document,original: original,assetsFrom: source,imageFiles: images,videoFiles: videos,songBytes: soundtrack)
         }
         try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
     }
     func flushRecovery() throws {
         guard hasUserChanges, let recoveryStore else { return }
-        try recoveryStore.save(document,original: documentURL,assetsFrom: assetSourceURL, imageFiles: imageFiles, videoFiles: videoFiles)
+        try recoveryStore.save(document,original: documentURL,assetsFrom: assetSourceURL, imageFiles: imageFiles, videoFiles: videoFiles, songBytes: songBytes)
     }
     func clearRecovery() {
         autosaveTask?.cancel(); autosaveTask = nil; recoveryStore?.remove(projectID: project.id)
     }
     func save(to url: URL, store: ProjectPackageStore = ProjectPackageStore()) throws {
-        try store.write(document,to: url,assetsFrom: assetSourceURL, imageFiles: imageFiles, videoFiles: videoFiles)
+        try store.write(document,to: url,assetsFrom: assetSourceURL, imageFiles: imageFiles, videoFiles: videoFiles, songBytes: songBytes)
         documentURL = url; assetSourceURL = url; savedBaseline = project; savedMediaStamps = mediaStamps; isRecovered = false
         clearRecovery(); fileMessage = "Saved \(url.lastPathComponent)"
     }
     func load(_ document: ProjectDocument, from url: URL, recovering: Bool = false, store: ProjectPackageStore = ProjectPackageStore(), loadedMedia: (pixels: [UUID:ImagePixels], files: [UUID:Data], problems: [UUID:String])? = nil, loadedVideos: (urls: [UUID:URL],posters: [UUID:ImagePixels],problems: [UUID:String])? = nil) throws {
         try ProjectCodec.validate(document)
+        clearSongRuntime()
         closeOutput()
         clearEditHistory(); mediaStamps.removeAll(); savedMediaStamps.removeAll()
         identifyingSourceID = nil
@@ -403,6 +477,9 @@ final class EditorSession {
         selectedClipID = nil; timelineViewRequest = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); isGroupingFaces = false; editMessage = nil
         testOutput.setResolution(output.testResolution); testOutput.destinationDidChange(output.destination); updateOutputScene()
+        if let song = project.song {
+            prepareSong(at: url.appendingPathComponent("assets").appendingPathComponent(song.fileName), expected: song)
+        }
         fileMessage = isRecovered ? "Recovered unsaved project — Save to keep it" : "Opened \(url.lastPathComponent)"
         if !videoProblems.isEmpty { fileMessage = (fileMessage ?? "") + " · missing/damaged videos, relink in the inspector" }
         if !imageProblems.isEmpty { fileMessage = (fileMessage ?? "") + " · \(imageProblems.count) missing/damaged image(s), relink in the inspector" }
@@ -430,8 +507,10 @@ final class EditorSession {
             guard let self else { return }
             let snapshot = self.scene
             self.testOutput.setScene(snapshot)
-            self.projectorOutput.setScene(snapshot)
+            self.updateProjectorScene()
         }
+        projectorOutput.didClose = { [weak self] in self?.resetCompensatedOutput() }
+        compensatedVideo.changed = { [weak self] in self?.updateProjectorScene() }
         output.changed = { [weak self] in self?.outputDestinationChanged() }
         refreshLighting()
     }
@@ -482,7 +561,9 @@ final class EditorSession {
             testOutput.open(for: .testWindow, resolution: output.testResolution)
         } else {
             testOutput.close()
-            projectorOutput.open(output.selectedDisplay, snapshot: output.displays, scene: scene)
+            if projectorOutput.open(output.selectedDisplay, snapshot: output.displays, scene: scene) {
+                updateOutputScene()
+            }
         }
     }
     func closeOutput() { testOutput.close(); projectorOutput.close() }
@@ -887,6 +968,7 @@ final class EditorSession {
         project.objects[i].links.removeAll { $0.id == linkID }; changed()
     }
     func resetProject(now: Date = .now) {
+        clearSongRuntime()
         projectorOutput.close()
         clearEditHistory(); mediaStamps.removeAll(); savedMediaStamps.removeAll(); identifyingSourceID = nil
         imagePixels.removeAll(); imageFiles.removeAll(); imageProblems.removeAll(); mediaGeneration = UUID(); referencePhotoVisible = true
@@ -1363,7 +1445,7 @@ extension EditorSession {
     func saveMedia(to url: URL) async throws {
         guard !isSavingMedia else { throw ProjectFileError.io("A media save is already in progress.") }
         let snapshot = project, stampSnapshot = mediaStamps, generation = mediaGeneration, data = try ProjectCodec.encode(document)
-        let images = imageFiles, videos = videoFiles, source = assetSourceURL
+        let images = imageFiles, videos = videoFiles, soundtrack = songBytes, source = assetSourceURL
         isSavingMedia = true; videoFileLeases += 1
         defer { saveWorker = nil; isSavingMedia = false; videoFileLeases -= 1; cleanupManagedVideos() }
         let worker = Task.detached(priority: .userInitiated) {
@@ -1377,7 +1459,7 @@ extension EditorSession {
                     throw ProjectFileError.invalid("Video changed; relink before saving.")
                 }
             }
-            try ProjectPackageStore().write(document,to: url,assetsFrom: source,imageFiles: images,videoFiles: videos)
+            try ProjectPackageStore().write(document,to: url,assetsFrom: source,imageFiles: images,videoFiles: videos,songBytes: soundtrack)
         }
         saveWorker = worker
         try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
@@ -1393,7 +1475,7 @@ extension EditorSession {
 
 extension EditorSession {
     private func snapshotForHistory() -> EditSnapshot {
-        EditSnapshot(project: project,pixels: imagePixels,imageFiles: imageFiles,imageProblems: imageProblems,
+        EditSnapshot(project: project,songBytes: songBytes,songPeaks: songPeaks,pixels: imagePixels,imageFiles: imageFiles,imageProblems: imageProblems,
                      videoFiles: videoFiles,posters: videoPosters,videoProblems: videoProblems,mediaStamps: mediaStamps)
     }
     private var historySnapshots: [EditSnapshot] {
@@ -1420,6 +1502,7 @@ extension EditorSession {
     private func editName(from old: MappingProject) -> String {
         if old.name != project.name { return "Rename Project" }
         if old.objects != project.objects { return "Edit Object" }
+        if old.song != project.song { return "Edit Soundtrack" }
         if old.lighting != project.lighting { return "Edit Lighting" }
         if old.timelineClips != project.timelineClips { return "Edit Timeline" }
         if old.imageAssets != project.imageAssets || old.videoAssets != project.videoAssets { return "Change Media" }
@@ -1444,6 +1527,7 @@ extension EditorSession {
         var imageBytes = 0
         var videos = [URL:Int64]()
         for snapshot in undoHistory.map(\.snapshot) + redoHistory.map(\.snapshot) {
+            imageBytes += snapshot.songBytes?.count ?? 0
             imageBytes += snapshot.pixels.values.reduce(0) { $0 + $1.bytes.count }
             imageBytes += snapshot.imageFiles.values.reduce(0) { $0 + $1.count }
             imageBytes += snapshot.posters.values.reduce(0) { $0 + $1.bytes.count }
@@ -1467,6 +1551,12 @@ extension EditorSession {
     }
     private func restoreHistory(_ snapshot: EditSnapshot) {
         mediaGeneration = UUID(); videoPlayback.reset()
+        if project.song?.id != snapshot.project.song?.id {
+            clearSongRuntime()
+            if let song = snapshot.project.song, let bytes = snapshot.songBytes {
+                try? installSong(PreparedSong(song: song, bytes: bytes, peaks: snapshot.songPeaks))
+            }
+        }
         project = snapshot.project; imagePixels = snapshot.pixels; imageFiles = snapshot.imageFiles
         imageProblems = snapshot.imageProblems; videoFiles = snapshot.videoFiles; videoPosters = snapshot.posters
         videoProblems = snapshot.videoProblems; mediaStamps = snapshot.mediaStamps
@@ -1483,6 +1573,7 @@ extension EditorSession {
         boundHistory(); updateOutputScene(); scheduleRecovery()
     }
     func releaseRuntimeResources() {
+        clearSongRuntime()
         resetLighting()
         closeOutput()
         autosaveTask?.cancel(); videoImportTask?.cancel(); saveWorker?.cancel()
@@ -1552,7 +1643,16 @@ extension EditorSession {
         if let uid = project.videoAudio.deviceUID, !videoPlayback.availableAudioDevices().contains(where: { $0.id == uid }) {
             add("audio-device",.warning,"Chosen audio device is unavailable. Select System default or a connected device, then Enable Audio again.")
         }
-        if !videoAudioEnabled { add("audio-muted",.information,"Audio is safely disabled. Enable Audio deliberately after choosing output and volume.") }
+        if let song = project.song {
+            if songPlayer == nil && !songBusy {
+                add("song", .blocker, "Soundtrack unavailable. Replace or remove " + song.name + ".")
+            }
+            let clipEnd = project.timelineClips.map(\.end).max() ?? 0
+            let cueEnd = project.lighting.cues.map(\.time).max() ?? 0
+            if max(clipEnd, cueEnd) > song.duration {
+                add("song-range", .warning, "Some projection clips or lighting cues extend beyond the soundtrack.")
+            }
+        } else if !videoAudioEnabled { add("audio-muted",.information,"Audio is safely disabled. Enable Audio deliberately after choosing output and volume.") }
         if !canOpenOutput { add("output",.blocker,"Selected output is unavailable. Refresh Displays and select an independent external display or Test Window.") }
         else if !isOutputOpen { add("output",.information,"Output is closed. Explicitly open the selected output to inspect it.") }
         if let message = projectorOutput.message { add("output-recovery",.warning,message) }
@@ -1625,8 +1725,11 @@ extension EditorSession {
     }
 
     func refreshLighting(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        if songAudioOnly && project.song != nil {
+            lightingSimulation.stop()
+        }
         lightingSimulation.update(project.lighting, at: transport.elapsed(at: uptime))
-        if !transport.isPlaying || project.lighting.controllers.isEmpty {
+        if transport.followsSong || !transport.isPlaying || project.lighting.controllers.isEmpty {
             lightingTask?.cancel()
             lightingTask = nil
         } else if lightingTask == nil {
@@ -1639,5 +1742,244 @@ extension EditorSession {
                 }
             }
         }
+    }
+}
+
+extension EditorSession {
+    func chooseSong() {
+        guard !songBusy, !isSavingMedia else { return }
+        let panel = NSOpenPanel()
+        panel.message = "Choose an audio file for this show's soundtrack."
+        panel.allowedContentTypes = ShowSong.formats.compactMap { UTType(filenameExtension: $0) }
+        panel.allowsMultipleSelection = false
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.prepareSong(at: url)
+        }
+    }
+
+    func prepareSong(at url: URL, expected: ShowSong? = nil) {
+        guard !songBusy else { return }
+        songBusy = true
+        songMessage = expected == nil ? "Reading soundtrack…" : "Opening soundtrack…"
+        let worker = Task.detached(priority: .userInitiated) {
+            try PreparedSong.read(url, expected: expected)
+        }
+        songWork = Task { [weak self] in
+            do {
+                let prepared = try await withTaskCancellationHandler {
+                    try await worker.value
+                } onCancel: { worker.cancel() }
+                try Task.checkCancellation()
+                guard let self else { return }
+                try self.installSong(prepared)
+                if expected == nil {
+                    self.project.song = prepared.song
+                    self.changed()
+                } else {
+                    self.editCheckpoint = self.snapshotForHistory()
+                    self.updateOutputScene()
+                }
+                self.songMessage = nil
+            } catch is CancellationError { return }
+            catch { self?.songMessage = error.localizedDescription }
+            self?.songBusy = false
+            self?.songWork = nil
+        }
+    }
+
+    func removeSong() {
+        guard project.song != nil, !songBusy else { return }
+        clearSongRuntime()
+        project.song = nil
+        changed()
+    }
+
+    func setSongLoop(_ loop: SongLoop?) {
+        guard var song = project.song, loop?.isValid(for: song.duration) != false else {
+            songMessage = "Loop needs at least 0.1 seconds inside the song."
+            return
+        }
+        guard song.loop != loop else { return }
+        song.loop = loop
+        project.song = song
+        if songRequested { setSongPlaying(true) }
+        songMessage = nil
+        changed()
+    }
+
+    func refreshSongDevices() { songDevices = VideoAudioDevices.outputs() }
+
+    func selectSongDevice(_ id: String?) {
+        guard id != songDeviceID else { return }
+        setSongPlaying(false)
+        songDeviceID = id
+        songPlayer?.audioOutputDeviceUniqueID = id
+        songMessage = nil
+    }
+
+    private func installSong(_ prepared: PreparedSong) throws {
+        let file = FileManager.default.temporaryDirectory
+            .appendingPathComponent("projection-song-" + UUID().uuidString)
+            .appendingPathExtension(prepared.song.fileExtension)
+        try prepared.bytes.write(to: file, options: .atomic)
+        stopSongPlayer()
+        let player = AVPlayer(url: file)
+        player.volume = songVolume
+        player.isMuted = songMuted
+        player.audioOutputDeviceUniqueID = songDeviceID
+        songFile = file
+        songPlayer = player
+        songBytes = prepared.bytes
+        songPeaks = prepared.peaks
+        sourcePlayback.removeAll()
+        transport.sampleSong(0, playing: false)
+        lightingSimulation.stop()
+        videoPlayback.reset()
+        compensatedVideo.reset()
+    }
+
+    private func stopSongPlayer() {
+        songTicker?.cancel()
+        songTicker = nil
+        songSeekID = UUID()
+        songSeeking = false
+        songRequested = false
+        songPlayer?.pause()
+        songPlayer?.replaceCurrentItem(with: nil)
+        songPlayer = nil
+        if let songFile { try? FileManager.default.removeItem(at: songFile) }
+        songFile = nil
+    }
+
+    private func clearSongRuntime() {
+        songWork?.cancel()
+        songWork = nil
+        songBusy = false
+        stopSongPlayer()
+        songBytes = nil
+        songPeaks = []
+        songMessage = nil
+        songAudioOnly = false
+        if transport.followsSong { transport = AnimationTransport() }
+    }
+
+    private func setSongPlaying(_ playing: Bool) {
+        guard let song = project.song, let player = songPlayer else {
+            if playing { songMessage = "The soundtrack is unavailable. Replace or remove it to continue." }
+            return
+        }
+        if playing {
+            refreshSongDevices()
+            guard songDeviceID.map({ id in songDevices.contains { $0.id == id } }) ?? !songDevices.isEmpty else {
+                songMessage = "Audio output unavailable. Select an available device and press Play."
+                return
+            }
+            songMessage = nil
+            songRequested = true
+            if !songAudioOnly { lightingSimulation.resume() }
+            if songSeeking { return }
+            if transport.position >= song.duration ||
+                (song.loop.map { transport.position < $0.start || transport.position >= $0.end } ?? false) {
+                seekSong(to: song.loop?.start ?? 0, resume: true)
+                return
+            }
+            player.currentItem?.forwardPlaybackEndTime = song.loop.map {
+                CMTime(seconds: $0.end, preferredTimescale: 60000)
+            } ?? .invalid
+            player.play()
+            sampleSong(at: transport.position, playing: true)
+            startSongTicker()
+        } else {
+            songRequested = false
+            player.pause()
+            player.currentItem?.forwardPlaybackEndTime = .invalid
+            let position = player.currentTime().seconds
+            sampleSong(at: songSeeking || !position.isFinite ? transport.position : min(position, song.duration), playing: false)
+            songTicker?.cancel()
+            songTicker = nil
+        }
+    }
+
+    private func seekSong(to time: Double, resume: Bool) {
+        guard let player = songPlayer else { return }
+        songSeekID = UUID()
+        let seekID = songSeekID
+        songSeeking = true
+        songRequested = resume
+        player.pause()
+        player.currentItem?.forwardPlaybackEndTime = .invalid
+        transport.sampleSong(transport.position, playing: false)
+        player.currentItem?.cancelPendingSeeks()
+        player.seek(to: CMTime(seconds: time, preferredTimescale: 60000),
+                    toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+            Task { @MainActor in
+                guard let self, self.songSeekID == seekID else { return }
+                self.songSeeking = false
+                guard finished else {
+                    self.songRequested = false
+                    self.songMessage = "Seek failed. Try another timeline position."
+                    self.sampleSong(at: self.transport.position, playing: false)
+                    return
+                }
+                self.sourcePlayback.removeAll()
+                self.videoPlayback.reset()
+                self.compensatedVideo.reset()
+                let actual = self.songPlayer?.currentTime().seconds ?? time
+                self.sampleSong(at: actual.isFinite ? actual : time, playing: false)
+                if self.songRequested { self.setSongPlaying(true) }
+            }
+        }
+    }
+
+    private func startSongTicker() {
+        guard songTicker == nil else { return }
+        songTicker = Task { [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .milliseconds(16)) } catch { break }
+                guard let self else { break }
+                self.tickSong()
+            }
+        }
+    }
+
+    private func tickSong() {
+        guard !songSeeking, songRequested, let song = project.song, let player = songPlayer else { return }
+        let uptime = ProcessInfo.processInfo.systemUptime
+        if uptime - songDeviceCheck >= 1 {
+            songDeviceCheck = uptime
+            refreshSongDevices()
+            if !(songDeviceID.map({ id in songDevices.contains { $0.id == id } }) ?? !songDevices.isEmpty) {
+                setSongPlaying(false)
+                songMessage = "Audio output lost. Select an available device and press Play."
+                return
+            }
+        }
+        if player.currentItem?.status == .failed {
+            setSongPlaying(false)
+            songMessage = player.currentItem?.error?.localizedDescription ?? "Soundtrack playback failed."
+            return
+        }
+        let current = player.currentTime().seconds
+        guard current.isFinite else { return }
+        if let loop = song.loop, current >= loop.end - 0.0001 {
+            seekSong(to: loop.start, resume: true)
+        } else if current >= song.duration - 0.0001 ||
+                  (player.rate == 0 && current > 0 && abs((player.currentItem?.duration.seconds ?? 0) - current) < 0.02) {
+            setSongPlaying(false)
+            lightingSimulation.stop()
+            sampleSong(at: song.duration, playing: false)
+        } else {
+            let waiting = player.timeControlStatus == .waitingToPlayAtSpecifiedRate
+            if waiting && songMessage == nil { songMessage = "Waiting for audio…" }
+            if !waiting && songMessage == "Waiting for audio…" { songMessage = nil }
+            sampleSong(at: min(song.duration, max(0, current)), playing: true)
+        }
+    }
+
+    private func sampleSong(at position: Double, playing: Bool) {
+        guard position.isFinite else { return }
+        transport.sampleSong(position, playing: playing)
+        updateOutputScene()
     }
 }

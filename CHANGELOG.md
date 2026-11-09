@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.05 — Music and Show Transport
+
+- Add one portable soundtrack, an aligned waveform, loop playback, and a shared song clock for projection, video and simulated fixtures.
+- Add song volume, mute, Mac output selection and audio-only rehearsal. Save soundtrack and loop settings in format 11.
+
 ## v2.02/build 18 — 2D Fixture Preview
 
 - Show moving-head aim, color and brightness, switched props, and RGB strip colors in a schematic preview tied to the lighting timeline.

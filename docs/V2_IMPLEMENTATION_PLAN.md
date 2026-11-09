@@ -39,6 +39,8 @@ See the [v2.02 milestone plan](V2.02_PLAN.md) for build order, cue behavior and 
 
 ## v2.03 — Native USB-DMX Moving Head
 
+Deferred until the adapter and fixture are available. Preserve the local encoder and discovery work.
+
 1. Implement the documented 9- and 11-channel maps in the [moving-head reference](NATIVE_DMX_FIXTURE_REFERENCE.md). Offer pan, tilt, dimmer, fixed color/gobo choices and movement speed. Support fine pan/tilt in CH 11. Use defined inactive values for strobe, auto/sound and reset in this milestone.
 2. Add USB interface enumeration and selection with identity details when available. Offer a selectable list of implemented adapter protocols and Simulation. Candidate buffered and host-timed transports each require documented behavior and targeted tests. Keep an unidentified adapter simulated or disarmed. Allow switching among implemented profiles while disarmed and require deliberate test arming.
 3. Encode and send bounded DMX frames independently of rendering. Expose intended versus transmitted values and connection status. Blackout sets the dimmer off when output is reachable. Report loss visibly, keep the other outputs running under policy and require re-arm after reconnect.
@@ -46,12 +48,16 @@ See the [v2.02 milestone plan](V2.02_PLAN.md) for build order, cue behavior and 
 
 ## v2.04 — Native Arduino Relay and RGB Control
 
+Deferred until the board and firmware are available.
+
 1. Add USB serial port selection and configurable baud rate, framing, and supported command profiles. Inspect the existing .ino sketch or sender for command format, numbering, polarity and responses before implementing its profile. A documented text protocol can support configurable delimiters and command templates with validation. Unknown formats stay in Simulation until a matching profile is available.
 2. Map a switched plug to one output and an RGB strip to three distinct outputs. Present on/off or eight discrete swatches including off. Use explicit desired states, coalesce changes at a bounded rate, and use a single update for RGB when the firmware supports grouped writes. Track writes and device acknowledgments separately where available.
 3. Handle board startup, serial-open reset, disconnect and port changes. Open disarmed and avoid replaying stale commands. Test intended all-off on stop and blackout. A loss-of-connection timeout requires firmware support and hardware verification. Keep the existing sketch intact unless a separate firmware change is needed and approved.
 4. Verify command encoding, retries, partial writes, reconnect, discrete cues and output collisions with a simulated serial peer. Physically test one plug and one strip, then the rest of the board. Record the actual board, sketch/profile, channel map and unplug behavior.
 
 ## v2.05 — Music and Show Transport
+
+Next for implementation. See the [v2.05 milestone plan](V2.05_PLAN.md) for the software rehearsal scope, staged routing and acceptance. Native hardware delivery is deferred.
 
 1. Add versioned show/song models alongside V1 layout data. Import supported audio off the main thread, inspect duration and retain portable package assets; decode waveform data with bounded caching. Preserve original media on failed import/save.
 2. Add explicit audio-device/channel routing, volume/mute and an audio-only rehearsal option. Define device loss/recovery and embedded-video audio priority so one song does not play twice through linked faces or output views.
@@ -155,7 +161,7 @@ Mac-hosted local Wi-Fi is the first phone milestone. The Mac stays authoritative
 
 ## Core delivery gates
 
-- v2.02–v2.04 establish native fixture control and a useful simulation workflow before music. With hardware unavailable, ship clearly labeled simulation for that controller and keep physical acceptance open.
+- v2.02 simulation is sufficient for v2.05 development and acceptance. Resume v2.03 and v2.04 when hardware is available and verify native control separately.
 - v2.05 provides the song clock for all outputs. v2.06 expands the cue editor. v2.07 can deliver local phone editing with shared permissions and locks before v2.11 completes Show Mode.
 - v2.11 readiness gates unattended scheduling and any future remote arming. v2.12 interoperability complements native output, and v2.15 generic export can proceed independently of any hardware-specific format.
 - v2.16 release claims cover only measured capabilities. Keep physical projector, DMX, Arduino, phone and external sync acceptance separate from automated simulation. A later hardware result can extend the compatibility record.

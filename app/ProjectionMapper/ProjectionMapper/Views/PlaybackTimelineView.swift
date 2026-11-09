@@ -29,6 +29,10 @@ struct PlaybackTimelineView: View {
             visibleDuration: viewportWidth / pixelsPerSecond)
         VStack(spacing: 0) {
             ScrollView(.horizontal) { transportBar(contentEnd: contentEnd) }.scrollIndicators(.hidden)
+            if let message = session.songMessage {
+                Text(message).font(.caption).foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10)
+            }
             Divider()
             ScrollView(.vertical) {
                 HStack(alignment: .top, spacing: 0) {
@@ -38,6 +42,12 @@ struct PlaybackTimelineView: View {
                             Spacer()
                             Text("\(tracks.count)").monospacedDigit()
                         }.foregroundStyle(.secondary).padding(.horizontal, 10).frame(height: rulerHeight)
+                        if let song = session.project.song {
+                            Label(song.name, systemImage: "waveform")
+                                .font(.caption.weight(.semibold)).lineLimit(1)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 10).frame(height: laneHeight)
+                        }
                         ForEach(tracks) { track in trackHeader(track) }
                         if !lighting.fixtures.isEmpty { lightingHeader }
                     }.frame(width: 180)
@@ -47,6 +57,11 @@ struct PlaybackTimelineView: View {
                             VStack(spacing: 0) {
                                 ruler(horizon: horizon)
                                 VStack(spacing: 0) {
+                                    if let song = session.project.song {
+                                        SongWaveform(peaks: session.songPeaks, song: song,
+                                                     pixelsPerSecond: pixelsPerSecond)
+                                            .frame(height: laneHeight)
+                                    }
                                     ForEach(tracks) { track in
                                         lane(track, clips: clipsByTrack[track.id] ?? [], horizon: horizon)
                                     }
@@ -122,6 +137,7 @@ struct PlaybackTimelineView: View {
         HStack(spacing: 10) {
             Label("Timeline", systemImage: "film.stack").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             TimelineTransportControls(session: session)
+            SongMenu(session: session)
             Divider().frame(height: 18)
             Spacer(minLength: 0)
             Toggle("Snap", isOn: $snap).toggleStyle(.checkbox).help("Snap clip edits to whole seconds (Option-Command-S)")
@@ -147,7 +163,7 @@ struct PlaybackTimelineView: View {
                 Path { path in
                     for (index, track) in tracks.enumerated() {
                         guard let clip = clipsByTrack[track.id]?.first(where: { $0.contains(time) }) else { continue }
-                        let y = rulerHeight + Double(index) * laneHeight + 6
+                        let y = rulerHeight + Double(index + (session.project.song == nil ? 0 : 1)) * laneHeight + 6
                         let inset = min(3, clip.duration * pixelsPerSecond / 3)
                         path.move(to: CGPoint(x: clip.start * pixelsPerSecond + inset, y: y))
                         path.addLine(to: CGPoint(x: clip.end * pixelsPerSecond - inset, y: y))
@@ -431,7 +447,7 @@ private struct TimelineTransportControls: View {
                 Button { session.seekPlayback(to: min(3600, time + 1)) } label: { Image(systemName: "forward.frame.fill") }
                     .help("Forward one second").accessibilityLabel("Forward one second")
                 Button { seekTime = min(3600, time); showingSeek = true } label: {
-                    Text(TimelinePresentation.timecode(time))
+                    Text(TimelinePresentation.timecode(time) + (session.project.song.map { " / " + TimelinePresentation.timecode($0.duration) } ?? ""))
                         .font(.system(.body, design: .monospaced).weight(.semibold)).foregroundStyle(.orange)
                         .padding(.horizontal, 7).padding(.vertical, 3)
                         .background(.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 5))
@@ -451,6 +467,7 @@ private struct TimelineTransportControls: View {
                 Picker("Speed", selection: Binding(get: { session.transport.speed }, set: { session.setPlaybackSpeed($0) })) {
                     ForEach([0.25, 0.5, 1.0, 2.0, 4.0], id: \.self) { Text($0.formatted() + "×").tag($0) }
                 }.labelsHidden().frame(width: 60).help("Playback speed").accessibilityLabel("Playback speed")
+                    .disabled(session.project.song != nil)
             }
         }
     }
@@ -536,5 +553,90 @@ private struct TimelineClipBlock: View {
             if mode != 0 { copy = clip.trimming(start: copy.start,duration: copy.duration) }
             draft = copy
         }.onEnded { _ in if let draft { commit(draft) }; draft = nil }
+    }
+}
+
+private struct SongWaveform: View {
+    let peaks: [Float]
+    let song: ShowSong
+    let pixelsPerSecond: Double
+
+    var body: some View {
+        Canvas { context, size in
+            let width = song.duration * pixelsPerSecond
+            let height = size.height
+            if let loop = song.loop {
+                let region = CGRect(x: loop.start * pixelsPerSecond, y: 0,
+                                    width: (loop.end - loop.start) * pixelsPerSecond, height: height)
+                context.fill(Path(region), with: .color(.orange.opacity(0.18)))
+            }
+            var wave = Path()
+            for (index, peak) in peaks.enumerated() {
+                let x = width * (Double(index) + 0.5) / Double(peaks.count)
+                let amplitude = max(0.6, Double(peak) * (height / 2 - 4))
+                wave.move(to: CGPoint(x: x, y: height / 2 - amplitude))
+                wave.addLine(to: CGPoint(x: x, y: height / 2 + amplitude))
+            }
+            context.stroke(wave, with: .color(.cyan.opacity(0.9)), lineWidth: 1)
+        }
+        .background(.cyan.opacity(0.06))
+        .accessibilityLabel("Waveform for " + song.name)
+    }
+}
+
+private struct SongMenu: View {
+    @Bindable var session: EditorSession
+    @State private var editingLoop = false
+    @State private var start = 0.0
+    @State private var end = 0.0
+
+    var body: some View {
+        Menu {
+            Button(session.project.song == nil ? "Import Song…" : "Replace Song…") { session.chooseSong() }
+                .disabled(session.songBusy || session.isSavingMedia)
+            if let song = session.project.song {
+                Button("Remove Song") { session.removeSong() }.disabled(session.songBusy)
+                Divider()
+                Button(song.loop == nil ? "Set Loop Range…" : "Edit Loop Range…") {
+                    start = song.loop?.start ?? 0
+                    end = song.loop?.end ?? song.duration
+                    editingLoop = true
+                }
+                if song.loop != nil { Button("Clear Loop") { session.setSongLoop(nil) } }
+                Divider()
+                Toggle("Mute Soundtrack", isOn: $session.songMuted)
+                Toggle("Audio-Only Rehearsal", isOn: $session.songAudioOnly)
+                Menu("Audio Output") {
+                    Button("Mac Default Output") { session.selectSongDevice(nil) }
+                    ForEach(session.songDevices) { device in
+                        Button(device.name) { session.selectSongDevice(device.id) }
+                    }
+                    Button("Refresh Devices") { session.refreshSongDevices() }
+                }
+            }
+        } label: {
+            Label(session.project.song == nil ? "Add Song" : "Song", systemImage: "music.note")
+        }
+        .onAppear { session.refreshSongDevices() }
+        .popover(isPresented: $editingLoop) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Loop range in seconds").font(.headline)
+                TextField("Start", value: $start, format: .number.precision(.fractionLength(0...3)))
+                TextField("End", value: $end, format: .number.precision(.fractionLength(0...3)))
+                HStack {
+                    Button("Cancel") { editingLoop = false }
+                    Spacer()
+                    Button("Apply Loop") {
+                        session.setSongLoop(SongLoop(start: start, end: end))
+                        editingLoop = false
+                    }
+                    .disabled(!SongLoop(start: start, end: end).isValid(for: session.project.song?.duration ?? 0))
+                }
+            }.padding(16).frame(width: 240)
+        }
+        if session.project.song != nil {
+            Slider(value: $session.songVolume, in: 0...1)
+                .frame(width: 70).accessibilityLabel("Soundtrack volume").help("Soundtrack volume")
+        }
     }
 }

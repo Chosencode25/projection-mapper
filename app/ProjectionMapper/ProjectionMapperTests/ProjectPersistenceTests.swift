@@ -356,3 +356,133 @@ struct LightingTests {
         #expect(session.lightingSimulation.reports[arduino.id]?.fixtures.first?.effective == .rgb(.red))
     }
 }
+
+@MainActor
+struct SongTransportTests {
+    private func writeReferenceSong(to url: URL) throws {
+        let rate: UInt32 = 8000
+        let samples = Int(rate) * 3
+        var data = Data()
+        func append<T: FixedWidthInteger>(_ number: T) {
+            var value = number.littleEndian
+            withUnsafeBytes(of: &value) { data.append(contentsOf: $0) }
+        }
+        data.append(contentsOf: "RIFF".utf8)
+        append(UInt32(36 + samples * 2))
+        data.append(contentsOf: "WAVEfmt ".utf8)
+        append(UInt32(16)); append(UInt16(1)); append(UInt16(1))
+        append(rate); append(rate * 2); append(UInt16(2)); append(UInt16(16))
+        data.append(contentsOf: "data".utf8)
+        append(UInt32(samples * 2))
+        for sample in 0..<samples {
+            append(Int16(sample % Int(rate) < 40 ? 16000 : 0))
+        }
+        try data.write(to: url)
+    }
+
+    @Test func importsWaveformAndSavesPortableSoundtrack() async throws {
+        let directory = try ProjectPersistenceTests().temporary()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("Click.wav")
+        try writeReferenceSong(to: source)
+        let prepared = try PreparedSong.read(source)
+        #expect(prepared.song.duration == 3)
+        #expect(prepared.peaks.count == 2048)
+        #expect(prepared.peaks.contains { $0 > 0.45 })
+        #expect(prepared.peaks.contains(0))
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        session.prepareSong(at: source)
+        for _ in 0..<200 where session.songBusy { try await Task.sleep(for: .milliseconds(10)) }
+        let song = try #require(session.project.song)
+        session.setSongLoop(SongLoop(start: 1, end: 2))
+        let package = directory.appendingPathComponent("Show.projectionmap")
+        try session.save(to: package)
+        try FileManager.default.removeItem(at: source)
+        let reopened = ProjectPersistenceTests().session()
+        defer { reopened.releaseRuntimeResources() }
+        try reopened.load(ProjectPackageStore().read(package), from: package)
+        for _ in 0..<200 where reopened.songBusy { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(reopened.project.song?.id == song.id)
+        #expect(reopened.project.song?.loop == SongLoop(start: 1, end: 2))
+        #expect(reopened.songPeaks == prepared.peaks)
+        #expect(!reopened.transport.isPlaying)
+        reopened.seekPlayback(to: 1.5)
+        for _ in 0..<200 where abs(reopened.transport.position - 1.5) > 0.01 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(abs(reopened.transport.position - 1.5) < 0.01)
+        #expect(reopened.scene.transport.elapsed(at: 500) == reopened.transport.position)
+        reopened.removeSong()
+        #expect(reopened.project.song == nil)
+        reopened.undoProjectEdit()
+        #expect(reopened.project.song?.id == song.id)
+        #expect(reopened.songPeaks == prepared.peaks)
+    }
+
+    @Test func mutedSongDrivesFixtureAndProjectionThroughLoopAndStop() async throws {
+        let directory = try ProjectPersistenceTests().temporary()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("Loop.wav")
+        try writeReferenceSong(to: source)
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let controller = LightingController(name: "Arduino", kind: .arduino)
+        let fixture = PatchedFixture(name: "Plug", kind: .plug, controllerID: controller.id)
+        session.editLighting {
+            $0.controllers = [controller]
+            $0.fixtures = [fixture]
+            $0.cues = [LightingCue(name: "Click", time: 1, entries: [.init(id: fixture.id, state: .plug(true))])]
+        }
+        session.prepareSong(at: source)
+        for _ in 0..<200 where session.songBusy { try await Task.sleep(for: .milliseconds(10)) }
+        _ = try #require(session.project.song)
+        session.setSongLoop(SongLoop(start: 0.5, end: 1.5))
+        session.songMuted = true
+        session.setPlaying(true)
+        var sawCue = false
+        var wraps = 0
+        var previous = 0.0
+        for _ in 0..<450 {
+            try await Task.sleep(for: .milliseconds(10))
+            let time = session.transport.position
+            guard session.transport.isPlaying else { continue }
+            let state = session.lightingSimulation.reports[controller.id]?.fixtures.first?.effective
+            #expect(session.scene.transport.position == time)
+            #expect(state == .plug(time >= 1))
+            if state == .plug(true) { sawCue = true }
+            if previous > 1.3 && time < 0.9 { wraps += 1 }
+            previous = time
+            if wraps >= 2 { break }
+        }
+        #expect(sawCue)
+        #expect(wraps >= 2)
+        session.stopPlayback()
+        for _ in 0..<200 where session.transport.position != 0 { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(!session.transport.isPlaying && session.transport.position == 0)
+        #expect(session.lightingSimulation.reports[controller.id]?.fixtures.first?.effective == .plug(false))
+    }
+
+    @Test func projectorCompensationClampsWithinSongAndCurrentLoop() {
+        let song = ShowSong(name: "Loop", fileExtension: "wav", byteCount: 10, duration: 3,
+                            loop: SongLoop(start: 1, end: 2))
+        #expect(abs(song.projectionPosition(at: 1.2, compensationMilliseconds: 100) - 1.3) < 0.00001)
+        #expect(song.projectionPosition(at: 1.1, compensationMilliseconds: -500) == 1)
+        #expect(song.projectionPosition(at: 1.9, compensationMilliseconds: 500) < 2)
+        #expect(song.projectionPosition(at: 2.9, compensationMilliseconds: 500) == 3)
+    }
+
+    @Test func migrationAndClockPreserveOldProjectsAndHoldSampledPosition() throws {
+        let document = ProjectDocument(project: MappingProject(name: "Old"))
+        var json = try #require(JSONSerialization.jsonObject(with: ProjectCodec.encode(document)) as? [String: Any])
+        json["formatVersion"] = 10
+        let migrated = try ProjectCodec.decode(JSONSerialization.data(withJSONObject: json))
+        #expect(migrated == document)
+        var transport = AnimationTransport()
+        transport.sampleSong(2, playing: true)
+        #expect(transport.elapsed(at: 1000) == 2)
+        transport.sampleSong(1, playing: false)
+        #expect(transport.elapsed(at: 2000) == 1)
+        #expect(!SongLoop(start: 2, end: 1).isValid(for: 3))
+    }
+}

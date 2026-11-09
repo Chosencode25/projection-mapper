@@ -30,8 +30,15 @@ struct AnimationTransport: Equatable, Sendable {
     private(set) var speed: Double = 1
     private(set) var position: Double = 0
     private(set) var anchor: TimeInterval = 0
+    private(set) var followsSong = false
+    mutating func sampleSong(_ time: Double, playing: Bool) {
+        followsSong = true
+        position = time
+        isPlaying = playing
+        speed = 1
+    }
     func elapsed(at uptime: TimeInterval) -> Double {
-        position + (isPlaying ? max(0, uptime - anchor) * speed : 0)
+        position + (isPlaying && !followsSong ? max(0, uptime - anchor) * speed : 0)
     }
     mutating func setPlaying(_ playing: Bool, at uptime: TimeInterval) {
         guard playing != isPlaying, uptime.isFinite else { return }

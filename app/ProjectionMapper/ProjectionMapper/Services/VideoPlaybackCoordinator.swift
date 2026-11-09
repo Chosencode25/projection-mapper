@@ -118,7 +118,11 @@ struct VideoPlaybackRequest: Equatable {
         func stop() { token = UUID(); task?.cancel(); task = nil; player.pause(); player.currentItem?.cancelPendingSeeks(); generator.cancelAllCGImageGeneration(); player.replaceCurrentItem(with: nil) }
     }
     func configure(scene: RenderScene,assets: [VideoAsset],urls: [UUID:URL],audio: VideoAudioSettings,enabled: Bool) {
-        if self.scene.transport != scene.transport || self.scene.surfaces != scene.surfaces || self.urls != urls || self.audio != audio || audioEnabled != enabled { revision = UUID() }
+        let oldTransport = self.scene.transport
+        let clockChanged = oldTransport.followsSong && scene.transport.followsSong
+            ? oldTransport.isPlaying != scene.transport.isPlaying
+            : oldTransport != scene.transport
+        if clockChanged || self.scene.surfaces != scene.surfaces || self.urls != urls || self.audio != audio || audioEnabled != enabled { revision = UUID() }
         self.scene = scene; self.assets = assets; self.urls = urls; self.audio = audio; audioEnabled = enabled
         if assets.isEmpty { reset(); return }
         if timer == nil {

@@ -1,8 +1,12 @@
 # Project Progress
 
-Last updated: November 8, 2026.
+Last updated: November 9, 2026.
 
 ## Current state
+
+**November 9 v2.05 delivery:** Installed the verified v2.05/build 20 in Applications and backed up the previous app. This source update includes the [song transport plan](V2.05_PLAN.md) and the revised roadmap that defers physical hardware work. The local app archive and user rehearsal project remain in the project build folder.
+
+**November 8 v2.05 implementation:** Added soundtrack import, a waveform, song-clock playback and simulated lighting sync on the isolated v2.05 branch. Nine focused Debug tests and 321 Release tests passed with the pinned Xcode. The verified universal local app and click-track rehearsal are under `builds/v2.05/` in the main project folder. See the [plan](V2.05_PLAN.md) and [rehearsal steps](V2.05_REHEARSAL.md). Physical hardware acceptance remains deferred.
 
 **November 8 v2.02 graphical preview:** Added a 2D schematic for moving-head beams, switched plugs and binary RGB strips to the fixture workspace. It follows the current simulation during playback and scrubbing. Fixture positions and strip endpoints are editable and save with the project. Build 18 passed 317 Release checks with the pinned Xcode. The signed universal rehearsal copy is under `builds/v2.02/fixture-preview/`. Build 18 is installed in Applications. The previous installed app is backed up under the same build folder. User visual acceptance of the preview is pending. The user confirmed delivery to the public repository. Tested source commit **c6a49a8** was pushed to GitHub main. The app archive is stored locally and no GitHub release was created.
 

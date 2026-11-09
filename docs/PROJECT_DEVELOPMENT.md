@@ -66,3 +66,7 @@ The user approved adding the recommended phone browser editor to V2. The Novembe
 ## Native fixture support and reordered V2 — November 8, 2026
 
 Use v2.02 for fixture patching, simulation and basic cues, v2.03 for native USB-DMX moving-head output, and v2.04 for Arduino USB serial plugs and binary RGB strips. Music and the shared song clock immediately follow in v2.05. Put local phone editing in v2.07 after the core cue editor and carry shared permissions and edit locks forward into full Show Mode. Retain the external xLights/FPP workflow as a separate interoperability milestone. Where USB or firmware details are unknown, allow supported profile selection and keep unverified transport in clearly labeled simulation or disarmed status. Record simulation evidence separately from physical acceptance. Optional follow-on capabilities have their own implementation and verification steps in the [V2 plan](V2_IMPLEMENTATION_PLAN.md).
+
+## Song sync before hardware — November 8, 2026
+
+Proceed with [v2.05 music and show transport](V2.05_PLAN.md) using Mac audio, Test Mode and simulated fixtures. Retain the v2.03 and v2.04 scope and numbering and defer hardware-dependent work and acceptance until the equipment is available. Preserve unfinished local v2.03 work separately.
