@@ -4,7 +4,7 @@ Last updated: November 17, 2026.
 
 ## Current state
 
-**November 17 v2.09 installation:** Installed the tested v2.09/build 28 universal app in Applications. All 11 files match the Release product and strict signature verification passed. The previous v2.05/build 20 app is retained at `builds/v2.09/Previous-Applications.app`. Source delivery to GitHub is being prepared under the user’s explicit request. The existing 342 passing Release checks apply. User visual and listening rehearsal and hardware acceptance remain pending.
+**November 17 v2.09 installation:** Installed the tested v2.09/build 28 universal app in Applications. All 11 files match the Release product and strict signature verification passed. The previous v2.05/build 20 app is retained at `builds/v2.09/Previous-Applications.app`. Tested source, accumulated plans, and the Winter Lights demos were committed at **4f7d9b6** and pushed successfully to GitHub main under the user’s explicit request. The existing 342 passing Release checks apply. User visual and listening rehearsal and hardware acceptance remain pending.
 
 **November 11 v2.09 implementation:** Added visual layers, face-local regions, projected titles and countdowns, and song-timed singing faces. Portable format 14 migrates older projects. The signed universal build 28 is under `builds/v2.09/`. 342 Release tests passed, including the Winter Lights Encore save-and-reopen check and a 1080p offscreen render comparison. User visual and listening rehearsal and physical output checks are pending. See the [verification record](V2.09_VERIFICATION.md) and [Encore rehearsal guide](V2.09_REHEARSAL.md).
 

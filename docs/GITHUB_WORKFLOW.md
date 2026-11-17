@@ -154,3 +154,19 @@ without polling; this documentation-only confirmation follows the tested source 
 prior history/releases/assets are preserved. Hardware/user/Intel/older-macOS and
 Developer ID/notarization acceptance remain pending/unestablished. Next independent
 milestone remains v2.02; future intermediate work stays local under normal policy.
+
+
+## Confirmed v2.09 delivery — November 17, 2026
+
+The user requested GitHub source backup and the usual Applications installation.
+Tested v2.09/build 28 source, the accumulated v2.06–v2.09 plans and verification
+notes, and both Winter Lights demos were committed at **4f7d9b6**. Main
+fast-forwarded from **5590393** and the push to origin succeeded.
+
+The Applications copy matches all 11 tested Release files and passed strict
+signature verification. It contains Apple Silicon and Intel slices. The previous
+v2.05/build 20 app is retained at `builds/v2.09/Previous-Applications.app`.
+The existing 342 passing Release checks apply to this source. Visual and
+listening rehearsal and physical output acceptance remain pending. This delivery
+backs up source and installs the local app. The latest published app download
+remains v1.15.1.
