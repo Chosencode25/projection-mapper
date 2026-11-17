@@ -26,6 +26,13 @@ struct MappingProject: Equatable, Codable {
     var videoAssets: [VideoAsset] = []
     var videoAudio = VideoAudioSettings()
     var timelineClips: [EffectClip] = []
+    var visualLayers: [VisualLayer]?
+    var faceRegions: [FaceRegion]?
+    var regionShapePresets: [RegionShapePreset]?
+    var choreography: [ChoreographyClip]?
+    var choreographyClips: [ChoreographyClip] { choreography ?? [] }
+    var markers: [ShowMarker]?
+    var showMarkers: [ShowMarker] { markers ?? [] }
     var song: ShowSong?
     var lighting = ProjectLighting()
     var masterOutput = MasterOutputSettings.defaults
@@ -37,10 +44,10 @@ struct MappingProject: Equatable, Codable {
     }
     var hasDefaultContent: Bool {
         name == Self.defaultName && surfaces.count == 1 && surfaces[0].hasDefaultContent && objects.isEmpty && generatorPresets.isEmpty &&
-        palettes.isEmpty && looks.isEmpty && imageAssets.isEmpty && referencePhoto == nil && videoAssets.isEmpty && videoAudio == VideoAudioSettings() && timelineClips.isEmpty && song == nil && lighting == ProjectLighting() && masterOutput == .defaults
+        palettes.isEmpty && looks.isEmpty && imageAssets.isEmpty && referencePhoto == nil && videoAssets.isEmpty && videoAudio == VideoAudioSettings() && timelineClips.isEmpty && layers.isEmpty && regions.isEmpty && regionShapes.isEmpty && showMarkers.isEmpty && choreographyClips.isEmpty && song == nil && lighting == ProjectLighting() && masterOutput == .defaults
     }
     var timelineContentEnd: Double {
-        max(song?.duration ?? 0, timelineClips.map(\.end).max() ?? 0, lighting.cues.map(\.time).max() ?? 0)
+        max(song?.duration ?? 0, timelineClips.map(\.end).max() ?? 0, lighting.cues.filter { !$0.isManual }.map(\.time).max() ?? 0, showMarkers.map(\.time).max() ?? 0, choreographyClips.map(\.end).max() ?? 0, visualTracks.flatMap(\.mouthKeys).map(\.time).max() ?? 0)
     }
     func object(for face: MappingSurface) -> MappingObject? { objects.first { $0.id == face.layout.objectID } }
     func source(for face: MappingSurface) -> SurfaceSource { object(for: face)?.source ?? face.source }
@@ -74,7 +81,9 @@ struct MappingProject: Equatable, Codable {
             guard face.layout.isVisible, object(for: face)?.isVisible != false else { return nil }
             let owner = resolvedSource(source(for: face))
             let map = object(for: face)?.mode == .repeatContent ? .full : face.layout.inputMap
-            return RenderSurface(geometry: face.corners, color: owner.color, content: owner.content, inputMap: map, generator: owner.generator, sourceID: owner.id, appearance: appearance(for: face), mask: face.mask, image: owner.image, video: owner.video, timelineClips: timelineClips.filter { $0.sourceID == owner.id })
+            return RenderSurface(geometry: face.corners, color: owner.color, content: owner.content, inputMap: map, generator: owner.generator, sourceID: owner.id, appearance: appearance(for: face), mask: face.mask, image: owner.image, video: owner.video, timelineClips: timelineClips.filter { $0.sourceID == owner.id }.sorted { $0.start < $1.start },
+                                 choreography: choreographyClips.filter { $0.kind == .projection && $0.targets.contains { $0.id == owner.id } },
+                                 visuals: renderVisuals(owner: owner.id, face: face.id))
         }, masterBrightness: masterOutput.brightness)
     }
     func joinMessage(_ link: FaceEdgeLink, objectID: UUID) -> String? {

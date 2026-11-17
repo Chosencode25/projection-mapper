@@ -32,7 +32,7 @@ enum FixtureKind: String, CaseIterable, Codable, Identifiable {
     }
 }
 
-struct FixturePreviewPoint: Codable, Equatable {
+struct FixturePreviewPoint: Codable, Equatable, Sendable {
     var x: Double
     var y: Double
 
@@ -136,11 +136,28 @@ struct FixtureLook: Codable, Equatable, Identifiable {
     var entries: [FixtureLookEntry]
 }
 
+enum CueCurve: String, Codable, CaseIterable, Identifiable {
+    case snap = "Snap", linear = "Linear", eased = "Ease In/Out"
+    var id: Self { self }
+    func evaluate(_ fraction: Double) -> Double {
+        let t = min(1, max(0, fraction))
+        switch self {
+        case .snap: return 1
+        case .linear: return t
+        case .eased: return t * t * (3 - 2 * t)
+        }
+    }
+}
+
 struct LightingCue: Codable, Equatable, Identifiable {
     var id = UUID()
     var name: String
     var time: Double
     var lead = 0.0
+    var motionCurve: CueCurve?
+    var dimmerFade: Double?
+    var manualOnly: Bool?
+    var isManual: Bool { manualOnly == true }
     var entries: [FixtureLookEntry]
 }
 
@@ -203,8 +220,8 @@ struct ProjectLighting: Codable, Equatable {
         var times: [UUID: Set<Double>] = [:]
         for cue in cues {
             guard validName(cue.name), (0...3600).contains(cue.time), (0...3600).contains(cue.lead),
-                  validEntries(cue.entries) else { return "Invalid lighting cue time, lead, or fixture state." }
-            for entry in cue.entries where !times[entry.id, default: []].insert(cue.time).inserted {
+                  (0...3600).contains(cue.dimmerFade ?? 0), validEntries(cue.entries) else { return "Invalid lighting cue time, lead, or fixture state." }
+            for entry in cue.entries where !cue.isManual && !times[entry.id, default: []].insert(cue.time).inserted {
                 return "A fixture can only have one cue at a given time."
             }
         }
@@ -217,18 +234,26 @@ struct LightingSchedule {
     private struct Change {
         let time: Double
         let leadStart: Double
+        let motionCurve: CueCurve
+        let fadeStart: Double
         let state: FixtureState
     }
 
     private var tracks: [UUID: [Change]] = [:]
 
     init(cues: [LightingCue] = []) {
-        for cue in cues.sorted(by: { $0.time < $1.time }) {
+        for cue in cues.filter({ !$0.isManual }).sorted(by: { $0.time < $1.time }) {
             for entry in cue.entries {
                 let previous = tracks[entry.id]?.last?.time ?? 0
-                tracks[entry.id, default: []].append(Change(time: cue.time, leadStart: max(previous, cue.time - cue.lead), state: entry.state))
+                tracks[entry.id, default: []].append(Change(
+                    time: cue.time, leadStart: max(previous, cue.time - cue.lead), motionCurve: cue.motionCurve ?? .snap,
+                    fadeStart: max(previous, cue.time - (cue.dimmerFade ?? 0)), state: entry.state))
             }
         }
+    }
+
+    func hasCue(for id: UUID, from start: Double, through end: Double) -> Bool {
+        tracks[id]?.contains { $0.time >= start && $0.time <= end } == true
     }
 
     func state(for fixture: PatchedFixture, at time: Double) -> FixtureState {
@@ -241,11 +266,18 @@ struct LightingSchedule {
             else { upper = middle }
         }
         let current = lower == 0 ? fixture.kind.dark : track[lower - 1].state
-        guard lower < track.count, time >= track[lower].leadStart,
-              case .head(let target) = track[lower].state,
+        guard lower < track.count, case .head(let target) = track[lower].state,
               case .head(var head) = current else { return current }
-        head.pan = target.pan
-        head.tilt = target.tilt
+        let next = track[lower]
+        if time >= next.leadStart, next.leadStart < next.time {
+            let fraction = next.motionCurve.evaluate((time - next.leadStart) / (next.time - next.leadStart))
+            head.pan = fraction == 1 ? target.pan : head.pan + (target.pan - head.pan) * fraction
+            head.tilt = fraction == 1 ? target.tilt : head.tilt + (target.tilt - head.tilt) * fraction
+        }
+        if time >= next.fadeStart, next.fadeStart < next.time {
+            let fraction = CueCurve.linear.evaluate((time - next.fadeStart) / (next.time - next.fadeStart))
+            head.dimmer += (target.dimmer - head.dimmer) * fraction
+        }
         return .head(head)
     }
 }

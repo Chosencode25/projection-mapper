@@ -85,7 +85,7 @@ final class VideoFrame: @unchecked Sendable, Equatable {
 }
 extension MappingProject {
     var referencedVideoIDs: Set<UUID> {
-        var ids = Set((surfaces.map(\.source)+objects.map(\.source)).compactMap { $0.video?.assetID })
+        var ids = Set((surfaces.map(\.source) + objects.map(\.source) + additionalSources).compactMap { $0.video?.assetID })
         ids.formUnion(timelineClips.compactMap { $0.source.video?.assetID })
         ids.formUnion(looks.flatMap(\.entries).compactMap { $0.source?.video?.assetID })
         return ids

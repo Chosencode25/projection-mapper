@@ -67,6 +67,8 @@ Next for implementation. See the [v2.05 milestone plan](V2.05_PLAN.md) for the s
 
 ## v2.06 — Timeline and Cues
 
+See the [rehearsal guide](V2.06_REHEARSAL.md) for the timed move, marker and GO workflows and the [verification record](V2.06_VERIFICATION.md) for the current build.
+
 1. Migrate and extend V1 format 9 owner-addressed clips into song/show tracks targeting stable face/object IDs or named target sets. Preserve existing content-owner resolution, clip IDs, effect/image/video settings, times and asset references; explicitly map owners when grouping/detaching. Clips contain effect/media/look references, start/duration/offset and bounded parameters; tracks do not copy geometry. Define overlap/compositing priority, end-state and missing/deleted-target handling.
 2. Extend the existing bottom timeline selection, zoom, trim/move/copy/delete, snapping and follow controls with waveform/song editing; reuse V1 final-polish undo transactions. Keep timeline zoom/selection separate from saved edits. Add named beat, lyric and section marker tracks with manual tapping/import first; automatic beat suggestions remain editable.
 3. Extend the basic fixture lane with named fixture groups and look cues. Keep relay, color wheel and gobo transitions discrete. Add parameter curves with defined interpolation and typed bounds, plus cue start/stop/fade actions. Continuous object content still has one owner; define conflicts between object-level and face-specific clips visibly rather than producing hidden overrides.
@@ -74,6 +76,8 @@ Next for implementation. See the [v2.05 milestone plan](V2.05_PLAN.md) for the s
 5. Save tracks/cues/markers/curves portably and migrate older packages. Verify boundary timestamps, gaps/overlaps, deleted targets, seek reconstruction, dirty/history behavior and preview/output equivalence. Accept a short fully choreographed song that repeats after save/reopen without remapping.
 
 ## v2.07 — Phone Browser Editor and Remote
+
+See the [v2.07 milestone plan](V2.07_PLAN.md) for the pairing prototype, remote and editor slices, and rehearsal checks.
 
 Mac-hosted local Wi-Fi is the first phone milestone. The Mac stays authoritative for validation, saving and timing. Establish a shared edit-lock and operator permission policy here. Full Show Mode later extends that policy.
 
@@ -88,6 +92,8 @@ Mac-hosted local Wi-Fi is the first phone milestone. The Mac stays authoritative
 
 ## v2.08 — Holiday Choreography
 
+See the [v2.08 milestone plan](V2.08_PLAN.md) for the build order, chorus rehearsal and optional audio reaction.
+
 1. Add bounded holiday generator presets: snowfall, twinkle, candy-cane stripes, stars, icicles and ornament motifs. Build on V1 time/seed and palette contracts; keep counts and GPU allocation bounded.
 2. Implement explicit ordered chases with forward/reverse/bounce and per-target staggering. Define spatial whole-display waves using an authored layout canvas or target positions; projection-output coordinates alone must not be mistaken for real-world distances across arbitrary layouts.
 3. Add look/clip crossfades and palette transitions with defined duration/easing and ownership. Both sides of a transition share a song time reference. Keep geometry/input maps stable and preserve linked-face continuity; define how conflicting palette updates resolve.
@@ -95,6 +101,8 @@ Mac-hosted local Wi-Fi is the first phone milestone. The Mac stays authoritative
 5. Verify chase order, spatial wave coordinates, deterministic holidays, transitions during seeks/loops, palette isolation and resource bounds. Accept a chorus with coordinated separate objects plus a continuous three-face effect, and measure the added workload.
 
 ## v2.09 — Layers, Regions and Text
+
+See the [v2.09 milestone plan](V2.09_PLAN.md) for the build order and rehearsal.
 
 1. Introduce bounded visual layer stacks per content owner with explicit blend modes, opacity, transform and precedence. Map the shared composition onto object faces after compositing; do not create separate unsynchronized layer engines for each face.
 2. Add named face-local regions/subtargets and reusable mask assignments, retaining V1 polygon behavior. Define scope when a region is an output-local cutout versus a shared-canvas region; prohibit ambiguous double transforms. Add edge/outline effects with documented thickness coordinates.

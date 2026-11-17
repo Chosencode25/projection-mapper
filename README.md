@@ -5,10 +5,12 @@ Shape your canvas, bring it to life with effects and media, and rehearse in a se
 
 <p>
   <a href="https://github.com/Chosencode25/projection-mapper/releases/download/v1.15.1/ProjectionMapper-v1.15.1-macOS-universal.zip"><img src="assets/github/download-stable.svg" alt="Download stable v1.15.1 for macOS" height="46"></a>
-  <a href="docs/BUILD_AND_RUN.md"><img src="assets/github/build-latest.svg" alt="Build latest v2.01 from source" height="46"></a>
+  <a href="docs/BUILD_AND_RUN.md"><img src="assets/github/build-latest.svg" alt="Build latest v2.09 from source" height="46"></a>
 </p>
 
 macOS **15+** · Apple Silicon + Intel builds · SwiftUI, AppKit & Metal
+
+**Latest source is v2.09/build 28.** It includes Edit and Show workspaces, music and fixture timelines, the phone remote, holiday choreography, layers, regions, projected text, and manually keyed singing faces. 342 Release tests passed with Xcode 27.0 beta 5 (27A5237l). Try the [Winter Lights Encore demo](docs/V2.09_REHEARSAL.md). See the [verification record](docs/V2.09_VERIFICATION.md) for pending visual, listening, and hardware checks.
 
 [Getting started](docs/GETTING_STARTED.md) · [User guide](docs/V1_USER_GUIDE.md) · [Keyboard shortcuts](#keyboard-shortcuts) · [Documentation](docs/README.md) · [Roadmap](docs/V2_ROADMAP.md) · [Report a bug](https://github.com/Chosencode25/projection-mapper/issues/new/choose)
 
@@ -47,7 +49,7 @@ Captured from the actual v2.01 app using project-owned demo media. This shows Te
 
 ## Keyboard shortcuts
 
-**Latest source: v2.01/build 16.** Space plays/pauses in the editor and clean output
+**Latest source is v2.09/build 28.** Space plays/pauses in the editor and clean output
 windows. Use **Command-/** to open the searchable reference inside the app.
 
 | Start here | Shortcut |
@@ -65,7 +67,7 @@ windows. Use **Command-/** to open the searchable reference inside the app.
 <summary><b>All keyboard shortcuts</b> — playback, editing, timeline, files, panels and output</summary>
 
 **Key:** ⌘ Command · ⌥ Option · ⌃ Control · ⇧ Shift · ↩ Return · ⌫ Delete.
-The v1.15.1 download has an earlier shortcut set; these tables describe build 16.
+The v1.15.1 download has an earlier shortcut set; these tables retain the core shortcuts introduced in build 16. The in-app reference includes the current canvas and timeline navigation shortcuts.
 
 ### Playback
 

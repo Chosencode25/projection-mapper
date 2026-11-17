@@ -143,3 +143,176 @@ struct TimelineTests {
     }
 
 }
+
+
+struct NavigationZoomTests {
+    @Test func timelineZoomCentersPlayheadAndClampsAtEdges() {
+        #expect(TimelinePresentation.centeredOffset(time: 10, pixelsPerSecond: 80, viewportWidth: 600, horizon: 60) == 500)
+        #expect(TimelinePresentation.centeredOffset(time: 2, pixelsPerSecond: 80, viewportWidth: 600, horizon: 60) == 0)
+        #expect(TimelinePresentation.centeredOffset(time: 60, pixelsPerSecond: 80, viewportWidth: 600, horizon: 60) == 4200)
+    }
+
+    @Test func diagonalTrackpadDeltasPanBothAxesAndRespectFit() {
+        let viewport = CGSize(width: 600, height: 300)
+        let fitted = CGSize(width: 560, height: 280)
+        let start = CGPoint(x: 0.5, y: 0.5)
+        let delta = CGSize(width: 56, height: -28)
+        #expect(!CanvasNavigation.canPan(viewport: viewport, fitted: fitted, zoom: 1))
+        #expect(CanvasNavigation.canPan(viewport: viewport, fitted: fitted, zoom: 2))
+        let center = CanvasNavigation.center(start, translation: delta, viewport: viewport, fitted: fitted, zoom: 2)
+        #expect(abs(center.x - 0.45) < 0.0001)
+        #expect(abs(center.y - 0.55) < 0.0001)
+    }
+
+    @Test func canvasPanAndSelectionUseUnchangedOutputCoordinates() {
+        let viewport = CGSize(width: 800, height: 480)
+        let fitted = CGSize(width: 760, height: 420)
+        let bounds = NormalizedRectangle(topLeft: SIMD2(0.5, 0.25), topRight: SIMD2(0.75, 0.25),
+                                         bottomRight: SIMD2(0.75, 0.5), bottomLeft: SIMD2(0.5, 0.5))
+        let target = CanvasNavigation.selection(bounds, viewport: viewport, fitted: fitted)
+        #expect(target.center == CGPoint(x: 0.625, y: 0.375))
+        #expect(target.zoom > 3)
+        let panned = CanvasNavigation.center(target.center, translation: CGSize(width: 10000, height: -10000),
+                                             viewport: viewport, fitted: fitted, zoom: target.zoom)
+        #expect(panned.x > 0 && panned.x < 0.5 && panned.y > 0.5 && panned.y < 1)
+        #expect(CanvasNavigation.center(target.center, translation: .zero, viewport: viewport, fitted: fitted, zoom: 1)
+                == CGPoint(x: 0.5, y: 0.5))
+    }
+}
+
+@MainActor
+struct HolidayChoreographyTests {
+    @Test func chaseOrderAndWaveUseStableTargetPositions() {
+        let targets = [0.8, 0.1, 0.5].map { ChoreographyTarget(id: UUID(), position: .init(x: $0, y: 0.5)) }
+        var clip = ChoreographyClip(pattern: .bounce, targets: targets, start: 3, interval: 0.5, repeats: 2)
+        #expect(clip.isValid)
+        #expect(clip.duration == 4)
+        for (step, index) in [0, 1, 2, 1, 0, 1, 2, 1].enumerated() {
+            #expect(clip.sample(at: 3 + Double(step) * 0.5, target: targets[index].id)?.active == true)
+        }
+        clip.pattern = .reverse
+        #expect(clip.sample(at: 3, target: targets[2].id)?.active == true)
+        clip.pattern = .wave
+        #expect(clip.sample(at: 3, target: targets[1].id)?.active == true)
+        #expect(clip.sample(at: 4, target: targets[0].id)?.active == true)
+        var conflict = clip
+        conflict.id = UUID()
+        #expect(!ChoreographyClip.validSequence([clip, conflict]))
+    }
+
+    @Test func downbeatQueueFiresOnceAndSeekCancels() throws {
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let controller = LightingController(name: "Arduino", kind: .arduino)
+        let fixture = PatchedFixture(name: "Plug", kind: .plug, controllerID: controller.id)
+        let cue = LightingCue(name: "On", time: 0, manualOnly: true,
+                              entries: [FixtureLookEntry(id: fixture.id, state: .plug(true))])
+        session.editLighting {
+            $0.controllers = [controller]; $0.fixtures = [fixture]; $0.cues = [cue]
+        }
+        let markers = [ShowMarker(time: 1, kind: .beat, name: "Beat"),
+                       ShowMarker(time: 2, kind: .beat, downbeat: true, name: "Bar")]
+        session.setShowMarkers(markers)
+        let wrapped = BeatBoundary.bar.next(in: markers, after: 2.5, loop: SongLoop(start: 1, end: 3), end: 4)
+        #expect(wrapped?.time == 2 && wrapped?.wraps == true)
+        session.queueBeat(.bar, at: 10)
+        #expect(session.queuedBeat?.time == 2)
+        session.setPlaying(true, at: 10)
+        session.refreshLighting(at: 11.9)
+        #expect(session.lastManualCueID == nil)
+        session.refreshLighting(at: 12)
+        #expect(session.lastManualCueID == cue.id && session.queuedBeat == nil)
+        session.seekPlayback(to: 0, at: 12)
+        session.queueBeat(.beat, at: 12)
+        session.seekPlayback(to: 0.5, at: 12)
+        #expect(session.queuedBeat == nil)
+    }
+}
+
+@MainActor
+struct VisualCompositionTests {
+    @Test func deletingFacePrunesRegionClipsAndUndoRestoresThem() throws {
+        let session = EditorSession(presentOutput: { _ in })
+        let face = try #require(session.selectedSurface)
+        session.addRegion(faceID: face.id)
+        let id = try #require(session.selectedVisualID)
+        let clip = try #require(session.addTimelineClip(sourceID: id, at: 1))
+        session.deleteSurface(face.id)
+        #expect(session.project.regions.isEmpty && session.project.timelineClips.isEmpty)
+        session.undoProjectEdit()
+        #expect(session.project.regions.first?.id == id)
+        #expect(session.project.timelineClips.first?.id == clip)
+        try ProjectCodec.validate(session.document)
+    }
+
+    @Test func format13MigratesAndKeepsBaseTrack() throws {
+        let project = MappingProject()
+        let encoded = try ProjectCodec.encode(ProjectDocument(project: project))
+        var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object["formatVersion"] = 13
+        let migrated = try ProjectCodec.decode(JSONSerialization.data(withJSONObject: object))
+        #expect(migrated.formatVersion == 14)
+        #expect(migrated.project == project)
+        #expect(migrated.project.timelineTracks.count == 1)
+    }
+
+    @Test func overlappingOverlayVideoUsesOneMutedOwnerAcrossLinkedFaces() throws {
+        let base = MappingSurface()
+        var project = MappingProject(surface: base)
+        let object = MappingObject(name: "Two faces", source: base.source.independentCopy())
+        project.objects = [object]
+        project.surfaces.append(MappingSurface())
+        for index in project.surfaces.indices { project.surfaces[index].layout.objectID = object.id }
+        let url = demoPackage()
+        let demo = try ProjectPackageStore().read(url).project
+        let asset = try #require(demo.videoAssets.first)
+        let video = VideoContent(assetID: asset.id, outPoint: asset.duration, loops: true, isMuted: false)
+        project.videoAssets = [asset]
+        let track = VisualTrack(source: SurfaceSource(content: .video, video: video), name: "Video overlay")
+        project.visualLayers = [VisualLayer(ownerID: object.source.id, track: track)]
+        project.timelineClips = [
+            EffectClip(sourceID: track.id, start: 0, duration: 3, source: SourceLook(source: track.source)),
+            EffectClip(sourceID: track.id, start: 2, duration: 2, source: SourceLook(source: track.source), transition: 1)
+        ]
+        try ProjectCodec.validate(ProjectDocument(project: project))
+        var scene = project.renderScene
+        scene.transport.sampleSong(2.5, playing: true)
+        let requests = VideoPlaybackRequest.requests(scene: scene, assets: [asset], audioEnabled: true, at: 0)
+        #expect(requests.count == 2 && Set(requests.map(\.ownerID)).count == 2)
+        #expect(requests.allSatisfy { !$0.audible })
+        project.objects[0].source.content = .video
+        project.objects[0].source.video = video
+        #expect(project.visualValidationIssue?.contains("two simultaneous videos") == true)
+    }
+
+    @Test func encorePackageLoadsMediaAndRoundTrips() async throws {
+        let store = ProjectPackageStore()
+        let url = demoPackage()
+        let document = try store.read(url)
+        let project = document.project
+        #expect(project.layers.count == 5 && project.regions.count == 1 && project.regionShapes.count == 1)
+        #expect(project.song?.duration == 24)
+        let face = try #require(project.layers.first { $0.track.kind == .singingFace }?.track)
+        #expect(face.mouth(at: 12.2) == .open && face.mouth(at: 12.22) == .closed)
+        let count = try #require(project.layers.first { $0.track.text.mode == .countdown }?.track.text)
+        #expect(count.displayedText(at: 18.9, songTitle: nil, markers: project.showMarkers) == "2")
+        #expect(count.displayedText(at: 20, songTitle: nil, markers: project.showMarkers) == "0")
+        let loaded = await VideoImportService.loadAssets(project.videoAssets, package: url)
+        #expect(loaded.problems.isEmpty && loaded.posters.count == 1)
+        let session = EditorSession(presentOutput: { _ in })
+        try session.load(document, from: url, loadedVideos: loaded)
+        #expect(session.imagePixels.count == 1)
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let copy = temp.appendingPathComponent("Encore.projectionmap")
+        try await session.saveMedia(to: copy)
+        #expect(try store.read(copy).project == project)
+    }
+
+    private func demoPackage() -> URL {
+        var root = URL(fileURLWithPath: #filePath)
+        for _ in 0..<4 { root.deleteLastPathComponent() }
+        return root.appendingPathComponent("assets/demos/Winter Lights Encore.projectionmap", isDirectory: true)
+    }
+}

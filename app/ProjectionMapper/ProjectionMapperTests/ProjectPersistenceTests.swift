@@ -486,3 +486,253 @@ struct SongTransportTests {
         #expect(!SongLoop(start: 2, end: 1).isValid(for: 3))
     }
 }
+
+@MainActor
+struct TimelineCueMilestoneTests {
+    private let controller = LightingController(name: "DMX", kind: .dmx)
+
+    @Test func motionAndDimmerReachTheCueWhileColorAndRelaysSnap() throws {
+        let head = PatchedFixture(name: "Head", kind: .movingHead, controllerID: controller.id)
+        let plug = PatchedFixture(name: "Plug", kind: .plug, controllerID: UUID())
+        let first = LightingCue(name: "First", time: 0, entries: [
+            .init(id: head.id, state: .head(HeadLook(pan: 0.25, tilt: 0.25, dimmer: 0.2))),
+            .init(id: plug.id, state: .plug(false))
+        ])
+        var second = LightingCue(name: "Second", time: 5, lead: 1, motionCurve: .linear, dimmerFade: 1,
+                                 entries: [
+                                    .init(id: head.id, state: .head(HeadLook(pan: 0.75, tilt: 0.75, dimmer: 0.8, color: 3, gobo: 2))),
+                                    .init(id: plug.id, state: .plug(true))
+                                 ])
+        let linear = LightingSchedule(cues: [first, second])
+        #expect(linear.state(for: head, at: 4) == first.entries[0].state)
+        #expect(linear.state(for: head, at: 4.5) == .head(HeadLook(pan: 0.5, tilt: 0.5, dimmer: 0.5)))
+        #expect(linear.state(for: plug, at: 4.999) == .plug(false))
+        #expect(linear.state(for: head, at: 5) == second.entries[0].state)
+        #expect(linear.state(for: plug, at: 5) == .plug(true))
+        #expect(linear.state(for: head, at: 4.5) == .head(HeadLook(pan: 0.5, tilt: 0.5, dimmer: 0.5)))
+        second.motionCurve = .eased
+        let eased = LightingSchedule(cues: [first, second])
+        guard case .head(let position) = eased.state(for: head, at: 4.25) else { Issue.record("Missing head"); return }
+        #expect(position.pan == 0.328125)
+        second.motionCurve = nil
+        second.dimmerFade = nil
+        guard case .head(let legacy) = LightingSchedule(cues: [first, second]).state(for: head, at: 4) else {
+            Issue.record("Missing head")
+            return
+        }
+        #expect(legacy.pan == 0.75 && legacy.dimmer == 0.2)
+    }
+
+    @Test func markerImportAndManualCueSurviveSaveAndUndo() throws {
+        let head = PatchedFixture(name: "Head", kind: .movingHead, controllerID: controller.id)
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let timed = LightingCue(name: "Timed", time: 0, entries: [
+            .init(id: head.id, state: .head(HeadLook(pan: 0.25, dimmer: 0.5)))
+        ])
+        let manual = LightingCue(name: "Manual", time: 0, lead: 2, motionCurve: .linear, dimmerFade: 2, manualOnly: true,
+                                 entries: [.init(id: head.id, state: .head(HeadLook(pan: 0.75, dimmer: 1)))])
+        #expect(session.editLighting {
+            $0.controllers = [controller]
+            $0.fixtures = [head]
+            $0.cues = [timed, manual]
+        })
+        let markers = try ShowMarker.importRows("0\tsection\tIntro\n1.25\tbeat\tBeat 2\n2\tlyric\tHello")
+        session.setShowMarkers(markers)
+        #expect(try ProjectCodec.decode(ProjectCodec.encode(session.document)) == session.document)
+        #expect(throws: ProjectFileError.self) { try ShowMarker.importRows("NaN\tbeat\tInvalid") }
+        #expect(ShowMarker.suggestedBeats(peaks: [0, 0.8, 0, 0.7, 0], duration: 2).count == 2)
+        session.undoProjectEdit()
+        #expect(session.project.showMarkers.isEmpty)
+        session.redoProjectEdit()
+        #expect(session.project.showMarkers == markers)
+
+        session.lightingSimulation.resume()
+        session.refreshLighting(at: 10)
+        session.nextManualCueID = manual.id
+        session.goManualCue(at: 10)
+        session.refreshLighting(at: 11)
+        #expect(session.lightingSimulation.reports[controller.id]?.fixtures.first?.effective ==
+                .head(HeadLook(pan: 0.5, dimmer: 0.75)))
+        session.lightingSimulation.blackout = true
+        session.refreshLighting(at: 11)
+        #expect(session.lightingSimulation.reports[controller.id]?.fixtures.first?.effective ==
+                .head(HeadLook(pan: 0.5)))
+        session.lightingSimulation.blackout = false
+        session.seekPlayback(to: 0, at: 11)
+        #expect(session.lastManualCueID == nil)
+        #expect(session.lightingSimulation.reports[controller.id]?.fixtures.first?.effective == timed.entries[0].state)
+    }
+
+    @Test func priorSoundtrackProjectsMigrateWithoutMarkersOrCurveChanges() throws {
+        var project = MappingProject(name: "Format 11 Show")
+        project.song = ShowSong(name: "Click", fileExtension: "wav", byteCount: 10, duration: 5)
+        let document = ProjectDocument(project: project)
+        var json = try #require(JSONSerialization.jsonObject(with: ProjectCodec.encode(document)) as? [String: Any])
+        json["formatVersion"] = 11
+        #expect(try ProjectCodec.decode(JSONSerialization.data(withJSONObject: json)) == document)
+    }
+}
+
+
+@MainActor
+struct WorkspaceTests {
+    @Test func nextCueAccountsForLoopWrapAndIgnoresManualOnlyCues() {
+        let cues = [
+            LightingCue(name: "Before loop", time: 1, entries: []),
+            LightingCue(name: "Loop start", time: 3, entries: []),
+            LightingCue(name: "Manual", time: 4, manualOnly: true, entries: []),
+            LightingCue(name: "Finale", time: 5, entries: []),
+            LightingCue(name: "Exclusive end", time: 7, entries: [])
+        ]
+        let loop = SongLoop(start: 3, end: 7)
+        let upcoming = ShowCuePreview.upcoming(cues, at: 4.5, loop: loop, songEnd: 10)
+        #expect(upcoming.map { $0.cue.name } == ["Finale", "Loop start"])
+        #expect(upcoming.map(\.delay) == [0.5, 2.5])
+        #expect(upcoming.map(\.afterWrap) == [false, true])
+        let wrapped = ShowCuePreview.upcoming(cues, at: 6, loop: loop, songEnd: 10)
+        #expect(wrapped.first?.cue.name == "Loop start" && wrapped.first?.afterWrap == true)
+        #expect(ShowCuePreview.upcoming(cues, at: 6, loop: nil, songEnd: 6.5).isEmpty)
+    }
+
+    @Test func showKeepsTransportAndProjectAndBlocksEditingShortcuts() {
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        session.renameProject("Rehearsal")
+        session.seekPlayback(to: 4.5, at: 10)
+        session.timelineScale = 60
+        session.timelineSnap = false
+        let project = session.project
+        let transport = session.transport
+        session.switchWorkspace(to: .show)
+        #expect(session.workspace == .show && session.transport == transport)
+        #expect(session.project == project)
+        #expect(!session.canUndo && !session.canPerformEditorAction(.delete))
+        session.performEditorAction(.addSurface, at: 10)
+        session.undoProjectEdit()
+        #expect(session.project == project)
+        #expect(session.canPerformEditorAction(.playPause))
+        session.performEditorAction(.playPause, at: 10)
+        #expect(session.transport.elapsed(at: 11) == 5.5)
+        #expect(session.needsPauseToEdit)
+        session.switchWorkspace(to: .edit, at: 11)
+        #expect(session.workspace == .show && session.transport.isPlaying)
+        session.switchWorkspace(to: .edit, pauseRunningShow: true, at: 11)
+        #expect(session.workspace == .edit && !session.transport.isPlaying)
+        #expect(session.transport.elapsed(at: 99) == 5.5)
+        #expect(session.canUndo && session.timelineScale == 60 && !session.timelineSnap)
+        #expect(session.project == project)
+    }
+}
+
+@MainActor
+struct PhoneRemoteTests {
+    @Test func parserRejectsDuplicateLengthAndTruncatedRequests() throws {
+        let prefix = "POST /command HTTP/1.1\r\nHost: remote.localhost:9443\r\n"
+        #expect(try PhoneRequest.parse(Data((prefix + "Content-Length: 2\r\n\r\n{").utf8)) == nil)
+        #expect(throws: PhoneError.self) {
+            try PhoneRequest.parse(Data((prefix + "Content-Length: 2\r\nContent-Length: 0\r\n\r\n{}").utf8))
+        }
+        let parsed = try PhoneRequest.parse(Data((prefix + "Content-Length: 2\r\n\r\n{}").utf8))
+        let request = try #require(parsed)
+        #expect(request.body == Data("{}".utf8))
+    }
+
+    @Test func phoneEditsUseMacUndoAndRejectStaleAndShowEdits() throws {
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let remote = PhoneRemote(session: session)
+        let face = try #require(session.project.surfaces.first)
+        let base = remote.snapshot()
+        var command: [String: Any] = ["action": "corner", "projectID": try #require(base["projectID"]),
+                                      "revision": try #require(base["revision"]), "face": face.id.uuidString,
+                                      "index": 0, "point": [0.2, 0.3]]
+        #expect(throws: PhoneError.self) { try remote.perform(command) }
+        remote.role = .editor
+        try remote.perform(command)
+        #expect(session.project.surfaces.first?.corners.topLeft == SIMD2<Float>(0.2, 0.3))
+        #expect(throws: PhoneError.self) { try remote.perform(command) }
+        command["revision"] = remote.snapshot()["revision"]
+        session.switchWorkspace(to: .show)
+        #expect(throws: PhoneError.self) { try remote.perform(command) }
+        try remote.perform(["action": "projectionOff", "projectID": session.project.id.uuidString])
+        #expect(session.showOutput.isBlackout)
+        session.switchWorkspace(to: .edit)
+        session.undoProjectEdit()
+        #expect(session.project.surfaces.first?.corners == face.corners)
+    }
+
+    private nonisolated static func run(_ executable: String, _ arguments: [String]) throws -> Data {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        let bytes = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw PhoneError(executable + " failed.") }
+        return bytes
+    }
+
+    @Test func httpsPairApprovalAndReplayProtection() async throws {
+        let folder = try ProjectPersistenceTests().temporary()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let config = folder.appendingPathComponent("test.cnf")
+        let key = folder.appendingPathComponent("key.pem")
+        let cert = folder.appendingPathComponent("cert.pem")
+        let identity = folder.appendingPathComponent("identity.p12")
+        try Data("""
+        [req]
+        distinguished_name = name
+        x509_extensions = ext
+        prompt = no
+        [name]
+        CN = remote.localhost
+        [ext]
+        subjectAltName = DNS:remote.localhost
+        """.utf8).write(to: config)
+        let bytes = try await Task.detached {
+            _ = try Self.run("/usr/bin/openssl", ["req", "-new", "-x509", "-nodes", "-days", "1", "-newkey", "rsa:2048",
+                "-config", config.path, "-keyout", key.path, "-out", cert.path])
+            _ = try Self.run("/usr/bin/openssl", ["pkcs12", "-export", "-inkey", key.path, "-in", cert.path,
+                "-out", identity.path, "-passout", "pass:test"])
+            return try Data(contentsOf: identity)
+        }.value
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let remote = PhoneRemote(session: session, port: 19443)
+        defer { remote.stop() }
+        try remote.start(hostname: "remote.localhost", address: "127.0.0.1", identity: bytes, password: "test")
+        for _ in 0..<100 where remote.pairingURL == nil { try await Task.sleep(for: .milliseconds(20)) }
+        let code = try #require(remote.pairingURL?.fragment)
+        func post(_ path: String, _ body: [String: Any], token: String = "",
+                  origin: String = "https://remote.localhost:19443") async throws -> [String: Any] {
+            let json = String(decoding: try JSONSerialization.data(withJSONObject: body), as: UTF8.self)
+            let response = try await Task.detached {
+                try Self.run("/usr/bin/curl", ["-sS", "--noproxy", "*", "--http1.1", "--max-time", "4",
+                    "--cacert", cert.path, "--resolve", "remote.localhost:19443:127.0.0.1",
+                    "-H", "Content-Type: application/json", "-H", "Origin: " + origin,
+                    "-H", "Authorization: Bearer " + token, "--data", json, "https://remote.localhost:19443" + path])
+            }.value
+            return try #require(JSONSerialization.jsonObject(with: response) as? [String: Any])
+        }
+        let rejected = try await post("/pair", ["code": code], origin: "https://other.example")
+        #expect(rejected["error"] != nil)
+        let pairing = try await post("/pair", ["code": code])
+        let token = try #require(pairing["token"] as? String)
+        let pending = try await post("/state", [:], token: token)
+        #expect(pending["pending"] as? Bool == true)
+        remote.role = .operatorRole
+        remote.approve()
+        let command: [String: Any] = ["action": "projectionOff", "projectID": session.project.id.uuidString, "sequence": 1]
+        let result = try await post("/command", command, token: token)
+        #expect(result["projectionBlackout"] as? Bool == true)
+        let replay = try await post("/command", command, token: token)
+        #expect(replay["error"] != nil)
+        remote.revoke()
+        let revoked = try await post("/state", [:], token: token)
+        #expect(revoked["error"] != nil)
+    }
+}

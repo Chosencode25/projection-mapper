@@ -1,0 +1,2567 @@
+{
+  "formatVersion": 13,
+  "output": {
+    "destination": {
+      "requiresManualSelection": false
+    },
+    "resolution": "fullHD"
+  },
+  "project": {
+    "choreography": [
+      {
+        "angle": 0,
+        "colors": [
+          [
+            1,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1
+          ]
+        ],
+        "id": "6971E823-EF00-483E-8499-569309457FAD",
+        "interval": 0.5,
+        "kind": "Fixtures",
+        "name": "Roofline Bounce",
+        "pattern": "Bounce",
+        "repeats": 1,
+        "start": 8.5,
+        "targets": [
+          {
+            "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+            "position": {
+              "x": 0.15,
+              "y": 0.5
+            }
+          },
+          {
+            "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+            "position": {
+              "x": 0.5,
+              "y": 0.8
+            }
+          },
+          {
+            "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+            "position": {
+              "x": 0.85,
+              "y": 0.5
+            }
+          }
+        ]
+      },
+      {
+        "angle": 0,
+        "colors": [
+          [
+            0.81,
+            0.94,
+            1,
+            1
+          ],
+          [
+            0.54,
+            0.17,
+            0.93,
+            1
+          ],
+          [
+            1,
+            0.66,
+            0.16,
+            1
+          ]
+        ],
+        "id": "62A48E5F-7CE7-417C-B6AB-874843AF1280",
+        "interval": 0.5,
+        "kind": "Projection",
+        "name": "Across the Stage",
+        "pattern": "Wave",
+        "repeats": 2,
+        "start": 16.5,
+        "targets": [
+          {
+            "id": "BA24F8B6-1416-4229-B8F2-09E8C9935357",
+            "position": {
+              "x": 0.1,
+              "y": 0.8
+            }
+          },
+          {
+            "id": "B61E8347-02A8-419B-801D-790AC246F28E",
+            "position": {
+              "x": 0.5,
+              "y": 0.8
+            }
+          },
+          {
+            "id": "A5EE7BF6-5128-4D9D-82C0-BAA5E270F1BD",
+            "position": {
+              "x": 0.9,
+              "y": 0.8
+            }
+          }
+        ]
+      }
+    ],
+    "createdAt": 815819086.736891,
+    "generatorPresets": [
+      {
+        "color": [
+          0.81,
+          0.94,
+          1,
+          1
+        ],
+        "content": "snowfall",
+        "id": "4B26BE15-7321-4FCC-9407-D34B2904BAD7",
+        "name": "Snowfall",
+        "settings": {
+          "density": 12,
+          "direction": 0,
+          "intensity": 1,
+          "particleSize": 0.11,
+          "rate": 0.8,
+          "scale": 1,
+          "secondaryColor": [
+            0.008,
+            0.022,
+            0.1,
+            1
+          ],
+          "seed": 23
+        }
+      },
+      {
+        "color": [
+          1,
+          0.66,
+          0.16,
+          1
+        ],
+        "content": "twinkle",
+        "id": "8486D806-6DC1-456E-B61B-A20D3A67C583",
+        "name": "Warm Twinkle",
+        "settings": {
+          "density": 14,
+          "direction": 0,
+          "intensity": 1,
+          "particleSize": 0.15,
+          "rate": 1.4,
+          "scale": 1,
+          "secondaryColor": [
+            0.008,
+            0.022,
+            0.1,
+            1
+          ],
+          "seed": 23
+        }
+      },
+      {
+        "color": [
+          0.94,
+          0.04,
+          0.12,
+          1
+        ],
+        "content": "candyCane",
+        "id": "0F03FEA5-F681-4C7A-BBCE-C37B6868A07C",
+        "name": "Candy Cane",
+        "settings": {
+          "density": 8,
+          "direction": 0,
+          "intensity": 1,
+          "particleSize": 0.15,
+          "rate": 0.7,
+          "scale": 0.85,
+          "secondaryColor": [
+            1,
+            0.96,
+            0.83,
+            1
+          ],
+          "seed": 23
+        }
+      },
+      {
+        "color": [
+          1,
+          0.66,
+          0.16,
+          1
+        ],
+        "content": "stars",
+        "id": "336CF553-6723-4351-A987-52434BB7A836",
+        "name": "Golden Stars",
+        "settings": {
+          "density": 8,
+          "direction": 0,
+          "intensity": 1,
+          "particleSize": 0.15,
+          "rate": 1,
+          "scale": 1,
+          "secondaryColor": [
+            0.07,
+            0.02,
+            0.15,
+            1
+          ],
+          "seed": 23
+        }
+      },
+      {
+        "color": [
+          0.81,
+          0.94,
+          1,
+          1
+        ],
+        "content": "icicles",
+        "id": "47C20BAE-2E76-4A73-91A1-A7A53B7B58F3",
+        "name": "Blue Icicles",
+        "settings": {
+          "density": 10,
+          "direction": 0,
+          "intensity": 1,
+          "particleSize": 0.15,
+          "rate": 0.7,
+          "scale": 1,
+          "secondaryColor": [
+            0.005,
+            0.07,
+            0.16,
+            1
+          ],
+          "seed": 23
+        }
+      },
+      {
+        "color": [
+          0.94,
+          0.04,
+          0.12,
+          1
+        ],
+        "content": "ornaments",
+        "id": "F4BDFD7B-1DC5-44B5-B49A-C64BAAED89AF",
+        "name": "Ornaments",
+        "settings": {
+          "density": 9,
+          "direction": 0,
+          "intensity": 1,
+          "particleSize": 0.15,
+          "rate": 1,
+          "scale": 1,
+          "secondaryColor": [
+            0.03,
+            0.22,
+            0.1,
+            1
+          ],
+          "seed": 23
+        }
+      }
+    ],
+    "id": "096259E3-698A-43DA-A5F0-DAA8D547141B",
+    "imageAssets": [
+      {
+        "height": 64,
+        "id": "0CED619C-BAAF-48B0-9B2C-7BE68D3F9434",
+        "name": "Rehearsal checker.png",
+        "width": 64
+      }
+    ],
+    "lighting": {
+      "controllers": [
+        {
+          "id": "02ECEEFE-F82E-412D-B507-05C066224525",
+          "kind": "DMX",
+          "name": "DMX Controller",
+          "profile": "Simulation",
+          "relayCount": 8
+        },
+        {
+          "id": "7EB644F5-2B13-4653-B5C3-5391EEE37BE4",
+          "kind": "Arduino",
+          "name": "Arduino Controller",
+          "profile": "Simulation",
+          "relayCount": 8
+        }
+      ],
+      "cues": [
+        {
+          "dimmerFade": 0,
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 4,
+                    "dimmer": 0.55,
+                    "gobo": 0,
+                    "pan": 0.23,
+                    "tilt": 0.52
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 3
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 3
+                }
+              }
+            }
+          ],
+          "id": "C232A143-B44D-4A6E-ABC0-1C033BE7B923",
+          "lead": 0,
+          "motionCurve": "Ease In/Out",
+          "name": "Gold Welcome",
+          "time": 0
+        },
+        {
+          "dimmerFade": 1,
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 3,
+                    "dimmer": 0.64,
+                    "gobo": 1,
+                    "pan": 0.45,
+                    "tilt": 0.6
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 4
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 6
+                }
+              }
+            }
+          ],
+          "id": "C1963746-9EE4-4747-9CDD-E8B2D4B1B4BF",
+          "lead": 1,
+          "motionCurve": "Ease In/Out",
+          "name": "Snow Blue",
+          "time": 4
+        },
+        {
+          "dimmerFade": 1,
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 1,
+                    "dimmer": 0.74,
+                    "gobo": 2,
+                    "pan": 0.75,
+                    "tilt": 0.55
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": false
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 1
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 2
+                }
+              }
+            }
+          ],
+          "id": "9345CC0D-6B0F-439A-B7DC-74B2169EE350",
+          "lead": 1,
+          "motionCurve": "Ease In/Out",
+          "name": "Candy Chorus",
+          "time": 8
+        },
+        {
+          "dimmerFade": 1,
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 3,
+                    "dimmer": 0.6,
+                    "gobo": 3,
+                    "pan": 0.61,
+                    "tilt": 0.72
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 6
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 5
+                }
+              }
+            }
+          ],
+          "id": "9A715EE8-0C28-41DA-92CE-3BF3E27EFE66",
+          "lead": 1,
+          "motionCurve": "Ease In/Out",
+          "name": "Ice and Violet",
+          "time": 12
+        },
+        {
+          "dimmerFade": 1,
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 2,
+                    "dimmer": 0.58,
+                    "gobo": 2,
+                    "pan": 0.36,
+                    "tilt": 0.62
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 6
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 2
+                }
+              }
+            }
+          ],
+          "id": "78566543-01AB-47B1-AF94-FD72FAC45993",
+          "lead": 1,
+          "motionCurve": "Ease In/Out",
+          "name": "Mint Wave",
+          "time": 16
+        },
+        {
+          "dimmerFade": 1,
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 4,
+                    "dimmer": 0.87,
+                    "gobo": 4,
+                    "pan": 0.53,
+                    "tilt": 0.72
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 3
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 7
+                }
+              }
+            }
+          ],
+          "id": "0F813B89-9D19-4B26-81DA-BA8B0A8C3384",
+          "lead": 1,
+          "motionCurve": "Ease In/Out",
+          "name": "Finale Gold",
+          "time": 20
+        },
+        {
+          "dimmerFade": 1,
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 4,
+                    "dimmer": 1,
+                    "gobo": 1,
+                    "pan": 0.85,
+                    "tilt": 0.42
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 5
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 6
+                }
+              }
+            }
+          ],
+          "id": "5FF9194F-D420-44B9-AB7A-0FF3964BACEA",
+          "lead": 1,
+          "manualOnly": true,
+          "motionCurve": "Linear",
+          "name": "Manual Encore",
+          "time": 22
+        }
+      ],
+      "fixtures": [
+        {
+          "address": 1,
+          "blue": 3,
+          "controllerID": "02ECEEFE-F82E-412D-B507-05C066224525",
+          "green": 2,
+          "group": "Roofline",
+          "headChannels": 9,
+          "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+          "kind": "Moving Head",
+          "name": "Moving Head",
+          "previewPlacement": {
+            "origin": {
+              "x": 0.49,
+              "y": 0.3
+            }
+          }
+        },
+        {
+          "address": 1,
+          "blue": 3,
+          "controllerID": "7EB644F5-2B13-4653-B5C3-5391EEE37BE4",
+          "green": 2,
+          "group": "Props",
+          "headChannels": 9,
+          "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+          "kind": "Switched Plug",
+          "name": "Lantern Plug",
+          "previewPlacement": {
+            "origin": {
+              "x": 0.49,
+              "y": 0.79
+            }
+          }
+        },
+        {
+          "address": 2,
+          "blue": 4,
+          "controllerID": "7EB644F5-2B13-4653-B5C3-5391EEE37BE4",
+          "green": 3,
+          "group": "Roofline",
+          "headChannels": 9,
+          "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+          "kind": "RGB Strip",
+          "name": "Left Roof Strip",
+          "previewPlacement": {
+            "origin": {
+              "x": 0.1,
+              "y": 0.6
+            },
+            "stripEnd": {
+              "x": 0.49,
+              "y": 0.22
+            }
+          }
+        },
+        {
+          "address": 5,
+          "blue": 7,
+          "controllerID": "7EB644F5-2B13-4653-B5C3-5391EEE37BE4",
+          "green": 6,
+          "group": "Roofline",
+          "headChannels": 9,
+          "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+          "kind": "RGB Strip",
+          "name": "Right Roof Strip",
+          "previewPlacement": {
+            "origin": {
+              "x": 0.51,
+              "y": 0.22
+            },
+            "stripEnd": {
+              "x": 0.9,
+              "y": 0.6
+            }
+          }
+        }
+      ],
+      "looks": [
+        {
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 4,
+                    "dimmer": 0.55,
+                    "gobo": 0,
+                    "pan": 0.23,
+                    "tilt": 0.52
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 3
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 3
+                }
+              }
+            }
+          ],
+          "id": "99DB832D-8FE5-493C-85C1-51854A6A6477",
+          "name": "Gold Welcome"
+        },
+        {
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 3,
+                    "dimmer": 0.64,
+                    "gobo": 1,
+                    "pan": 0.45,
+                    "tilt": 0.6
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 4
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 6
+                }
+              }
+            }
+          ],
+          "id": "3C951FEB-A362-4C1B-B9CB-09F20BCC517B",
+          "name": "Snow Blue"
+        },
+        {
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 1,
+                    "dimmer": 0.74,
+                    "gobo": 2,
+                    "pan": 0.75,
+                    "tilt": 0.55
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": false
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 1
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 2
+                }
+              }
+            }
+          ],
+          "id": "73476E63-AB50-4B01-9EB5-61D29D6DC913",
+          "name": "Candy Chorus"
+        },
+        {
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 3,
+                    "dimmer": 0.6,
+                    "gobo": 3,
+                    "pan": 0.61,
+                    "tilt": 0.72
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 6
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 5
+                }
+              }
+            }
+          ],
+          "id": "720288B3-0CAC-4E1C-84BE-D45109100938",
+          "name": "Ice and Violet"
+        },
+        {
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 2,
+                    "dimmer": 0.58,
+                    "gobo": 2,
+                    "pan": 0.36,
+                    "tilt": 0.62
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 6
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 2
+                }
+              }
+            }
+          ],
+          "id": "0F1B5591-8A37-451D-A8DD-662051FD2145",
+          "name": "Mint Wave"
+        },
+        {
+          "entries": [
+            {
+              "id": "71E769F5-6ECA-4C7B-9F6E-00F7F1CE2156",
+              "state": {
+                "head": {
+                  "_0": {
+                    "color": 4,
+                    "dimmer": 0.87,
+                    "gobo": 4,
+                    "pan": 0.53,
+                    "tilt": 0.72
+                  }
+                }
+              }
+            },
+            {
+              "id": "1D64C8FE-107A-43B8-A33B-EA823ADD638F",
+              "state": {
+                "plug": {
+                  "_0": true
+                }
+              }
+            },
+            {
+              "id": "5A77462B-60C1-4AF7-96BD-C02E93DA4E9B",
+              "state": {
+                "rgb": {
+                  "_0": 3
+                }
+              }
+            },
+            {
+              "id": "C64999EF-7E7E-442E-9FB1-5FF7D35C9A0B",
+              "state": {
+                "rgb": {
+                  "_0": 7
+                }
+              }
+            }
+          ],
+          "id": "2C31A3A0-50D0-41C8-AC7A-6F9C2068430A",
+          "name": "Finale Gold"
+        }
+      ]
+    },
+    "looks": [],
+    "markers": [
+      {
+        "downbeat": true,
+        "id": "C10EFCD9-F333-4BDB-AB7A-23778791563C",
+        "kind": "Beat",
+        "name": "Bar 1 \u00b7 Beat 1",
+        "time": 0.0
+      },
+      {
+        "downbeat": false,
+        "id": "2E0B198F-A21A-4B26-BA93-E27BE6AD0DD1",
+        "kind": "Beat",
+        "name": "Bar 1 \u00b7 Beat 2",
+        "time": 0.5
+      },
+      {
+        "downbeat": false,
+        "id": "AEF620B3-C6C5-4691-AA6F-A4BE2F18A011",
+        "kind": "Beat",
+        "name": "Bar 1 \u00b7 Beat 3",
+        "time": 1.0
+      },
+      {
+        "downbeat": false,
+        "id": "C4772D48-6215-47C0-BA1E-FF2FFD7AD948",
+        "kind": "Beat",
+        "name": "Bar 1 \u00b7 Beat 4",
+        "time": 1.5
+      },
+      {
+        "downbeat": true,
+        "id": "928F67EE-F30F-4E91-BC8D-93C246803026",
+        "kind": "Beat",
+        "name": "Bar 2 \u00b7 Beat 1",
+        "time": 2.0
+      },
+      {
+        "downbeat": false,
+        "id": "DA64B2CF-EC59-403F-AEA3-8671113B4517",
+        "kind": "Beat",
+        "name": "Bar 2 \u00b7 Beat 2",
+        "time": 2.5
+      },
+      {
+        "downbeat": false,
+        "id": "C3F59AAA-CE70-46EB-9E2D-C862C09646FF",
+        "kind": "Beat",
+        "name": "Bar 2 \u00b7 Beat 3",
+        "time": 3.0
+      },
+      {
+        "downbeat": false,
+        "id": "7C04FF7C-A5BA-4BC1-A864-A36E70682ACB",
+        "kind": "Beat",
+        "name": "Bar 2 \u00b7 Beat 4",
+        "time": 3.5
+      },
+      {
+        "downbeat": true,
+        "id": "477A482D-BFC5-4D4D-AC38-63B65BF66699",
+        "kind": "Beat",
+        "name": "Bar 3 \u00b7 Beat 1",
+        "time": 4.0
+      },
+      {
+        "downbeat": false,
+        "id": "63D425C0-4C32-4AA2-9BC8-27DABF6D489E",
+        "kind": "Beat",
+        "name": "Bar 3 \u00b7 Beat 2",
+        "time": 4.5
+      },
+      {
+        "downbeat": false,
+        "id": "BBC1C2F7-5189-443D-9B36-1B2F7E7DA08B",
+        "kind": "Beat",
+        "name": "Bar 3 \u00b7 Beat 3",
+        "time": 5.0
+      },
+      {
+        "downbeat": false,
+        "id": "F75817E1-F5E8-4F4C-9BAA-5FACC6E12CA3",
+        "kind": "Beat",
+        "name": "Bar 3 \u00b7 Beat 4",
+        "time": 5.5
+      },
+      {
+        "downbeat": true,
+        "id": "F35ABA00-1351-456B-B1E1-C628E682E255",
+        "kind": "Beat",
+        "name": "Bar 4 \u00b7 Beat 1",
+        "time": 6.0
+      },
+      {
+        "downbeat": false,
+        "id": "1FDB33B3-00E0-4CC6-A786-046C0FA9B03A",
+        "kind": "Beat",
+        "name": "Bar 4 \u00b7 Beat 2",
+        "time": 6.5
+      },
+      {
+        "downbeat": false,
+        "id": "069183B5-D210-4ECF-8712-E40948939AFC",
+        "kind": "Beat",
+        "name": "Bar 4 \u00b7 Beat 3",
+        "time": 7.0
+      },
+      {
+        "downbeat": false,
+        "id": "FFCC4A16-C8F9-42C5-AD2B-78B570851360",
+        "kind": "Beat",
+        "name": "Bar 4 \u00b7 Beat 4",
+        "time": 7.5
+      },
+      {
+        "downbeat": true,
+        "id": "D385E038-71FD-4C38-A63A-88AEF8C36EE4",
+        "kind": "Beat",
+        "name": "Bar 5 \u00b7 Beat 1",
+        "time": 8.0
+      },
+      {
+        "downbeat": false,
+        "id": "38673632-DA8A-40F8-ADA7-A93DEE4B0269",
+        "kind": "Beat",
+        "name": "Bar 5 \u00b7 Beat 2",
+        "time": 8.5
+      },
+      {
+        "downbeat": false,
+        "id": "E44C546D-4AE7-485F-B1D6-086677F32D9D",
+        "kind": "Beat",
+        "name": "Bar 5 \u00b7 Beat 3",
+        "time": 9.0
+      },
+      {
+        "downbeat": false,
+        "id": "C237408C-D5B6-4635-9575-756509A393C2",
+        "kind": "Beat",
+        "name": "Bar 5 \u00b7 Beat 4",
+        "time": 9.5
+      },
+      {
+        "downbeat": true,
+        "id": "619C7D90-91F9-44F2-B566-45B091004E06",
+        "kind": "Beat",
+        "name": "Bar 6 \u00b7 Beat 1",
+        "time": 10.0
+      },
+      {
+        "downbeat": false,
+        "id": "EC0A3BF9-73BB-4BA7-958E-155B5EC8C55E",
+        "kind": "Beat",
+        "name": "Bar 6 \u00b7 Beat 2",
+        "time": 10.5
+      },
+      {
+        "downbeat": false,
+        "id": "0F81EEF9-9CE2-4CBC-8234-3BC90518A6D2",
+        "kind": "Beat",
+        "name": "Bar 6 \u00b7 Beat 3",
+        "time": 11.0
+      },
+      {
+        "downbeat": false,
+        "id": "D26C1689-49F1-4DD4-BC61-060D13C19878",
+        "kind": "Beat",
+        "name": "Bar 6 \u00b7 Beat 4",
+        "time": 11.5
+      },
+      {
+        "downbeat": true,
+        "id": "D779FD05-F73A-45E8-A79B-28B587C6C752",
+        "kind": "Beat",
+        "name": "Bar 7 \u00b7 Beat 1",
+        "time": 12.0
+      },
+      {
+        "downbeat": false,
+        "id": "C37C9765-2BAF-4ABC-8BDE-E0F8E94567BF",
+        "kind": "Beat",
+        "name": "Bar 7 \u00b7 Beat 2",
+        "time": 12.5
+      },
+      {
+        "downbeat": false,
+        "id": "B00CB89F-535F-4537-B69C-4B2D83D768C0",
+        "kind": "Beat",
+        "name": "Bar 7 \u00b7 Beat 3",
+        "time": 13.0
+      },
+      {
+        "downbeat": false,
+        "id": "A27A6E26-3EFD-47EE-B160-B2DE9CCEED50",
+        "kind": "Beat",
+        "name": "Bar 7 \u00b7 Beat 4",
+        "time": 13.5
+      },
+      {
+        "downbeat": true,
+        "id": "7761A7F6-DFFF-417D-B720-3DBE881B618D",
+        "kind": "Beat",
+        "name": "Bar 8 \u00b7 Beat 1",
+        "time": 14.0
+      },
+      {
+        "downbeat": false,
+        "id": "14E7B553-D7AD-4121-95B0-BA63232A2784",
+        "kind": "Beat",
+        "name": "Bar 8 \u00b7 Beat 2",
+        "time": 14.5
+      },
+      {
+        "downbeat": false,
+        "id": "3CCAAAFB-7256-4190-875E-0E6D6647096F",
+        "kind": "Beat",
+        "name": "Bar 8 \u00b7 Beat 3",
+        "time": 15.0
+      },
+      {
+        "downbeat": false,
+        "id": "0F15C617-96C9-4171-BBE8-7E69DF67D892",
+        "kind": "Beat",
+        "name": "Bar 8 \u00b7 Beat 4",
+        "time": 15.5
+      },
+      {
+        "downbeat": true,
+        "id": "63BD8A1C-41B1-4158-BB2E-CA00ADD589AC",
+        "kind": "Beat",
+        "name": "Bar 9 \u00b7 Beat 1",
+        "time": 16.0
+      },
+      {
+        "downbeat": false,
+        "id": "14B66E48-10B5-4141-A05F-03286043A45B",
+        "kind": "Beat",
+        "name": "Bar 9 \u00b7 Beat 2",
+        "time": 16.5
+      },
+      {
+        "downbeat": false,
+        "id": "B648EE16-ADC3-4CF2-ADB8-DAD6D59294C1",
+        "kind": "Beat",
+        "name": "Bar 9 \u00b7 Beat 3",
+        "time": 17.0
+      },
+      {
+        "downbeat": false,
+        "id": "BF345578-4F52-4700-9383-7745C949ED2A",
+        "kind": "Beat",
+        "name": "Bar 9 \u00b7 Beat 4",
+        "time": 17.5
+      },
+      {
+        "downbeat": true,
+        "id": "E5F26048-D85D-4B5C-88DF-DEBB6E985000",
+        "kind": "Beat",
+        "name": "Bar 10 \u00b7 Beat 1",
+        "time": 18.0
+      },
+      {
+        "downbeat": false,
+        "id": "75B592FE-BABC-4A41-8D6A-DF1A68558DC3",
+        "kind": "Beat",
+        "name": "Bar 10 \u00b7 Beat 2",
+        "time": 18.5
+      },
+      {
+        "downbeat": false,
+        "id": "F8096528-EDAB-4AEE-99B9-2F2EF2556896",
+        "kind": "Beat",
+        "name": "Bar 10 \u00b7 Beat 3",
+        "time": 19.0
+      },
+      {
+        "downbeat": false,
+        "id": "9CB38433-614C-426A-824B-95F698E6B621",
+        "kind": "Beat",
+        "name": "Bar 10 \u00b7 Beat 4",
+        "time": 19.5
+      },
+      {
+        "downbeat": true,
+        "id": "86172A41-0094-464F-BF4E-16FD1685E7E3",
+        "kind": "Beat",
+        "name": "Bar 11 \u00b7 Beat 1",
+        "time": 20.0
+      },
+      {
+        "downbeat": false,
+        "id": "A424B0D2-2234-4B33-A7DC-C593B993389B",
+        "kind": "Beat",
+        "name": "Bar 11 \u00b7 Beat 2",
+        "time": 20.5
+      },
+      {
+        "downbeat": false,
+        "id": "B09CBD41-16F9-4305-874A-CB5E6CFB7FB7",
+        "kind": "Beat",
+        "name": "Bar 11 \u00b7 Beat 3",
+        "time": 21.0
+      },
+      {
+        "downbeat": false,
+        "id": "578C8F68-7A8D-4C16-B566-448726B260AA",
+        "kind": "Beat",
+        "name": "Bar 11 \u00b7 Beat 4",
+        "time": 21.5
+      },
+      {
+        "downbeat": true,
+        "id": "075761F0-4C36-4DA8-AD05-F682D72020C1",
+        "kind": "Beat",
+        "name": "Bar 12 \u00b7 Beat 1",
+        "time": 22.0
+      },
+      {
+        "downbeat": false,
+        "id": "0C90944D-C4FE-46BC-8691-432E8DA8F9A9",
+        "kind": "Beat",
+        "name": "Bar 12 \u00b7 Beat 2",
+        "time": 22.5
+      },
+      {
+        "downbeat": false,
+        "id": "7D9E0A90-B034-4505-9E23-5B6FD032DF29",
+        "kind": "Beat",
+        "name": "Bar 12 \u00b7 Beat 3",
+        "time": 23.0
+      },
+      {
+        "downbeat": false,
+        "id": "BEB16BED-0230-454F-82EC-C0596D2175B0",
+        "kind": "Beat",
+        "name": "Bar 12 \u00b7 Beat 4",
+        "time": 23.5
+      },
+      {
+        "id": "88734437-8E4C-4733-82FF-CD8D04EB3429",
+        "kind": "Section",
+        "name": "Opening Bells",
+        "time": 0
+      },
+      {
+        "id": "4CD9D79F-898F-4D1E-85C4-7B96EABAE8AF",
+        "kind": "Section",
+        "name": "Snowfall",
+        "time": 4
+      },
+      {
+        "id": "CBB31A91-BD0B-47B6-B8A0-E795046D3593",
+        "kind": "Section",
+        "name": "Candy-Cane Chorus",
+        "time": 8
+      },
+      {
+        "id": "EC5EB1C4-A4E8-4FDF-9B18-AE4D4DECE4FA",
+        "kind": "Section",
+        "name": "Video Dissolve",
+        "time": 12
+      },
+      {
+        "id": "A29AF5CD-2B5A-4B12-9510-44DB3695D17D",
+        "kind": "Section",
+        "name": "Layout Wave",
+        "time": 16
+      },
+      {
+        "id": "9D939677-B74A-4487-A071-199BC2B2B957",
+        "kind": "Section",
+        "name": "Finale",
+        "time": 20
+      },
+      {
+        "id": "50D5FB73-419A-43DC-B30B-120F4EB43394",
+        "kind": "Lyric",
+        "name": "Snow is falling",
+        "time": 4.5
+      },
+      {
+        "id": "970A0F9F-4596-491E-9F3B-D846AA9444C4",
+        "kind": "Lyric",
+        "name": "Crossfade midpoint",
+        "time": 8.5
+      },
+      {
+        "id": "8C50865E-980D-41B0-8F52-99625C3D35A7",
+        "kind": "Lyric",
+        "name": "Two videos overlap",
+        "time": 12.5
+      },
+      {
+        "id": "081F3867-3618-4F0A-9E80-7BE23782F6DE",
+        "kind": "Lyric",
+        "name": "Wave moves right",
+        "time": 17
+      }
+    ],
+    "masterOutput": {
+      "brightness": 0.82,
+      "fadeDuration": 1
+    },
+    "modifiedAt": 815819194.168438,
+    "name": "Winter Lights Playground",
+    "objects": [
+      {
+        "appearance": {
+          "brightness": 1,
+          "crop": {
+            "origin": [
+              0,
+              0
+            ],
+            "size": [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal": false,
+          "flipVertical": false,
+          "opacity": 1
+        },
+        "id": "41F50CFA-6626-4657-A3A0-C7156EA935D3",
+        "isGeometryLocked": false,
+        "isVisible": true,
+        "links": [
+          {
+            "firstEdge": "right",
+            "firstFace": "B14B6C14-E236-499A-8CEE-92AF63E3C9A4",
+            "id": "47EC6D61-710E-4D15-AC96-FCA2D0037FE0",
+            "isSeam": false,
+            "reversed": true,
+            "secondEdge": "left",
+            "secondFace": "478564E5-0992-4EAE-9D8C-3825422F16D6"
+          },
+          {
+            "firstEdge": "right",
+            "firstFace": "478564E5-0992-4EAE-9D8C-3825422F16D6",
+            "id": "328A1B16-1109-4470-BA1D-C075DE221CFF",
+            "isSeam": false,
+            "reversed": true,
+            "secondEdge": "left",
+            "secondFace": "02B4D967-347B-49F1-A088-1366C92E3ACE"
+          }
+        ],
+        "mode": "continuous",
+        "name": "Panorama \u00b7 Three Linked Faces",
+        "source": {
+          "color": [
+            0.81,
+            0.94,
+            1,
+            1
+          ],
+          "content": "snowfall",
+          "generator": {
+            "density": 12,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.11,
+            "rate": 0.8,
+            "scale": 1,
+            "secondaryColor": [
+              0.008,
+              0.022,
+              0.1,
+              1
+            ],
+            "seed": 23
+          },
+          "id": "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1"
+        },
+        "tags": []
+      }
+    ],
+    "palettes": [
+      {
+        "id": "79BD9D4F-93D4-4E97-A3BA-D8D150E87AB4",
+        "name": "Winter Night",
+        "slots": [
+          {
+            "color": [
+              0.81,
+              0.94,
+              1,
+              1
+            ],
+            "id": "55698735-4ED6-48A6-8933-8C102F96A946",
+            "name": "Ice"
+          },
+          {
+            "color": [
+              0.008,
+              0.022,
+              0.1,
+              1
+            ],
+            "id": "746DFA71-F24B-45F7-8821-0C6BB3ECC0D1",
+            "name": "Midnight"
+          },
+          {
+            "color": [
+              0.54,
+              0.17,
+              0.93,
+              1
+            ],
+            "id": "79324410-ADFC-403F-8B8C-43358B027021",
+            "name": "Violet"
+          }
+        ]
+      },
+      {
+        "id": "0FEB4E61-E9DE-473C-8059-F634B262FE4F",
+        "name": "Holiday Warmth",
+        "slots": [
+          {
+            "color": [
+              0.94,
+              0.04,
+              0.12,
+              1
+            ],
+            "id": "2E530BB0-B0C5-402C-BC1C-54D49F80E518",
+            "name": "Candy Red"
+          },
+          {
+            "color": [
+              1,
+              0.96,
+              0.83,
+              1
+            ],
+            "id": "9BB70B67-1B6C-47B2-8B3A-59796ABF9CB4",
+            "name": "Cream"
+          },
+          {
+            "color": [
+              1,
+              0.66,
+              0.16,
+              1
+            ],
+            "id": "D045B42E-D4D3-4087-8AD8-286BBE6FCD87",
+            "name": "Gold"
+          },
+          {
+            "color": [
+              0.04,
+              0.66,
+              0.52,
+              1
+            ],
+            "id": "10B4BCBD-4BE3-4FD5-84D0-62469800ACA2",
+            "name": "Evergreen"
+          }
+        ]
+      }
+    ],
+    "song": {
+      "byteCount": 1152044,
+      "duration": 24,
+      "fileExtension": "wav",
+      "id": "B4301077-798D-44EC-B6FF-C0F4A288BF16",
+      "name": "Winter Lights \u00b7 Original Rehearsal Score"
+    },
+    "surfaces": [
+      {
+        "appearance": {
+          "brightness": 1,
+          "crop": {
+            "origin": [
+              0,
+              0
+            ],
+            "size": [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal": false,
+          "flipVertical": false,
+          "opacity": 1
+        },
+        "id": "5C53CEBB-EF82-433C-8CB4-7C9598F7378B",
+        "layout": {
+          "corners": {
+            "bottomLeft": [
+              0.72,
+              0.91
+            ],
+            "bottomRight": [
+              0.9,
+              0.91
+            ],
+            "topLeft": [
+              0.72,
+              0.61
+            ],
+            "topRight": [
+              0.9,
+              0.61
+            ]
+          },
+          "inputMap": {
+            "mirrored": false,
+            "origin": [
+              0,
+              0
+            ],
+            "quarterTurns": 0,
+            "size": [
+              1,
+              1
+            ]
+          },
+          "isGeometryLocked": false,
+          "isVisible": true
+        },
+        "name": "Pattern Tile",
+        "source": {
+          "color": [
+            1,
+            0.96,
+            0.83,
+            1
+          ],
+          "content": "image",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.008,
+              0.022,
+              0.1,
+              1
+            ],
+            "seed": 23
+          },
+          "id": "A5EE7BF6-5128-4D9D-82C0-BAA5E270F1BD",
+          "image": {
+            "assetID": "0CED619C-BAAF-48B0-9B2C-7BE68D3F9434",
+            "canvasAspect": 1,
+            "placement": "fill"
+          }
+        },
+        "tags": [
+          "Props"
+        ]
+      },
+      {
+        "appearance": {
+          "brightness": 1,
+          "crop": {
+            "origin": [
+              0,
+              0
+            ],
+            "size": [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal": false,
+          "flipVertical": false,
+          "opacity": 1
+        },
+        "id": "DFF255BE-8157-420C-90CB-834AEABEF437",
+        "layout": {
+          "corners": {
+            "bottomLeft": [
+              0.075,
+              0.91
+            ],
+            "bottomRight": [
+              0.255,
+              0.91
+            ],
+            "topLeft": [
+              0.075,
+              0.61
+            ],
+            "topRight": [
+              0.255,
+              0.61
+            ]
+          },
+          "inputMap": {
+            "mirrored": false,
+            "origin": [
+              0,
+              0
+            ],
+            "quarterTurns": 0,
+            "size": [
+              1,
+              1
+            ]
+          },
+          "isGeometryLocked": false,
+          "isVisible": true
+        },
+        "mask": {
+          "boundary": {
+            "id": "E6F1C30B-A468-4CEA-94D3-818ADE9526D2",
+            "points": [
+              [
+                0.5,
+                0.02
+              ],
+              [
+                0.94,
+                0.27
+              ],
+              [
+                0.87,
+                0.82
+              ],
+              [
+                0.5,
+                0.98
+              ],
+              [
+                0.13,
+                0.82
+              ],
+              [
+                0.06,
+                0.27
+              ]
+            ]
+          },
+          "holes": [
+            {
+              "id": "46B5C1D0-BAA2-4837-9131-7DB809A8C2A7",
+              "points": [
+                [
+                  0.5,
+                  0.29
+                ],
+                [
+                  0.68,
+                  0.5
+                ],
+                [
+                  0.5,
+                  0.71
+                ],
+                [
+                  0.32,
+                  0.5
+                ]
+              ]
+            }
+          ],
+          "isEnabled": true
+        },
+        "name": "Masked Lantern",
+        "source": {
+          "color": [
+            1,
+            0.66,
+            0.16,
+            1
+          ],
+          "content": "stars",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.07,
+              0.02,
+              0.15,
+              1
+            ],
+            "seed": 23
+          },
+          "id": "BA24F8B6-1416-4229-B8F2-09E8C9935357"
+        },
+        "tags": [
+          "Props"
+        ]
+      },
+      {
+        "appearance": {
+          "brightness": 1,
+          "crop": {
+            "origin": [
+              0,
+              0
+            ],
+            "size": [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal": false,
+          "flipVertical": false,
+          "opacity": 1
+        },
+        "id": "74313334-16E3-442A-9F6B-8D7C7604F62C",
+        "layout": {
+          "corners": {
+            "bottomLeft": [
+              0.32,
+              0.92
+            ],
+            "bottomRight": [
+              0.65,
+              0.92
+            ],
+            "topLeft": [
+              0.32,
+              0.61
+            ],
+            "topRight": [
+              0.65,
+              0.61
+            ]
+          },
+          "inputMap": {
+            "mirrored": false,
+            "origin": [
+              0,
+              0
+            ],
+            "quarterTurns": 0,
+            "size": [
+              1,
+              1
+            ]
+          },
+          "isGeometryLocked": false,
+          "isVisible": true
+        },
+        "name": "Video Window",
+        "source": {
+          "color": [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content": "video",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed": 1
+          },
+          "id": "B61E8347-02A8-419B-801D-790AC246F28E",
+          "video": {
+            "assetID": "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+            "canvasAspect": 1.7777778,
+            "inPoint": 0,
+            "isMuted": true,
+            "loops": true,
+            "outPoint": 2.5,
+            "placement": "fit",
+            "rate": 1
+          }
+        },
+        "tags": [
+          "Props"
+        ]
+      },
+      {
+        "appearance": {
+          "brightness": 1,
+          "crop": {
+            "origin": [
+              0,
+              0
+            ],
+            "size": [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal": false,
+          "flipVertical": false,
+          "opacity": 1
+        },
+        "id": "B14B6C14-E236-499A-8CEE-92AF63E3C9A4",
+        "layout": {
+          "corners": {
+            "bottomLeft": [
+              0.06,
+              0.55
+            ],
+            "bottomRight": [
+              0.34,
+              0.55
+            ],
+            "topLeft": [
+              0.06,
+              0.12
+            ],
+            "topRight": [
+              0.34,
+              0.12
+            ]
+          },
+          "inputMap": {
+            "mirrored": false,
+            "origin": [
+              0,
+              0
+            ],
+            "quarterTurns": 0,
+            "size": [
+              0.33333334,
+              1
+            ]
+          },
+          "isGeometryLocked": false,
+          "isVisible": true,
+          "objectID": "41F50CFA-6626-4657-A3A0-C7156EA935D3"
+        },
+        "mask": {
+          "boundary": {
+            "id": "19A69C17-1920-49D5-B5E7-C4C4B479573F",
+            "points": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                1,
+                1
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          "holes": [
+            {
+              "id": "4981ED8B-6D6D-4218-8D66-080146B98075",
+              "points": [
+                [
+                  0.4,
+                  0.4
+                ],
+                [
+                  0.6,
+                  0.4
+                ],
+                [
+                  0.5,
+                  0.6
+                ]
+              ]
+            }
+          ],
+          "isEnabled": true
+        },
+        "name": "Panorama Left",
+        "source": {
+          "color": [
+            0.9,
+            0.96,
+            1,
+            1
+          ],
+          "content": "snowfall",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.015,
+              0.04,
+              0.14,
+              1
+            ],
+            "seed": 1
+          },
+          "id": "6183EA25-8B1F-4BA9-8276-4DF6AA0C9DD9"
+        },
+        "tags": [
+          "Panorama"
+        ]
+      },
+      {
+        "appearance": {
+          "brightness": 1,
+          "crop": {
+            "origin": [
+              0,
+              0
+            ],
+            "size": [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal": false,
+          "flipVertical": false,
+          "opacity": 1
+        },
+        "id": "478564E5-0992-4EAE-9D8C-3825422F16D6",
+        "layout": {
+          "corners": {
+            "bottomLeft": [
+              0.34,
+              0.55
+            ],
+            "bottomRight": [
+              0.62,
+              0.55
+            ],
+            "topLeft": [
+              0.34,
+              0.12
+            ],
+            "topRight": [
+              0.62,
+              0.12
+            ]
+          },
+          "inputMap": {
+            "mirrored": false,
+            "origin": [
+              0.33333334,
+              0
+            ],
+            "quarterTurns": 0,
+            "size": [
+              0.33333334,
+              1
+            ]
+          },
+          "isGeometryLocked": false,
+          "isVisible": true,
+          "objectID": "41F50CFA-6626-4657-A3A0-C7156EA935D3"
+        },
+        "name": "Panorama Center",
+        "source": {
+          "color": [
+            0.9,
+            0.96,
+            1,
+            1
+          ],
+          "content": "snowfall",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.015,
+              0.04,
+              0.14,
+              1
+            ],
+            "seed": 1
+          },
+          "id": "D1E2E33E-4448-42A3-A54F-0046F2F2DA34"
+        },
+        "tags": [
+          "Panorama"
+        ]
+      },
+      {
+        "appearance": {
+          "brightness": 1,
+          "crop": {
+            "origin": [
+              0,
+              0
+            ],
+            "size": [
+              1,
+              1
+            ]
+          },
+          "flipHorizontal": false,
+          "flipVertical": false,
+          "opacity": 1
+        },
+        "id": "02B4D967-347B-49F1-A088-1366C92E3ACE",
+        "layout": {
+          "corners": {
+            "bottomLeft": [
+              0.62,
+              0.55
+            ],
+            "bottomRight": [
+              0.9,
+              0.55
+            ],
+            "topLeft": [
+              0.62,
+              0.12
+            ],
+            "topRight": [
+              0.9,
+              0.12
+            ]
+          },
+          "inputMap": {
+            "mirrored": false,
+            "origin": [
+              0.6666667,
+              0
+            ],
+            "quarterTurns": 0,
+            "size": [
+              0.33333334,
+              1
+            ]
+          },
+          "isGeometryLocked": false,
+          "isVisible": true,
+          "objectID": "41F50CFA-6626-4657-A3A0-C7156EA935D3"
+        },
+        "name": "Panorama Right",
+        "source": {
+          "color": [
+            0.9,
+            0.96,
+            1,
+            1
+          ],
+          "content": "snowfall",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.015,
+              0.04,
+              0.14,
+              1
+            ],
+            "seed": 1
+          },
+          "id": "00A501AA-E265-4F87-98AD-D406A914C278"
+        },
+        "tags": [
+          "Panorama"
+        ]
+      }
+    ],
+    "timelineClips": [
+      {
+        "duration": 5,
+        "id": "F8782629-61CF-4491-BD1D-290294CA7EAA",
+        "source": {
+          "color": [
+            1,
+            0.66,
+            0.16,
+            1
+          ],
+          "content": "twinkle",
+          "generator": {
+            "density": 14,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1.4,
+            "scale": 1,
+            "secondaryColor": [
+              0.008,
+              0.022,
+              0.1,
+              1
+            ],
+            "seed": 23
+          }
+        },
+        "sourceID": "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1",
+        "start": 0
+      },
+      {
+        "duration": 5,
+        "id": "6CD74460-35B5-45E5-9F26-D2F4170B058C",
+        "source": {
+          "color": [
+            0.81,
+            0.94,
+            1,
+            1
+          ],
+          "content": "snowfall",
+          "generator": {
+            "density": 12,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.11,
+            "rate": 0.8,
+            "scale": 1,
+            "secondaryColor": [
+              0.008,
+              0.022,
+              0.1,
+              1
+            ],
+            "seed": 23
+          }
+        },
+        "sourceID": "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1",
+        "start": 4,
+        "transition": 1,
+        "transitionCurve": "Ease In/Out"
+      },
+      {
+        "duration": 5,
+        "id": "4EB97055-858D-4DB9-A91A-8E02283C14F2",
+        "source": {
+          "color": [
+            0.94,
+            0.04,
+            0.12,
+            1
+          ],
+          "content": "candyCane",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 0.7,
+            "scale": 0.85,
+            "secondaryColor": [
+              1,
+              0.96,
+              0.83,
+              1
+            ],
+            "seed": 23
+          }
+        },
+        "sourceID": "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1",
+        "start": 8,
+        "transition": 1,
+        "transitionCurve": "Ease In/Out"
+      },
+      {
+        "duration": 5,
+        "id": "FDF6BD88-8717-45BD-A3DD-B0BF8A1D8099",
+        "source": {
+          "color": [
+            0.94,
+            0.04,
+            0.12,
+            1
+          ],
+          "content": "ornaments",
+          "generator": {
+            "density": 9,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.03,
+              0.22,
+              0.1,
+              1
+            ],
+            "seed": 23
+          }
+        },
+        "sourceID": "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1",
+        "start": 12,
+        "transition": 1,
+        "transitionCurve": "Ease In/Out"
+      },
+      {
+        "duration": 5,
+        "id": "BE3AF2DB-6E65-4B28-B4B0-25464FE1517E",
+        "source": {
+          "color": [
+            0.81,
+            0.94,
+            1,
+            1
+          ],
+          "content": "icicles",
+          "generator": {
+            "density": 10,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 0.7,
+            "scale": 1,
+            "secondaryColor": [
+              0.005,
+              0.07,
+              0.16,
+              1
+            ],
+            "seed": 23
+          }
+        },
+        "sourceID": "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1",
+        "start": 16,
+        "transition": 1,
+        "transitionCurve": "Ease In/Out"
+      },
+      {
+        "duration": 4,
+        "id": "6289E432-510A-4852-A39D-B2FA3C37AD70",
+        "source": {
+          "color": [
+            1,
+            0.66,
+            0.16,
+            1
+          ],
+          "content": "stars",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.07,
+              0.02,
+              0.15,
+              1
+            ],
+            "seed": 23
+          }
+        },
+        "sourceID": "3290D0A9-0C13-4E0D-B9E5-5ACEB79B77F1",
+        "start": 20,
+        "transition": 1,
+        "transitionCurve": "Ease In/Out"
+      },
+      {
+        "duration": 13,
+        "id": "1D570F62-8C12-429D-9882-959A31BA59D5",
+        "source": {
+          "color": [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content": "video",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed": 1
+          },
+          "video": {
+            "assetID": "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+            "canvasAspect": 1.7777778,
+            "inPoint": 0,
+            "isMuted": true,
+            "loops": true,
+            "outPoint": 2.5,
+            "placement": "fit",
+            "rate": 1
+          }
+        },
+        "sourceID": "B61E8347-02A8-419B-801D-790AC246F28E",
+        "start": 0
+      },
+      {
+        "duration": 12,
+        "id": "9F4B2DCD-1C3B-459F-8FC2-7984F67AEF78",
+        "source": {
+          "color": [
+            1,
+            0.25,
+            0,
+            1
+          ],
+          "content": "video",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.15,
+              0.05,
+              1,
+              1
+            ],
+            "seed": 1
+          },
+          "video": {
+            "assetID": "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+            "canvasAspect": 1.7777778,
+            "inPoint": 1.5,
+            "isMuted": true,
+            "loops": true,
+            "outPoint": 4,
+            "placement": "fit",
+            "rate": 0.5
+          }
+        },
+        "sourceID": "B61E8347-02A8-419B-801D-790AC246F28E",
+        "start": 12,
+        "transition": 1,
+        "transitionCurve": "Ease In/Out"
+      },
+      {
+        "duration": 24,
+        "id": "534C07A4-7F42-4AC9-A1D6-76E92986EFFD",
+        "source": {
+          "color": [
+            1,
+            0.66,
+            0.16,
+            1
+          ],
+          "content": "stars",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.07,
+              0.02,
+              0.15,
+              1
+            ],
+            "seed": 23
+          }
+        },
+        "sourceID": "BA24F8B6-1416-4229-B8F2-09E8C9935357",
+        "start": 0
+      },
+      {
+        "duration": 5,
+        "id": "2F5EB6EC-8965-48B1-BD2A-4E0505C83D62",
+        "source": {
+          "color": [
+            1,
+            0.96,
+            0.83,
+            1
+          ],
+          "content": "image",
+          "generator": {
+            "density": 8,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.008,
+              0.022,
+              0.1,
+              1
+            ],
+            "seed": 23
+          },
+          "image": {
+            "assetID": "0CED619C-BAAF-48B0-9B2C-7BE68D3F9434",
+            "canvasAspect": 1,
+            "placement": "fill"
+          }
+        },
+        "sourceID": "A5EE7BF6-5128-4D9D-82C0-BAA5E270F1BD",
+        "start": 0
+      },
+      {
+        "duration": 20,
+        "id": "B16E6FC1-385D-458E-9DA1-4740B41A6867",
+        "source": {
+          "color": [
+            0.94,
+            0.04,
+            0.12,
+            1
+          ],
+          "content": "ornaments",
+          "generator": {
+            "density": 9,
+            "direction": 0,
+            "intensity": 1,
+            "particleSize": 0.15,
+            "rate": 1,
+            "scale": 1,
+            "secondaryColor": [
+              0.03,
+              0.22,
+              0.1,
+              1
+            ],
+            "seed": 23
+          }
+        },
+        "sourceID": "A5EE7BF6-5128-4D9D-82C0-BAA5E270F1BD",
+        "start": 4,
+        "transition": 1,
+        "transitionCurve": "Ease In/Out"
+      }
+    ],
+    "videoAssets": [
+      {
+        "byteCount": 173878,
+        "codec": "H.264",
+        "duration": 4,
+        "fileExtension": "mp4",
+        "frameRate": 30,
+        "hasAudio": true,
+        "height": 1080,
+        "id": "3B4E622D-D25B-4F5D-985C-A7322ECF54E3",
+        "name": "audio.mp4",
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "width": 1920
+      }
+    ],
+    "videoAudio": {
+      "volume": 1
+    }
+  }
+}

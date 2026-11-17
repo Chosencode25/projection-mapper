@@ -43,6 +43,167 @@ int maskLocation(float2 p, constant float2 *points, uint2 ring) {
     return inside ? 1 : -1;
 }
 
+float4 contentSample(float2 uv, float4 color, uint textured, float phase, float4 secondary,
+                     float4 parameters, float2 motion, uint seed, float2 imageScale,
+                     float3x3 videoUV, texture2d<float> grid) {
+    if (textured == 0) return color;
+    if (textured == 8) {
+        float2 imageUV = (uv - 0.5) * imageScale + 0.5;
+        if (any(imageUV < 0.0) || any(imageUV > 1.0)) return float4(0);
+        constexpr sampler imageSampler(coord::normalized,address::clamp_to_edge,filter::linear,mip_filter::linear);
+        float4 sample = grid.sample(imageSampler,(videoUV * float3(imageUV,1)).xy);
+        // Interpolate premultiplied pixels, then convert for the existing straight-alpha blend.
+        if (sample.a > 1e-6) sample.rgb /= sample.a;
+        return sample;
+    }
+    float scale = parameters.x;
+    float2 oriented = float2(dot(uv,motion), dot(uv,float2(-motion.y,motion.x)));
+    if (textured == 2) {
+        float blend = 0.5 + 0.5 * sin(6.2831853 * (oriented.x * scale - phase));
+        return mix(color, secondary, blend);
+    }
+    if (textured == 3) {
+        float wave = 0.5 + 0.5 * sin(6.2831853 * 8.0 * (oriented.x * scale - phase));
+        float width = max(fwidth(wave), 0.002);
+        return mix(secondary, color, smoothstep(0.5 - width, 0.5 + width, wave));
+    }
+    if (textured == 4) {
+        // Analytic antialiased checker waves, sampled in the owner's shared canvas.
+        float2 wave = sin(6.2831853 * 4.0 * (oriented * scale - float2(phase, phase)));
+        float checker = wave.x * wave.y;
+        float width = max(fwidth(checker), 0.002);
+        return mix(secondary, color, smoothstep(-width, width, checker));
+    }
+    if (textured == 5) {
+        float2 p = oriented * scale * 6.2831853;
+        float t = phase * 6.2831853;
+        float blend = 0.5 + parameters.y * (sin(p.x + t) + sin(p.y - t) + sin(p.x+p.y+2.0*cos(t))) / 6.0;
+        return mix(color,secondary,clamp(blend,0.0,1.0));
+    }
+    if (textured == 6) {
+        float t = phase * 6.2831853;
+        float blend = valueNoise(uv * scale * 12.0 + float2(cos(t),sin(t)) * 2.0,seed);
+        return mix(color,secondary,clamp(0.5 + (blend-0.5)*parameters.y*2.0,0.0,1.0));
+    }
+    if (textured == 7) {
+        int count = int(parameters.z);
+        float2 p = fract(uv - motion * phase) * float(count);
+        int2 base = int2(floor(p)); float glow = 0.0;
+        // One seeded particle per cell; only nine local cells can intersect this pixel.
+        for (int y=-1; y<=1; ++y) for (int x=-1; x<=1; ++x) {
+            int2 cell = base + int2(x,y);
+            int2 wrapped = (cell + count) % count;
+            float2 center = float2(randomValue(wrapped,seed), randomValue(wrapped,seed ^ 0x9e3779b9u));
+            float distance = length(p - (float2(cell)+center));
+            float edge = max(length(fwidth(p)),0.002);
+            glow = max(glow,1.0-smoothstep(max(0.0,parameters.w-edge),parameters.w+edge,distance));
+        }
+        return mix(secondary,color,glow);
+    }
+    if (textured == 9) {
+        float2 p = fract(uv + float2(-0.10, -1.0) * phase) * (parameters.z * sqrt(scale));
+        int2 cell = int2(floor(p));
+        float2 center = 0.2 + 0.6 * float2(randomValue(cell,seed),randomValue(cell,seed ^ 317u));
+        float size = max(0.04, parameters.w);
+        float flake = 1.0 - smoothstep(size, size + max(length(fwidth(p)),0.02), length(fract(p)-center));
+        return mix(secondary,color,flake * parameters.y);
+    }
+    if (textured == 11) {
+        float band = sin(6.2831853 * ((uv.x + uv.y) * 5.0 * scale - phase));
+        return mix(secondary,color,smoothstep(-0.06,0.06,band));
+    }
+    if (textured == 13) {
+        float x = uv.x * (parameters.z * scale);
+        float depth = 0.16 + randomValue(int2(floor(x),0),seed) * 0.65;
+        float width = (1.0 - clamp(uv.y / depth,0.0,1.0)) * 0.42;
+        float shape = (1.0 - smoothstep(width,width+0.035,abs(fract(x)-0.5))) * step(uv.y,depth);
+        float shimmer = 0.74 + 0.26 * sin(phase * 6.2831853 + x);
+        return mix(secondary,color,shape * shimmer * parameters.y);
+    }
+    if (textured == 10 || textured == 12 || textured == 14) {
+        float2 p = uv * (parameters.z * scale * 0.45);
+        int2 cell = int2(floor(p));
+        float2 q = fract(p)-0.5;
+        float pulse = 0.55 + 0.45 * sin(phase * 6.2831853 + randomValue(cell,seed)*6.2831853);
+        float radius = length(q);
+        float shape = 0.0;
+        if (textured == 10) {
+            shape = (1.0-smoothstep(0.035,0.14,radius)) * pulse;
+        } else if (textured == 12) {
+            float star = 0.18 + 0.13*cos(5.0*atan2(q.y,q.x));
+            shape = 1.0-smoothstep(star,star+0.025,radius);
+        } else {
+            float ball = 1.0-smoothstep(0.30,0.32,radius);
+            float cap = step(abs(q.x),0.09)*step(-0.38,q.y)*step(q.y,-0.29);
+            float highlight = 1.0-smoothstep(0.02,0.14,length(q+float2(0.11,0.11)));
+            float4 tint = mix(color,secondary,randomValue(cell,seed) * 0.8);
+            return mix(secondary,mix(tint,float4(1),highlight),max(ball,cap) * parameters.y);
+        }
+        return mix(secondary,color,shape * parameters.y);
+    }
+    constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear, mip_filter::linear);
+    return grid.sample(sampling, uv);
+}
+
+struct VisualShaderSource {
+    float4 color;
+    float4 secondary;
+    float4 parameters;
+    float4 motionPhaseKind;
+    float4 seedScale;
+    float4 videoU;
+    float4 videoV;
+    float4 videoW;
+};
+
+struct VisualShaderLayer {
+    VisualShaderSource first;
+    VisualShaderSource second;
+    float4 transform; // center and reciprocal size
+    float4 style;     // sine, cosine, opacity, additive flag
+    float4 bounds;    // face-local region origin and extent
+    float4 region;    // point offset, point count, outline thickness, fade
+    float4 metric;    // face width and height relative to the shorter side
+};
+
+float4 sampleVisual(float2 uv, constant VisualShaderSource &source, texture2d<float> texture) {
+    float3x3 videoUV = float3x3(source.videoU.xyz, source.videoV.xyz, source.videoW.xyz);
+    return contentSample(uv, source.color, uint(source.motionPhaseKind.w), source.motionPhaseKind.z,
+                         source.secondary, source.parameters, source.motionPhaseKind.xy,
+                         as_type<uint>(source.seedScale.x), source.seedScale.yz, videoUV, texture);
+}
+
+float4 blendTransition(float4 first, float4 second, float fraction) {
+    float alpha = mix(first.a, second.a, fraction);
+    float3 rgb = mix(first.rgb * first.a, second.rgb * second.a, fraction);
+    return float4(alpha > 1e-6 ? rgb / alpha : float3(0), alpha);
+}
+
+float4 compositeVisual(float4 base, float4 overlay, bool additive) {
+    float alpha = overlay.a + base.a * (1.0 - overlay.a);
+    float3 under = base.rgb * base.a;
+    if (!additive) under *= 1.0 - overlay.a;
+    float3 rgb = under + overlay.rgb * overlay.a;
+    return float4(alpha > 1e-6 ? clamp(rgb / alpha, 0.0, 1.0) : float3(0), alpha);
+}
+
+float2 regionUV(float2 faceUV, constant VisualShaderLayer &layer, constant float2 *points) {
+    uint2 ring = uint2(layer.region.xy);
+    if (maskLocation(faceUV, points, ring) < 0) return float2(-10);
+    if (layer.region.z > 0) {
+        float distance = INFINITY;
+        for (uint i = 0; i < ring.y; ++i) {
+            float2 a = points[ring.x + i];
+            float2 edge = (points[ring.x + (i + 1) % ring.y] - a) * layer.metric.xy;
+            float2 position = (faceUV - a) * layer.metric.xy;
+            float along = clamp(dot(position, edge) / max(dot(edge, edge), 1e-10), 0.0, 1.0);
+            distance = min(distance, length(position - along * edge));
+        }
+        if (distance > layer.region.z) return float2(-10);
+    }
+    return (faceUV - layer.bounds.xy) / layer.bounds.zw;
+}
+
 fragment float4 rectangleFragment(RectangleVertexOutput input [[stage_in]],
                                  constant float4 &color [[buffer(0)]],
                                  constant float3x3 &inverse [[buffer(1)]],
@@ -60,7 +221,21 @@ fragment float4 rectangleFragment(RectangleVertexOutput input [[stage_in]],
                                  constant float2 *maskPoints [[buffer(13)]],
                                  constant float2 &imageScale [[buffer(14)]],
                                  constant float3x3 &videoUV [[buffer(15)]],
-                                 texture2d<float> grid [[texture(0)]]) {
+                                 constant float &blendAmount [[buffer(16)]],
+                                 constant float4 &blendColor [[buffer(17)]],
+                                 constant uint2 &blendFlags [[buffer(18)]],
+                                 constant float &blendPhase [[buffer(19)]],
+                                 constant float4 &blendSecondary [[buffer(20)]],
+                                 constant float4 &blendParameters [[buffer(21)]],
+                                 constant float2 &blendMotion [[buffer(22)]],
+                                 constant float2 &blendScale [[buffer(23)]],
+                                 constant float3x3 &blendUV [[buffer(24)]],
+                                 constant uint &visualCount [[buffer(25)]],
+                                 constant VisualShaderLayer *visuals [[buffer(26)]],
+                                 constant float2 *regionPoints [[buffer(27)]],
+                                 texture2d<float> grid [[texture(0)]],
+                                 texture2d<float> blendTexture [[texture(1)]],
+                                 array<texture2d<float>, 14> visualTextures [[texture(2)]]) {
     // Clip in original face UV before EVERY content/calibration branch.
     if (maskRings[0].y > 0) {
         float3 mapped = inverse * float3(input.surfacePosition, 1.0);
@@ -105,64 +280,36 @@ fragment float4 rectangleFragment(RectangleVertexOutput input [[stage_in]],
         }
         return float4(float3(value * masterGain), 1.0);
     }
-    if (textured == 0) return applyAppearance(color,appearance,masterGain);
+    if (textured == 0 && blendAmount < 0 && visualCount == 0) return applyAppearance(color,appearance,masterGain);
     // Applying one homography after interpolation avoids a diagonal UV seam.
     float3 homogeneous = inverse * float3(input.surfacePosition, 1.0);
     if (!all(isfinite(homogeneous)) || abs(homogeneous.z) < 1e-8) return float4(0, 0, 0, 1);
-    float2 uv = (inputMap * float3(homogeneous.xy / homogeneous.z, 1.0)).xy;
-    if (textured == 8) {
-        float2 imageUV = (uv - 0.5) * imageScale + 0.5;
-        if (any(imageUV < 0.0) || any(imageUV > 1.0)) discard_fragment();
-        constexpr sampler imageSampler(coord::normalized,address::clamp_to_edge,filter::linear,mip_filter::linear);
-        float4 sample = grid.sample(imageSampler,(videoUV * float3(imageUV,1)).xy);
-        // Interpolate premultiplied pixels, then convert for the existing straight-alpha blend.
-        if (sample.a > 1e-6) sample.rgb /= sample.a;
-        return applyAppearance(sample,appearance,masterGain);
+    float2 faceUV = homogeneous.xy / homogeneous.z;
+    float2 uv = (inputMap * float3(faceUV, 1.0)).xy;
+    float4 first = contentSample(uv,color,textured,phase,secondary,parameters,motion,seed,imageScale,videoUV,grid);
+    if (blendAmount >= 0) {
+        float4 second = contentSample(uv,blendColor,blendFlags.x,blendPhase,blendSecondary,blendParameters,
+                                      blendMotion,blendFlags.y,blendScale,blendUV,blendTexture);
+        first = blendTransition(first, second, blendAmount);
     }
-    float scale = parameters.x;
-    float2 oriented = float2(dot(uv,motion), dot(uv,float2(-motion.y,motion.x)));
-    if (textured == 2) {
-        float blend = 0.5 + 0.5 * sin(6.2831853 * (oriented.x * scale - phase));
-        return applyAppearance(mix(color, secondary, blend),appearance,masterGain);
-    }
-    if (textured == 3) {
-        float wave = 0.5 + 0.5 * sin(6.2831853 * 8.0 * (oriented.x * scale - phase));
-        float width = max(fwidth(wave), 0.002);
-        return applyAppearance(mix(secondary, color, smoothstep(0.5 - width, 0.5 + width, wave)),appearance,masterGain);
-    }
-    if (textured == 4) {
-        // Analytic antialiased checker waves, sampled in the owner's shared canvas.
-        float2 wave = sin(6.2831853 * 4.0 * (oriented * scale - float2(phase, phase)));
-        float checker = wave.x * wave.y;
-        float width = max(fwidth(checker), 0.002);
-        return applyAppearance(mix(secondary, color, smoothstep(-width, width, checker)),appearance,masterGain);
-    }
-    if (textured == 5) {
-        float2 p = oriented * scale * 6.2831853;
-        float t = phase * 6.2831853;
-        float blend = 0.5 + parameters.y * (sin(p.x + t) + sin(p.y - t) + sin(p.x+p.y+2.0*cos(t))) / 6.0;
-        return applyAppearance(mix(color,secondary,clamp(blend,0.0,1.0)),appearance,masterGain);
-    }
-    if (textured == 6) {
-        float t = phase * 6.2831853;
-        float blend = valueNoise(uv * scale * 12.0 + float2(cos(t),sin(t)) * 2.0,seed);
-        return applyAppearance(mix(color,secondary,clamp(0.5 + (blend-0.5)*parameters.y*2.0,0.0,1.0)),appearance,masterGain);
-    }
-    if (textured == 7) {
-        int count = int(parameters.z);
-        float2 p = fract(uv - motion * phase) * float(count);
-        int2 base = int2(floor(p)); float glow = 0.0;
-        // One seeded particle per cell; only nine local cells can intersect this pixel.
-        for (int y=-1; y<=1; ++y) for (int x=-1; x<=1; ++x) {
-            int2 cell = base + int2(x,y);
-            int2 wrapped = (cell + count) % count;
-            float2 center = float2(randomValue(wrapped,seed), randomValue(wrapped,seed ^ 0x9e3779b9u));
-            float distance = length(p - (float2(cell)+center));
-            float edge = max(length(fwidth(p)),0.002);
-            glow = max(glow,1.0-smoothstep(max(0.0,parameters.w-edge),parameters.w+edge,distance));
+    for (uint index = 0; index < visualCount; ++index) {
+        constant VisualShaderLayer &layer = visuals[index];
+        float2 coordinate = uv;
+        if (layer.region.y > 0) {
+            coordinate = regionUV(faceUV, layer, regionPoints);
+            if (coordinate.x < -1) continue;
         }
-        return applyAppearance(mix(secondary,color,glow),appearance,masterGain);
+        float2 d = coordinate - layer.transform.xy;
+        float2 sampleUV = float2(d.x * layer.style.y + d.y * layer.style.x,
+                                -d.x * layer.style.x + d.y * layer.style.y) * layer.transform.zw + 0.5;
+        if (any(sampleUV < 0.0) || any(sampleUV > 1.0)) continue;
+        float4 overlay = sampleVisual(sampleUV, layer.first, visualTextures[index * 2]);
+        if (layer.region.w >= 0) {
+            float4 next = sampleVisual(sampleUV, layer.second, visualTextures[index * 2 + 1]);
+            overlay = blendTransition(overlay, next, layer.region.w);
+        }
+        overlay.a *= layer.style.z;
+        first = compositeVisual(first, overlay, layer.style.w > 0);
     }
-    constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear, mip_filter::linear);
-    return applyAppearance(grid.sample(sampling, uv),appearance,masterGain);
+    return applyAppearance(first,appearance,masterGain);
 }

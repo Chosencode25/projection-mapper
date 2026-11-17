@@ -1,7 +1,7 @@
 import Foundation
 
 enum SurfaceContent: String, CaseIterable, Identifiable, Sendable, Codable {
-    case diagnosticGrid, solid, gradient, movingLines, movingCheckers, plasma, noise, particles, image, video
+    case diagnosticGrid, solid, gradient, movingLines, movingCheckers, plasma, noise, particles, image, video, snowfall, twinkle, candyCane, stars, icicles, ornaments
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -15,12 +15,21 @@ enum SurfaceContent: String, CaseIterable, Identifiable, Sendable, Codable {
         case .particles: "Particles"
         case .image: "Image"
         case .video: "Video"
+        case .snowfall: "Snowfall"
+        case .twinkle: "Twinkle"
+        case .candyCane: "Candy-cane stripes"
+        case .stars: "Stars"
+        case .icicles: "Icicles"
+        case .ornaments: "Ornaments"
         }
     }
+    static let holidayPresets: [Self] = [.snowfall, .twinkle, .candyCane, .stars, .icicles, .ornaments]
     var isAnimated: Bool { self != .solid && self != .diagnosticGrid && self != .image }
     var isProceduralAnimation: Bool { isAnimated && self != .video }
     var shaderKind: UInt32 {
-        switch self { case .solid: 0; case .diagnosticGrid: 1; case .gradient: 2; case .movingLines: 3; case .movingCheckers: 4; case .plasma: 5; case .noise: 6; case .particles: 7; case .image, .video: 8 }
+        switch self { case .solid: 0; case .diagnosticGrid: 1; case .gradient: 2; case .movingLines: 3; case .movingCheckers: 4; case .plasma: 5; case .noise: 6; case .particles: 7; case .image, .video: 8
+        case .snowfall: 9; case .twinkle: 10; case .candyCane: 11
+        case .stars: 12; case .icicles: 13; case .ornaments: 14 }
     }
 }
 
@@ -105,15 +114,53 @@ struct RenderSurface: Equatable, Sendable {
     var image: ImageContent?
     var video: VideoContent?
     var timelineClips: [EffectClip] = []
+    var choreography: [ChoreographyClip] = []
     var playback = SourcePlayback()
+    var visuals: [RenderVisual] = []
+    var hasAnimatedContent: Bool {
+        (content.isAnimated && !playback.isPaused) || visuals.contains { $0.track.isVisible && $0.isAnimated }
+    }
     /// Gaps in sequenced tracks are dark. Empty tracks preserve the live editor source.
     func evaluated(at time: Double, calibrationActive: Bool = false) -> Self {
+        if !calibrationActive, let id = sourceID,
+           let sample = choreography.lazy.compactMap({ $0.sample(at: time, target: id) }).first {
+            var copy = self
+            copy.content = .solid
+            copy.color = sample.active ? sample.color : SIMD4(0, 0, 0, 1)
+            return copy
+        }
         guard !timelineClips.isEmpty else { return self }
-        var copy = self
-        guard let clip = timelineClips.first(where: { $0.contains(time) }) else {
+        guard let clip = timelineClips.last(where: { $0.contains(time) }) else {
+            var copy = self
             if !calibrationActive { copy.appearance.opacity = 0 }
             return copy
         }
+        return applying(clip)
+    }
+
+    func activeChoreography(at time: Double) -> Bool {
+        guard let sourceID else { return false }
+        return choreography.contains { $0.sample(at: time, target: sourceID) != nil }
+    }
+
+    func transition(at time: Double) -> (outgoing: EffectClip, incoming: EffectClip, amount: Float)? {
+        guard !activeChoreography(at: time),
+              let incoming = timelineClips.last(where: { $0.contains(time) }),
+              let duration = incoming.transition, duration > 0, time < incoming.start + duration,
+              let outgoing = timelineClips.first(where: { $0.id != incoming.id && $0.contains(time) }) else { return nil }
+        let curve = incoming.transitionCurve == .eased ? CueCurve.eased : .linear
+        return (outgoing, incoming, Float(curve.evaluate((time - incoming.start) / duration)))
+    }
+
+    func videoFrameKey(for clipID: UUID?) -> UUID? {
+        guard let clipID, let index = timelineClips.firstIndex(where: { $0.id == clipID }) else { return sourceID }
+        let incoming = (timelineClips[index].transition ?? 0) > 0
+        let outgoing = timelineClips.indices.contains(index + 1) && (timelineClips[index + 1].transition ?? 0) > 0
+        return incoming || outgoing ? clipID : sourceID
+    }
+
+    func applying(_ clip: EffectClip) -> Self {
+        var copy = self
         copy.content = clip.source.content; copy.color = clip.source.color
         copy.generator = clip.source.generator; copy.image = clip.source.image; copy.video = clip.source.video
         copy.playback = SourcePlayback(offset: -clip.start)
@@ -121,7 +168,7 @@ struct RenderSurface: Equatable, Sendable {
     }
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.geometry == rhs.geometry && lhs.color == rhs.color && lhs.content == rhs.content && (lhs.content != .video || lhs.sourceID == rhs.sourceID) &&
-        lhs.inputMap == rhs.inputMap && lhs.generator == rhs.generator && lhs.playback == rhs.playback && lhs.appearance == rhs.appearance && lhs.mask == rhs.mask && lhs.image == rhs.image && lhs.video == rhs.video && lhs.timelineClips == rhs.timelineClips
+        lhs.inputMap == rhs.inputMap && lhs.generator == rhs.generator && lhs.playback == rhs.playback && lhs.appearance == rhs.appearance && lhs.mask == rhs.mask && lhs.image == rhs.image && lhs.video == rhs.video && lhs.timelineClips == rhs.timelineClips && lhs.choreography == rhs.choreography && lhs.visuals == rhs.visuals
     }
     var perspective: PerspectiveTransform? { inputMap.isValid && appearance.isValid && (mask?.allowsRendering ?? true) ? PerspectiveTransform(geometry) : nil }
 }
@@ -145,7 +192,7 @@ struct RenderScene: Equatable, Sendable {
             var copy = original; copy.appearance = .defaults; return copy
         }
     }
-    var hasAnimation: Bool { surfaces.contains { $0.content.isAnimated && $0.appearance.opacity > 0 && $0.perspective != nil } }
+    var hasAnimation: Bool { surfaces.contains { $0.hasAnimatedContent && $0.appearance.opacity > 0 && $0.perspective != nil } }
     var needsContinuousRendering: Bool { needsContinuousRendering(at: ProcessInfo.processInfo.systemUptime) }
     func effectiveGain(at uptime: TimeInterval) -> Float {
         let brightness = masterBrightness.isFinite ? min(1, max(0, masterBrightness)) : 0
@@ -154,14 +201,14 @@ struct RenderScene: Equatable, Sendable {
     func needsContinuousRendering(at uptime: TimeInterval) -> Bool {
         let visible = effectiveSurfaces.filter { $0.appearance.opacity > 0 && $0.perspective != nil }
         return needsContinuousRendering(at: uptime, hasVisibleSurface: !visible.isEmpty,
-                                        hasRunningAnimation: visible.contains { $0.content.isAnimated && !$0.playback.isPaused })
+                                        hasRunningAnimation: visible.contains { $0.hasAnimatedContent })
     }
     /// The renderer supplies eligibility cached alongside its prepared geometry.
     func needsContinuousRendering(at uptime: TimeInterval, hasVisibleSurface: Bool, hasRunningAnimation: Bool) -> Bool {
         guard calibration.isValid, calibration.pattern != .black, masterBrightness.isFinite, masterBrightness > 0, !showOutput.isBlackout else { return false }
         if outputTimingFixtureActive, effectiveGain(at: uptime) > 0 { return true }
         if showOutput.isFading(at: uptime), hasVisibleSurface { return true }
-        return !calibration.pattern.isActive && effectiveGain(at: uptime) > 0 && transport.isPlaying && (hasRunningAnimation || (hasVisibleSurface && surfaces.contains { !$0.timelineClips.isEmpty }))
+        return !calibration.pattern.isActive && effectiveGain(at: uptime) > 0 && transport.isPlaying && (hasRunningAnimation || (hasVisibleSurface && surfaces.contains { !$0.timelineClips.isEmpty || !$0.choreography.isEmpty }))
     }
     init(surfaces: [RenderSurface], transport: AnimationTransport = AnimationTransport(),
          masterBrightness: Float = 1, showOutput: ShowOutputState = ShowOutputState(),

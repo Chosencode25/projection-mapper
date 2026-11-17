@@ -154,7 +154,7 @@ struct MetalRendererTests {
         return view.subviews.lazy.compactMap { findSceneView(in: $0) }.first
     }
 
-    private func centerPixel(_ renderer: MetalRenderer) throws -> [UInt8] {
+    private func centerPixel(_ renderer: MetalRenderer, at time: Double? = nil) throws -> [UInt8] {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: MetalRenderer.pixelFormat,
                                                                   width: 16, height: 16, mipmapped: false)
         descriptor.storageMode = .shared
@@ -162,7 +162,7 @@ struct MetalRendererTests {
         let texture = try #require(renderer.device.makeTexture(descriptor: descriptor))
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = texture
-        let command = try #require(renderer.encodeScene(to: pass))
+        let command = try #require(renderer.encodeScene(to: pass, evaluationTime: time))
         command.commit()
         command.waitUntilCompleted()
         #expect(command.status == .completed && command.error == nil)
@@ -172,6 +172,32 @@ struct MetalRendererTests {
                              from: MTLRegionMake2D(8, 8, 1, 1), mipmapLevel: 0)
         }
         return pixel
+    }
+
+    @Test func holidayEffectsAreDeterministicAndCrossfadeOnTheSharedSurface() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let geometry = NormalizedRectangle.diagnostic
+        for content in SurfaceContent.holidayPresets {
+            let scene = RenderScene(geometry: geometry, color: SIMD4(1, 0.5, 0.1, 1), content: content)
+            let renderer = try MetalRenderer(scene: scene, deviceProvider: { device })
+            let first = try centerPixel(renderer, at: 1.25)
+            _ = try centerPixel(renderer, at: 2.5)
+            #expect(try centerPixel(renderer, at: 1.25) == first)
+        }
+        var red = SurfaceSource(); red.color = SIMD4(1, 0, 0, 1); red.content = .solid
+        var blue = red; blue.color = SIMD4(0, 0, 1, 1)
+        let first = EffectClip(sourceID: red.id, start: 0, duration: 4, source: SourceLook(source: red))
+        let second = EffectClip(sourceID: red.id, start: 3, duration: 3, source: SourceLook(source: blue),
+                                transition: 1, transitionCurve: .linear)
+        #expect(EffectClip.validSequence([first, second]))
+        let surface = RenderSurface(geometry: geometry, color: red.color, sourceID: red.id, timelineClips: [first, second])
+        let renderer = try MetalRenderer(scene: RenderScene(surfaces: [surface]), deviceProvider: { device })
+        let start = try centerPixel(renderer, at: 3)
+        let middle = try centerPixel(renderer, at: 3.5)
+        let end = try centerPixel(renderer, at: 4)
+        #expect(start[2] > 240 && start[0] < 10)
+        #expect(middle[2] > 110 && middle[0] > 110 && abs(Int(middle[0]) - Int(middle[2])) < 5)
+        #expect(end[0] > 240 && end[2] < 10)
     }
 
     @Test func compiledPipelineRendersSuppliedVerticesAndColor() throws {
@@ -206,6 +232,8 @@ struct MetalRendererTests {
         var point = SIMD2<Float>.zero
         rings.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!,length: $0.count,index: 12) }
         encoder.setFragmentBytes(&point,length: MemoryLayout<SIMD2<Float>>.stride,index: 13)
+        var disabledBlend: Float = -1
+        encoder.setFragmentBytes(&disabledBlend, length: MemoryLayout<Float>.stride, index: 16)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: positions.count)
         encoder.endEncoding()
         command.commit()
@@ -391,5 +419,81 @@ private final class UnavailableDrawableView: MTKView {
     override var currentRenderPassDescriptor: MTLRenderPassDescriptor? {
         descriptorRequests += 1
         return nil
+    }
+}
+
+extension MetalRendererTests {
+    @Test func visualCompositionUsesOrderedAlphaAndFaceLocalOutlines() throws {
+        let face = MappingSurface(color: SIMD4(0.2, 0, 0, 1), content: .solid)
+        var project = MappingProject(surface: face)
+        let blue = VisualTrack(source: SurfaceSource(content: .solid, color: SIMD4(0, 0, 1, 1)),
+                               name: "Blue", opacity: 0.5)
+        let green = VisualTrack(source: SurfaceSource(content: .solid, color: SIMD4(0, 1, 0, 1)),
+                                name: "Green", blend: .add, opacity: 0.5)
+        project.visualLayers = [blue, green].map { VisualLayer(ownerID: face.source.id, track: $0) }
+        let border = FaceRegion(faceID: face.id, track: VisualTrack(name: "Frame"), outline: 0.20)
+        project.faceRegions = [border]
+        let renderer = try MetalRenderer(scene: project.renderScene)
+        let center = try centerPixel(renderer, at: 1)
+        #expect(abs(Int(center[0]) - 128) <= 1 && abs(Int(center[1]) - 128) <= 1 && abs(Int(center[2]) - 26) <= 1)
+        #expect(try pixel(renderer, x: 17, y: 32) == [255, 255, 255, 255])
+
+        project.visualLayers?.reverse()
+        renderer.setScene(project.renderScene)
+        #expect(try abs(Int(centerPixel(renderer, at: 1)[1]) - 64) <= 1)
+
+        project.surfaces[0].mask = FaceMask(holes: [
+            MaskPolygon(points: [SIMD2(0.3, 0.3), SIMD2(0.7, 0.3), SIMD2(0.7, 0.7), SIMD2(0.3, 0.7)])
+        ])
+        renderer.setScene(project.renderScene)
+        #expect(try centerPixel(renderer, at: 1) == [0, 0, 0, 255])
+        #expect(try pixel(renderer, x: 17, y: 32) == [255, 255, 255, 255])
+    }
+
+    @Test func timedTextAndMouthShapesRenderDistinctOutput() throws {
+        let face = MappingSurface(color: SIMD4(0, 0, 0, 1), content: .solid)
+        var project = MappingProject(surface: face)
+        let text = VisualTrack(name: "Count", kind: .text,
+                               text: ProjectionText(mode: .countdown, size: 0.75, countdownEnd: 4))
+        let singing = VisualTrack(name: "Ornament", kind: .singingFace,
+                                  mouthKeys: [MouthKey(time: 8, shape: .open), MouthKey(time: 9, shape: .closed)])
+        project.visualLayers = [text, singing].map { VisualLayer(ownerID: face.source.id, track: $0) }
+        project.timelineClips = [
+            EffectClip(sourceID: text.id, start: 0, duration: 6, source: SourceLook(source: text.source)),
+            EffectClip(sourceID: singing.id, start: 7, duration: 4, source: SourceLook(source: singing.source))
+        ]
+        let renderer = try MetalRenderer(scene: project.renderScene)
+        let count = try visualPixels(renderer, at: 1)
+        #expect(count != (try visualPixels(renderer, at: 3)))
+        let gap = try visualPixels(renderer, at: 6)
+        #expect(count != gap)
+        let open = try visualPixels(renderer, at: 8)
+        #expect(open != (try visualPixels(renderer, at: 9)))
+        #expect(open == (try visualPixels(renderer, at: 8)))
+    }
+
+    private func pixel(_ renderer: MetalRenderer, x: Int, y: Int) throws -> [UInt8] {
+        let bytes = try visualPixels(renderer, at: 1)
+        let index = (y * 64 + x) * 4
+        return Array(bytes[index..<(index + 4)])
+    }
+
+    private func visualPixels(_ renderer: MetalRenderer, at time: Double) throws -> [UInt8] {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: MetalRenderer.pixelFormat,
+                                                                  width: 64, height: 64, mipmapped: false)
+        descriptor.storageMode = .shared
+        descriptor.usage = .renderTarget
+        let texture = try #require(renderer.device.makeTexture(descriptor: descriptor))
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = texture
+        let command = try #require(renderer.encodeScene(to: pass, evaluationTime: time))
+        command.commit()
+        command.waitUntilCompleted()
+        #expect(command.status == .completed && command.error == nil)
+        var bytes = [UInt8](repeating: 0, count: 64 * 64 * 4)
+        bytes.withUnsafeMutableBytes {
+            texture.getBytes($0.baseAddress!, bytesPerRow: 64 * 4, from: MTLRegionMake2D(0, 0, 64, 64), mipmapLevel: 0)
+        }
+        return bytes
     }
 }

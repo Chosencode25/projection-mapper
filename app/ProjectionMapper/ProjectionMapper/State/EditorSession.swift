@@ -4,9 +4,37 @@ import UniformTypeIdentifiers
 import Observation
 import simd
 
+enum ProjectWorkspace: String, CaseIterable, Identifiable {
+    case edit = "Edit", show = "Show"
+    var id: Self { self }
+}
+
 @MainActor
 @Observable
 final class EditorSession {
+    private(set) var workspace = ProjectWorkspace.edit
+    var canvasZoom = 1.0
+    var canvasCenter = CGPoint(x: 0.5, y: 0.5)
+    var timelineScrollX = 0.0
+    var timelineScale = 24.0
+    var timelineSnap = true
+    var timelineFollow = true
+
+    var needsPauseToEdit: Bool {
+        workspace == .show && (transport.isPlaying || songRequested)
+    }
+
+    func switchWorkspace(to target: ProjectWorkspace, pauseRunningShow: Bool = false,
+                         at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard workspace != target else { return }
+        if target == .edit && needsPauseToEdit {
+            guard pauseRunningShow else { return }
+            setPlaying(false, at: uptime)
+        }
+        endContinuousEdit()
+        workspace = target
+    }
+
     private(set) var songPeaks: [Float] = []
     private(set) var songMessage: String?
     private(set) var songBusy = false
@@ -29,6 +57,20 @@ final class EditorSession {
     @ObservationIgnored private var songSeeking = false
     @ObservationIgnored private var songRequested = false
     @ObservationIgnored private var songDeviceCheck = 0.0
+
+    struct QueuedBeatAction {
+        var cueID: UUID?
+        var lookID: UUID?
+        var name: String
+        var time: Double
+        var wraps: Bool
+    }
+    private(set) var queuedBeat: QueuedBeatAction?
+    private(set) var beatMessage: String?
+    var selectedMarkerID: UUID?
+    var markerMessage: String?
+    var nextManualCueID: UUID?
+    private(set) var lastManualCueID: UUID?
 
     let lightingSimulation = LightingSimulation()
     @ObservationIgnored private var lightingTask: Task<Void, Never>?
@@ -78,8 +120,8 @@ final class EditorSession {
     private var continuousEditName: String?
     private var continuousEditRecorded = false
     private(set) var historyNotice: String?
-    var canUndo: Bool { !undoHistory.isEmpty && !isSavingMedia && !isImportingVideo && !isImportingImage }
-    var canRedo: Bool { !redoHistory.isEmpty && !isSavingMedia && !isImportingVideo && !isImportingImage }
+    var canUndo: Bool { workspace == .edit && !undoHistory.isEmpty && !isSavingMedia && !isImportingVideo && !isImportingImage }
+    var canRedo: Bool { workspace == .edit && !redoHistory.isEmpty && !isSavingMedia && !isImportingVideo && !isImportingImage }
     var undoTitle: String { undoHistory.last.map { "Undo " + $0.name } ?? "Undo" }
     var redoTitle: String { redoHistory.last.map { "Redo " + $0.name } ?? "Redo" }
     private(set) var identifyingSourceID: UUID?
@@ -149,6 +191,8 @@ final class EditorSession {
             seekSong(to: min(seconds, song.duration), resume: songRequested)
             return
         }
+        cancelBeatQueue()
+        resetManualCues()
         let delta = seconds - transport.elapsed(at: uptime)
         transport.seek(to: seconds, at: uptime)
         for id in Array(sourcePlayback.keys) {
@@ -187,6 +231,7 @@ final class EditorSession {
     }
     func stopPlayback(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard uptime.isFinite else { return }
+        cancelBeatQueue()
         lightingSimulation.stop()
         setPlaying(false, at: uptime)
         restartPlayback(at: uptime)
@@ -198,6 +243,8 @@ final class EditorSession {
             seekSong(to: 0, resume: songRequested)
             return
         }
+        cancelBeatQueue()
+        resetManualCues()
         transport.restart(at: uptime)
         for id in Array(sourcePlayback.keys) { sourcePlayback[id] = sourcePlayback[id]?.isPaused == true ? SourcePlayback(frozenTime: 0) : SourcePlayback() }
         updateOutputScene(at: uptime)
@@ -206,6 +253,9 @@ final class EditorSession {
         guard project.song == nil else { return }
         transport.setSpeed(value, at: uptime); updateOutputScene(at: uptime)
     }
+    var selectedVisualID: UUID?
+    var isRegionEditing = false
+    var regionDraft: [SIMD2<Float>]?
     var selectedClipID: UUID? {
         didSet { if selectedClipID != nil { selectedLightingCueID = nil } }
     }
@@ -216,6 +266,7 @@ final class EditorSession {
         let clipID = selectedClip?.sourceID == track.id ? selectedClipID : nil
         clearMaskEditing()
         if track.isObject { selectObject(track.targetID) } else { selectSurface(track.targetID) }
+        if track.visualKind != nil { selectedVisualID = track.id }
         selectedClipID = clipID
     }
     func splitSelectedVideoClip(at seconds: Double) {
@@ -250,12 +301,21 @@ final class EditorSession {
         return commitTimeline(candidate)
     }
     func deleteTimelineClip(_ id: UUID) {
-        var candidate = project; candidate.timelineClips.removeAll { $0.id == id }
+        var candidate = project
+        if let clip = candidate.timelineClips.first(where: { $0.id == id }),
+           let next = candidate.timelineClips.indices.filter({
+               candidate.timelineClips[$0].sourceID == clip.sourceID && candidate.timelineClips[$0].start > clip.start
+           }).min(by: { candidate.timelineClips[$0].start < candidate.timelineClips[$1].start }),
+           candidate.timelineClips[next].start < clip.end {
+            candidate.timelineClips[next].transition = nil
+            candidate.timelineClips[next].transitionCurve = nil
+        }
+        candidate.timelineClips.removeAll { $0.id == id }
         if commitTimeline(candidate), selectedClipID == id { selectedClipID = nil }
     }
     func duplicateTimelineClip(_ id: UUID) {
         guard var copy = project.timelineClips.first(where: { $0.id == id }) else { return }
-        copy.id = UUID(); copy.start = copy.end
+        copy.id = UUID(); copy.start = copy.end; copy.transition = nil; copy.transitionCurve = nil
         var candidate = project; candidate.timelineClips.append(copy)
         if commitTimeline(candidate) { selectedClipID = copy.id }
     }
@@ -269,7 +329,7 @@ final class EditorSession {
     }
     private func commitTimeline(_ candidate: MappingProject) -> Bool {
         do { try ProjectCodec.validate(ProjectDocument(project: candidate)) }
-        catch { timelineMessage = "Clips need a free time range, at least 0.1 seconds long, within 0–3600 seconds and inside the video source range."; return false }
+        catch { timelineMessage = error.localizedDescription + ". Check the clip range and overlap."; return false }
         timelineMessage = nil
         guard candidate != project else { return true }
         project = candidate; changed(); return true
@@ -474,7 +534,7 @@ final class EditorSession {
         }
         output.restoreProjectPreference(document.output.destination,resolution: document.output.resolution)
         resetLighting()
-        selectedClipID = nil; timelineViewRequest = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
+        selectedClipID = nil; selectVisual(nil); timelineViewRequest = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); isGroupingFaces = false; editMessage = nil
         testOutput.setResolution(output.testResolution); testOutput.destinationDidChange(output.destination); updateOutputScene()
         if let song = project.song {
@@ -515,7 +575,8 @@ final class EditorSession {
         refreshLighting()
     }
     private func changed(now: Date = .now) {
-        let active = Set(project.surfaces.map { project.source(for: $0).id })
+        project.removeOrphanedVisuals()
+        let active = Set(project.surfaces.map { project.source(for: $0).id } + project.visualTracks.map(\.id))
         sourcePlayback = sourcePlayback.filter { active.contains($0.key) }
         project.timelineClips.removeAll { !active.contains($0.sourceID) }
         // Capture the previous complete model/media state before resource collection.
@@ -575,6 +636,8 @@ final class EditorSession {
     func selectSurface(_ id: UUID?) {
         guard id == nil || project.surfaces.contains(where: { $0.id == id }) else { return }
         selectedClipID = nil
+        selectedVisualID = nil
+        isRegionEditing = false; regionDraft = nil
         selectedLightingCueID = nil
         if id != nil { inspectorTab = .edit }
         if id != selectedSurfaceID { selectedCorner = nil; clearMaskEditing() }
@@ -602,6 +665,7 @@ final class EditorSession {
         selectedClipID = nil
         selectedLightingCueID = nil
         inspectorTab = .edit
+        selectedVisualID = nil; isRegionEditing = false; regionDraft = nil
         clearMaskEditing(); selectedObjectID = id; selectedSurfaceID = nil; selectedCorner = nil; editMessage = nil
     }
     func selectCorner(_ corner: SurfaceCorner?) {
@@ -650,6 +714,8 @@ final class EditorSession {
         face.layout = original.layout; face.tags = original.tags; face.source = original.source.independentCopy()
         face.appearance = original.appearance; face.appearanceOverride = original.appearanceOverride; face.mask = original.mask?.independentCopy()
         copyPlayback(from: original.source.id, to: face.source.id)
+        if original.layout.objectID == nil { copyVisualLayers(from: original.source.id, to: face.source.id) }
+        copyFaceRegions(from: original.id, to: face.id)
         project.surfaces.insert(face, at: i); selectSurface(face.id); changed()
     }
     private func uniqueCopyName(_ name: String, names: [String]) -> String {
@@ -784,6 +850,27 @@ final class EditorSession {
         guard (content != .image || selectedSource?.image != nil) && (content != .video || selectedSource?.video != nil) else { return }
         updateSource(now: now) { $0.content = content }
     }
+    func applyHolidayPreset(_ content: SurfaceContent) {
+        guard SurfaceContent.holidayPresets.contains(content) else { return }
+        updateSource { source in
+            source.content = content
+            let seed = source.generator.seed
+            source.generator = .defaults
+            source.generator.seed = seed
+            source.primaryBinding = nil
+            source.secondaryBinding = nil
+            source.color = SIMD4(0.85, 0.95, 1, 1)
+            source.generator.secondaryColor = SIMD4(0.01, 0.03, 0.12, 1)
+            switch content {
+            case .candyCane, .ornaments:
+                source.color = SIMD4(0.9, 0.03, 0.08, 1)
+                source.generator.secondaryColor = content == .candyCane ? SIMD4(1, 0.98, 0.92, 1) : SIMD4(0.02, 0.22, 0.08, 1)
+            case .stars, .twinkle: source.color = SIMD4(1, 0.8, 0.28, 1)
+            default: break
+            }
+        }
+    }
+
     func setSourceColor(_ color: SIMD4<Float>) {
         guard (0..<4).allSatisfy({ color[$0].isFinite && (0...1).contains(color[$0]) }) else { return }
         updateSource { $0.color = color; $0.primaryBinding = nil }
@@ -848,35 +935,52 @@ final class EditorSession {
         let ids = faceIDs ?? groupingSelection
         let faces = project.surfaces.filter { ids.contains($0.id) }
         guard !faces.isEmpty else { editMessage = "Check faces in the sidebar first."; return }
+        let previous = project
+        let previousPlayback = sourcePlayback
         var object = MappingObject(name: "Object \(project.objects.count + 1)", source: project.source(for: faces[0]).independentCopy())
         object.appearance = project.appearance(for: faces[0])
         copyPlayback(from: project.source(for: faces[0]).id, to: object.source.id)
+        copyVisualLayers(from: project.source(for: faces[0]).id, to: object.source.id)
         var number = 1
         while project.objects.contains(where: { $0.name == object.name }) { number += 1; object.name = "Object \(number)" }
         for (n,face) in faces.enumerated() {
-            detachSurface(face.id, notify: false)
+            detachSurface(face.id, notify: false, preserveOwnerVisuals: false)
             let i = project.surfaces.firstIndex { $0.id == face.id }!
             project.surfaces[i].layout.objectID = object.id
             project.surfaces[i].appearanceOverride = nil
             project.surfaces[i].layout.inputMap = FaceInputMap(origin: SIMD2(Float(n)/Float(faces.count),0), size: SIMD2(1/Float(faces.count),1))
             if n > 0 { object.links.append(FaceEdgeLink(firstFace: faces[n-1].id, firstEdge: .right, secondFace: face.id, secondEdge: .left)) }
         }
-        project.objects.append(object); groupingSelection.removeAll(); isGroupingFaces = false; selectObject(object.id); changed()
+        project.objects.append(object)
+        guard validateVisualMembership(previous: previous, playback: previousPlayback) else { return }
+        groupingSelection.removeAll(); isGroupingFaces = false; selectObject(object.id); changed()
     }
     func attachSurface(_ faceID: UUID, to objectID: UUID) {
         guard project.objects.contains(where: { $0.id == objectID }),
               let face = project.surfaces.first(where: { $0.id == faceID }), face.layout.objectID != objectID else { return }
-        detachSurface(faceID, notify: false)
+        let previous = project
+        let previousPlayback = sourcePlayback
+        detachSurface(faceID, notify: false, preserveOwnerVisuals: false)
         let i = project.surfaces.firstIndex { $0.id == faceID }!
-        project.surfaces[i].layout.objectID = objectID; project.surfaces[i].appearanceOverride = nil; changed()
+        project.surfaces[i].layout.objectID = objectID; project.surfaces[i].appearanceOverride = nil
+        guard validateVisualMembership(previous: previous, playback: previousPlayback) else { return }
+        changed()
     }
-    func detachSurface(_ id: UUID, notify: Bool = true) {
+    private func validateVisualMembership(previous: MappingProject, playback: [UUID:SourcePlayback]) -> Bool {
+        project.removeOrphanedVisuals()
+        guard let issue = project.visualValidationIssue else { return true }
+        project = previous; sourcePlayback = playback
+        editMessage = issue
+        return false
+    }
+    func detachSurface(_ id: UUID, notify: Bool = true, preserveOwnerVisuals: Bool = true) {
         guard let i = project.surfaces.firstIndex(where: { $0.id == id }), let object = project.object(for: project.surfaces[i]) else { return }
         project.surfaces[i].layout.isGeometryLocked = project.isGeometryLocked(project.surfaces[i])
         project.surfaces[i].appearance = project.appearance(for: project.surfaces[i])
         project.surfaces[i].appearanceOverride = nil
         project.surfaces[i].source = object.source.independentCopy()
         copyPlayback(from: object.source.id, to: project.surfaces[i].source.id)
+        if preserveOwnerVisuals { copyVisualLayers(from: object.source.id, to: project.surfaces[i].source.id) }
         // Bake effective group visibility; preserve the input region for appearance continuity.
         project.surfaces[i].layout.isVisible = project.surfaces[i].layout.isVisible && object.isVisible
         if object.mode == .repeatContent { project.surfaces[i].layout.inputMap = .full }
@@ -903,12 +1007,14 @@ final class EditorSession {
         let oldSource = object.source.id
         object.id = UUID(); object.name = uniqueCopyName(object.name, names: project.objects.map(\.name)); object.source = object.source.independentCopy()
         copyPlayback(from: oldSource, to: object.source.id)
+        copyVisualLayers(from: oldSource, to: object.source.id)
         var ids: [UUID:UUID] = [:], copies: [MappingSurface] = []
         for original in originals {
             var copy = MappingSurface(name: uniqueCopyName(original.name, names: project.surfaces.map(\.name) + copies.map(\.name)))
             copy.layout = original.layout; copy.layout.objectID = object.id; copy.source = original.source.independentCopy(); copy.tags = original.tags
             copy.appearance = original.appearance; copy.appearanceOverride = original.appearanceOverride; copy.mask = original.mask?.independentCopy()
             ids[original.id] = copy.id; copies.append(copy)
+            copyFaceRegions(from: original.id, to: copy.id)
         }
         object.links = object.links.compactMap { link in
             guard let a = ids[link.firstFace], let b = ids[link.secondFace] else { return nil }
@@ -975,7 +1081,7 @@ final class EditorSession {
         clearRecovery(); documentURL = nil; assetSourceURL = nil; isRecovered = false; fileMessage = nil
         videoPlayback.reset(); videoFiles.removeAll(); videoPosters.removeAll(); videoProblems.removeAll(); videoAudioEnabled = false; cleanupManagedVideos()
         resetLighting()
-        selectedClipID = nil; timelineViewRequest = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
+        selectedClipID = nil; selectVisual(nil); timelineViewRequest = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
         selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); isGroupingFaces = false; editMessage = nil; editCheckpoint = snapshotForHistory(); updateOutputScene()
     }
 }
@@ -1208,7 +1314,7 @@ extension EditorSession {
     }
     private func sourceForImageTarget(_ target: ImageImportTarget) -> SurfaceSource? {
         switch target {
-        case .owner(let id): return (project.objects.map(\.source) + project.surfaces.filter { $0.layout.objectID == nil }.map(\.source)).first { $0.id == id }
+        case .owner(let id): return project.visualTrack(id)?.source ?? (project.objects.map(\.source) + project.surfaces.filter { $0.layout.objectID == nil }.map(\.source)).first { $0.id == id }
         case .detach(let id): return project.surfaces.first { $0.id == id }.map { project.source(for: $0) }
         default: return nil
         }
@@ -1282,8 +1388,11 @@ extension EditorSession {
                 candidate.objects[i].source.content = .image; candidate.objects[i].source.image = image
             } else if let i = candidate.surfaces.firstIndex(where: { $0.source.id == ownerID }) {
                 candidate.surfaces[i].source.content = .image; candidate.surfaces[i].source.image = image
+            } else {
+                candidate.updateVisualTrack(ownerID) { $0.kind = .media; $0.source.content = .image; $0.source.image = image }
             }
         }
+        candidate.removeOrphanedVisuals()
         if let existing = candidate.imageAssets.first(where: { $0.id == asset.id }), target != .relink(asset.id) {
             guard existing == asset && imagePixels[asset.id] == imported.pixels else { throw ImageImportError.invalid("Image asset identity conflict.") }
         }
@@ -1413,8 +1522,11 @@ extension EditorSession {
                 candidate.objects[i].source.content = .video; candidate.objects[i].source.video = content
             } else if let i = candidate.surfaces.firstIndex(where: { $0.source.id == owner }) {
                 candidate.surfaces[i].source.content = .video; candidate.surfaces[i].source.video = content
+            } else {
+                candidate.updateVisualTrack(owner) { $0.kind = .media; $0.source.content = .video; $0.source.video = content }
             }
         }
+        candidate.removeOrphanedVisuals()
         if let old = candidate.videoAssets.first(where: { $0.id == asset.id }) {
             guard old == asset, videoFiles[asset.id] == imported.url else { throw ProjectFileError.invalid("Video identity conflict.") }
         } else { candidate.videoAssets.append(asset) }
@@ -1485,6 +1597,8 @@ extension EditorSession {
         undoHistory.removeAll(); redoHistory.removeAll(); editCheckpoint = nil
         continuousEditName = nil; continuousEditRecorded = false; historyNotice = nil
     }
+    var isContinuousEditing: Bool { continuousEditName != nil }
+
     func beginContinuousEdit(_ name: String = "Adjust Settings") {
         guard continuousEditName == nil else { return }
         continuousEditName = name; continuousEditRecorded = false
@@ -1502,6 +1616,11 @@ extension EditorSession {
     private func editName(from old: MappingProject) -> String {
         if old.name != project.name { return "Rename Project" }
         if old.objects != project.objects { return "Edit Object" }
+        if old.layers != project.layers || old.regions != project.regions || old.regionShapes != project.regionShapes {
+            return "Edit Layers and Regions"
+        }
+        if old.choreographyClips != project.choreographyClips { return "Edit Choreography" }
+        if old.showMarkers != project.showMarkers { return "Edit Show Markers" }
         if old.song != project.song { return "Edit Soundtrack" }
         if old.lighting != project.lighting { return "Edit Lighting" }
         if old.timelineClips != project.timelineClips { return "Edit Timeline" }
@@ -1557,6 +1676,8 @@ extension EditorSession {
                 try? installSong(PreparedSong(song: song, bytes: bytes, peaks: snapshot.songPeaks))
             }
         }
+        cancelBeatQueue()
+        resetManualCues()
         project = snapshot.project; imagePixels = snapshot.pixels; imageFiles = snapshot.imageFiles
         imageProblems = snapshot.imageProblems; videoFiles = snapshot.videoFiles; videoPosters = snapshot.posters
         videoProblems = snapshot.videoProblems; mediaStamps = snapshot.mediaStamps
@@ -1564,6 +1685,7 @@ extension EditorSession {
         if let id = selectedSurfaceID, !faces.contains(id) { selectedSurfaceID = project.surfaces.first?.id }
         if let id = selectedObjectID, !objects.contains(id) { selectedObjectID = nil }
         if let id = selectedClipID, !project.timelineClips.contains(where: { $0.id == id }) { selectedClipID = nil }
+        if let id = selectedVisualID, project.visualTrack(id) == nil { selectVisual(nil) }
         groupingSelection.formIntersection(faces); selectedCorner = nil; clearMaskEditing()
         sourcePlayback = sourcePlayback.filter { id,_ in project.timelineTracks.contains { $0.id == id } }
         identifyingSourceID = nil; editCheckpoint = snapshotForHistory()
@@ -1621,6 +1743,11 @@ extension EditorSession {
                 }
             }
         }
+        for track in project.visualTracks where track.kind == .text && !track.text.font.isEmpty {
+            if NSFont(name: track.text.font, size: 12) == nil {
+                add("font-\(track.id)", .warning, "\(track.name): font \(track.text.font) is unavailable. Using the system font.")
+            }
+        }
         for id in project.referencedImageIDs.sorted(by: { $0.uuidString < $1.uuidString }) {
             if imagePixels[id] == nil || imageProblems[id] != nil {
                 let name = project.imageAssets.first { $0.id == id }?.name ?? id.uuidString
@@ -1648,7 +1775,7 @@ extension EditorSession {
                 add("song", .blocker, "Soundtrack unavailable. Replace or remove " + song.name + ".")
             }
             let clipEnd = project.timelineClips.map(\.end).max() ?? 0
-            let cueEnd = project.lighting.cues.map(\.time).max() ?? 0
+            let cueEnd = project.lighting.cues.filter { !$0.isManual }.map(\.time).max() ?? 0
             if max(clipEnd, cueEnd) > song.duration {
                 add("song-range", .warning, "Some projection clips or lighting cues extend beyond the soundtrack.")
             }
@@ -1683,6 +1810,7 @@ extension EditorSession {
         guard lighting != project.lighting else { return true }
         project.lighting = lighting
         if !lighting.looks.contains(where: { $0.id == selectedFixtureLookID }) { selectedFixtureLookID = nil }
+        if let nextManualCueID, !lighting.cues.contains(where: { $0.id == nextManualCueID }) { resetManualCues() }
         if !lighting.cues.contains(where: { $0.id == selectedLightingCueID }) { selectedLightingCueID = nil }
         changed()
         return true
@@ -1716,6 +1844,11 @@ extension EditorSession {
     }
 
     private func resetLighting() {
+        cancelBeatQueue()
+        selectedMarkerID = nil
+        markerMessage = nil
+        nextManualCueID = nil
+        resetManualCues()
         lightingTask?.cancel()
         lightingTask = nil
         selectedLightingCueID = nil
@@ -1728,8 +1861,11 @@ extension EditorSession {
         if songAudioOnly && project.song != nil {
             lightingSimulation.stop()
         }
-        lightingSimulation.update(project.lighting, at: transport.elapsed(at: uptime))
-        if transport.followsSong || !transport.isPlaying || project.lighting.controllers.isEmpty {
+        let time = transport.elapsed(at: uptime)
+        if transport.isPlaying { fireBeatQueue(at: time, uptime: uptime) }
+        lightingSimulation.update(project.lighting, at: time, uptime: uptime, choreography: project.choreographyClips)
+        let needsTimer = (!transport.followsSong && transport.isPlaying) || lightingSimulation.hasManualTransitions(at: uptime)
+        if !needsTimer || (project.lighting.controllers.isEmpty && queuedBeat == nil) {
             lightingTask?.cancel()
             lightingTask = nil
         } else if lightingTask == nil {
@@ -1801,6 +1937,7 @@ extension EditorSession {
             return
         }
         guard song.loop != loop else { return }
+        cancelBeatQueue()
         song.loop = loop
         project.song = song
         if songRequested { setSongPlaying(true) }
@@ -1881,7 +2018,7 @@ extension EditorSession {
             if songSeeking { return }
             if transport.position >= song.duration ||
                 (song.loop.map { transport.position < $0.start || transport.position >= $0.end } ?? false) {
-                seekSong(to: song.loop?.start ?? 0, resume: true)
+                seekSong(to: song.loop?.start ?? 0, resume: true, wrapping: song.loop != nil)
                 return
             }
             player.currentItem?.forwardPlaybackEndTime = song.loop.map {
@@ -1901,8 +2038,11 @@ extension EditorSession {
         }
     }
 
-    private func seekSong(to time: Double, resume: Bool) {
+    private func seekSong(to time: Double, resume: Bool, wrapping: Bool = false) {
         guard let player = songPlayer else { return }
+        if wrapping { queuedBeat?.wraps = false }
+        else { cancelBeatQueue() }
+        resetManualCues()
         songSeekID = UUID()
         let seekID = songSeekID
         songSeeking = true
@@ -1963,11 +2103,14 @@ extension EditorSession {
         let current = player.currentTime().seconds
         guard current.isFinite else { return }
         if let loop = song.loop, current >= loop.end - 0.0001 {
-            seekSong(to: loop.start, resume: true)
+            fireBeatQueue(at: loop.end, uptime: uptime)
+            seekSong(to: loop.start, resume: true, wrapping: true)
         } else if current >= song.duration - 0.0001 ||
                   (player.rate == 0 && current > 0 && abs((player.currentItem?.duration.seconds ?? 0) - current) < 0.02) {
             setSongPlaying(false)
             lightingSimulation.stop()
+            cancelBeatQueue()
+            resetManualCues()
             sampleSong(at: song.duration, playing: false)
         } else {
             let waiting = player.timeControlStatus == .waitingToPlayAtSpecifiedRate
@@ -1981,5 +2124,298 @@ extension EditorSession {
         guard position.isFinite else { return }
         transport.sampleSong(position, playing: playing)
         updateOutputScene()
+    }
+}
+
+extension EditorSession {
+    var manualCueList: [LightingCue] {
+        project.lighting.cues.enumerated().sorted {
+            $0.element.time == $1.element.time ? $0.offset < $1.offset : $0.element.time < $1.element.time
+        }.map(\.element)
+    }
+
+    func goManualCue(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard !songAudioOnly else { return }
+        let cues = manualCueList
+        guard let index = nextManualCueID.flatMap({ id in cues.firstIndex(where: { $0.id == id }) }) ??
+                (lastManualCueID == nil ? cues.indices.first : nil) else { return }
+        let cue = cues[index]
+        lightingSimulation.trigger(cue, at: uptime)
+        lastManualCueID = cue.id
+        nextManualCueID = cues.indices.contains(index + 1) ? cues[index + 1].id : nil
+        refreshLighting(at: uptime)
+    }
+
+    func stopManualFixtures() {
+        lightingSimulation.stop()
+        resetManualCues()
+        refreshLighting()
+    }
+
+    func resetManualCues() {
+        lightingSimulation.clearManualCues()
+        lastManualCueID = nil
+        nextManualCueID = nil
+    }
+
+    func setShowMarkers(_ markers: [ShowMarker]) {
+        guard markers.count <= 2048, markers.allSatisfy(\.isValid),
+              Set(markers.map(\.id)).count == markers.count else {
+            markerMessage = "Use valid marker names and times. A show can have up to 2,048 markers."
+            return
+        }
+        markerMessage = nil
+        guard markers != project.showMarkers else { return }
+        cancelBeatQueue()
+        project.markers = markers.isEmpty ? nil : markers
+        changed()
+    }
+
+    func putShowMarker(_ marker: ShowMarker) {
+        var markers = project.showMarkers
+        if let index = markers.firstIndex(where: { $0.id == marker.id }) { markers[index] = marker }
+        else { markers.append(marker) }
+        setShowMarkers(markers)
+        if project.showMarkers.contains(where: { $0.id == marker.id }) { selectedMarkerID = marker.id }
+    }
+
+    func moveToShowMarker(forward: Bool) {
+        let time = transport.elapsed(at: ProcessInfo.processInfo.systemUptime)
+        let markers = project.showMarkers.sorted { $0.time < $1.time }
+        guard let marker = forward ? markers.first(where: { $0.time > time + 0.001 })
+                                   : markers.last(where: { $0.time < time - 0.001 }) else { return }
+        jumpToShowMarker(marker)
+    }
+
+    func jumpToShowMarker(_ marker: ShowMarker) {
+        setPlaying(false)
+        seekPlayback(to: marker.time)
+        selectedMarkerID = marker.id
+    }
+}
+
+
+extension EditorSession {
+    func setChoreography(_ clips: [ChoreographyClip]) -> Bool {
+        guard ChoreographyClip.validSequence(clips) else {
+            timelineMessage = "Check the targets, timing, and overlaps on shared targets."
+            return false
+        }
+        timelineMessage = nil
+        guard project.choreographyClips != clips else { return true }
+        project.choreography = clips.isEmpty ? nil : clips
+        changed()
+        return true
+    }
+
+    func setClipTransition(_ clip: EffectClip, duration: Double, curve: CueCurve) {
+        guard duration.isFinite, duration >= 0,
+              let previous = project.timelineClips.filter({ $0.sourceID == clip.sourceID && $0.start < clip.start })
+                .max(by: { $0.start < $1.start }) else {
+            timelineMessage = "Choose a clip with an earlier clip on the same track."
+            return
+        }
+        var edited = clip
+        edited.start = previous.end - duration
+        edited.duration = clip.end - edited.start
+        edited.transition = duration == 0 ? nil : duration
+        edited.transitionCurve = duration == 0 ? nil : curve
+        if !updateTimelineClip(edited) {
+            timelineMessage = "The fade needs two overlapping clips within their media ranges."
+        }
+    }
+
+    func queueBeat(_ boundary: BeatBoundary, lookID: UUID? = nil, at uptime: Double = ProcessInfo.processInfo.systemUptime) {
+        guard !songAudioOnly else { beatMessage = "Turn off Audio-Only Rehearsal to queue lighting."; return }
+        let cue = nextManualCueID.flatMap { id in manualCueList.first { $0.id == id } }
+            ?? (lastManualCueID == nil ? manualCueList.first : nil)
+        let look = project.lighting.looks.first { $0.id == lookID }
+        guard let name = look?.name ?? cue?.name else { beatMessage = "Choose a cue or lighting look."; return }
+        guard let next = boundary.next(in: project.showMarkers, after: transport.elapsed(at: uptime),
+                                      loop: project.song?.loop, end: project.song?.duration ?? 3600) else {
+            beatMessage = "No \(boundary == .bar ? "downbeat" : "beat") remains in the playback range."
+            return
+        }
+        queuedBeat = QueuedBeatAction(cueID: look == nil ? cue?.id : nil, lookID: look?.id,
+                                      name: name, time: next.time, wraps: next.wraps)
+        beatMessage = nil
+        refreshLighting(at: uptime)
+    }
+
+    func cancelBeatQueue() {
+        queuedBeat = nil
+        beatMessage = nil
+    }
+
+    private func fireBeatQueue(at time: Double, uptime: Double) {
+        guard let queuedBeat, !queuedBeat.wraps, time >= queuedBeat.time else { return }
+        self.queuedBeat = nil
+        guard !songAudioOnly else { return }
+        if let id = queuedBeat.cueID, project.lighting.cues.contains(where: { $0.id == id }) {
+            nextManualCueID = id
+            goManualCue(at: uptime)
+        } else if let look = project.lighting.looks.first(where: { $0.id == queuedBeat.lookID }) {
+            lightingSimulation.trigger(LightingCue(name: look.name, time: time, entries: look.entries), at: uptime)
+        } else {
+            beatMessage = "The queued cue or look was removed."
+        }
+    }
+}
+
+extension EditorSession {
+    func selectVisual(_ id: UUID?) {
+        guard selectedVisualID != id else { return }
+        selectedVisualID = id
+        isRegionEditing = false
+        regionDraft = nil
+    }
+
+    private func commitVisual(_ candidate: MappingProject) -> Bool {
+        guard workspace == .edit else { return false }
+        return commitShowEdit(candidate)
+    }
+
+    func addLayer(ownerID: UUID) {
+        let count = project.layers.filter { $0.ownerID == ownerID }.count
+        guard count < MappingProject.maximumLayersPerOwner else { return }
+        var candidate = project
+        let layer = VisualLayer(ownerID: ownerID, track: VisualTrack(name: "Layer \(count + 1)", opacity: 0.5))
+        candidate.visualLayers = candidate.layers + [layer]
+        if commitVisual(candidate) { selectVisual(layer.id) }
+    }
+
+    func addRegion(faceID: UUID) {
+        let count = project.regions.filter { $0.faceID == faceID }.count
+        guard count < MappingProject.maximumRegionsPerFace else { return }
+        var candidate = project
+        let shape = MaskPolygon(points: [SIMD2(0.1, 0.1), SIMD2(0.9, 0.1), SIMD2(0.9, 0.9), SIMD2(0.1, 0.9)])
+        let region = FaceRegion(faceID: faceID, track: VisualTrack(name: "Region \(count + 1)"), shape: shape, outline: 0.03)
+        candidate.faceRegions = candidate.regions + [region]
+        if commitVisual(candidate) { selectVisual(region.id) }
+    }
+
+    func updateVisual(_ id: UUID, _ edit: (inout VisualTrack) -> Void) {
+        guard project.visualTrack(id) != nil else { return }
+        var candidate = project
+        candidate.updateVisualTrack(id, edit)
+        _ = commitVisual(candidate)
+    }
+
+    func renameVisual(_ id: UUID, _ name: String) {
+        guard let current = project.visualTrack(id) else { return }
+        updateVisual(id) { $0.name = cleanName(name, fallback: current.name) }
+    }
+
+    func updateRegion(_ id: UUID, _ edit: (inout FaceRegion) -> Void) {
+        guard let index = project.faceRegions?.firstIndex(where: { $0.id == id }) else { return }
+        var candidate = project
+        edit(&candidate.faceRegions![index])
+        _ = commitVisual(candidate)
+    }
+
+    func reassignRegion(_ id: UUID, to faceID: UUID) {
+        guard let current = project.regions.first(where: { $0.id == id }), current.faceID != faceID,
+              project.regions.filter({ $0.faceID == faceID }).count < MappingProject.maximumRegionsPerFace else { return }
+        updateRegion(id) { $0.faceID = faceID }
+        if project.regions.first(where: { $0.id == id })?.faceID == faceID {
+            selectSurface(faceID)
+            selectVisual(id)
+        }
+    }
+
+    func setRegionPoints(_ id: UUID, points: [SIMD2<Float>]) {
+        guard FaceMask(boundary: MaskPolygon(points: points)).validationMessage == nil else {
+            editMessage = "Draw a region with at least three distinct points and no crossed edges."
+            return
+        }
+        updateRegion(id) { $0.shape.points = points }
+    }
+
+    func saveRegionShape(_ id: UUID) {
+        guard let region = project.regions.first(where: { $0.id == id }) else { return }
+        var candidate = project
+        candidate.regionShapePresets = candidate.regionShapes + [
+            RegionShapePreset(name: region.track.name, shape: MaskPolygon(points: region.shape.points))
+        ]
+        _ = commitVisual(candidate)
+    }
+
+    func deleteRegionShape(_ id: UUID) {
+        var candidate = project
+        candidate.regionShapePresets?.removeAll { $0.id == id }
+        _ = commitVisual(candidate)
+    }
+
+    func moveVisual(_ id: UUID, by offset: Int) {
+        var candidate = project
+        if let layer = project.layers.first(where: { $0.id == id }) {
+            let indices = project.layers.indices.filter { project.layers[$0].ownerID == layer.ownerID }
+            guard let position = indices.firstIndex(where: { project.layers[$0].id == id }), indices.indices.contains(position + offset) else { return }
+            candidate.visualLayers?.swapAt(indices[position], indices[position + offset])
+        } else if let region = project.regions.first(where: { $0.id == id }) {
+            let indices = project.regions.indices.filter { project.regions[$0].faceID == region.faceID }
+            guard let position = indices.firstIndex(where: { project.regions[$0].id == id }), indices.indices.contains(position + offset) else { return }
+            candidate.faceRegions?.swapAt(indices[position], indices[position + offset])
+        }
+        _ = commitVisual(candidate)
+    }
+
+    func duplicateVisual(_ id: UUID) {
+        var candidate = project
+        guard let original = project.visualTrack(id) else { return }
+        var track = original.independentCopy()
+        track.name = uniqueCopyName(original.name, names: project.visualTracks.map(\.name))
+        if let layer = project.layers.first(where: { $0.id == id }) {
+            candidate.visualLayers = project.layers + [VisualLayer(ownerID: layer.ownerID, track: track)]
+        } else if var region = project.regions.first(where: { $0.id == id }) {
+            region.track = track
+            region.shape = MaskPolygon(points: region.shape.points)
+            candidate.faceRegions = project.regions + [region]
+        }
+        let clips = project.timelineClips.filter { $0.sourceID == id }
+        candidate.timelineClips += clips.map { var clip = $0; clip.id = UUID(); clip.sourceID = track.id; return clip }
+        if commitVisual(candidate) { selectVisual(track.id) }
+    }
+
+    func deleteVisual(_ id: UUID) {
+        var candidate = project
+        candidate.visualLayers?.removeAll { $0.id == id }
+        candidate.faceRegions?.removeAll { $0.id == id }
+        candidate.timelineClips.removeAll { $0.sourceID == id }
+        if commitVisual(candidate) {
+            if selectedVisualID == id { selectVisual(nil) }
+            if selectedClip == nil { selectedClipID = nil }
+        }
+    }
+
+    func setMouthShape(_ shape: MouthShape, on id: UUID, at time: Double) {
+        guard time.isFinite, (0...3600).contains(time) else { return }
+        updateVisual(id) { track in
+            if let index = track.mouthKeys.firstIndex(where: { abs($0.time - time) < 0.0001 }) {
+                track.mouthKeys[index].shape = shape
+            } else {
+                track.mouthKeys.append(MouthKey(time: time, shape: shape))
+                track.mouthKeys.sort { $0.time < $1.time }
+            }
+        }
+    }
+
+    private func copyVisualLayers(from owner: UUID, to target: UUID) {
+        for layer in project.layers.filter({ $0.ownerID == owner }) {
+            let track = layer.track.independentCopy()
+            project.visualLayers = project.layers + [VisualLayer(ownerID: target, track: track)]
+            copyPlayback(from: layer.id, to: track.id)
+        }
+    }
+
+    private func copyFaceRegions(from face: UUID, to target: UUID) {
+        for var region in project.regions.filter({ $0.faceID == face }) {
+            let id = region.id
+            region.faceID = target
+            region.track = region.track.independentCopy()
+            region.shape = MaskPolygon(points: region.shape.points)
+            project.faceRegions = project.regions + [region]
+            copyPlayback(from: id, to: region.id)
+        }
     }
 }

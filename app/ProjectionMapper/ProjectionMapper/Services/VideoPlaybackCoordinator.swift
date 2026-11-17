@@ -46,21 +46,48 @@ struct VideoPlaybackRequest: Equatable {
     static func requests(scene: RenderScene, assets: [VideoAsset], audioEnabled: Bool, at uptime: TimeInterval) -> [Self] {
         let global = scene.transport.elapsed(at: uptime)
         var seen = Set<UUID>()
-        return scene.surfaces.compactMap { surface in
-            guard let owner = surface.sourceID, !seen.contains(owner) else { return nil }
-            let evaluated = surface.evaluated(at: global)
-            guard evaluated.appearance.opacity > 0, evaluated.content == .video, let content = evaluated.video,
-                  let asset = assets.first(where: { $0.id == content.assetID }) else { return nil }
-            seen.insert(owner)
-            let clip = surface.timelineClips.first { $0.contains(global) }
-            let elapsed = clip.map { global-$0.start } ?? surface.playback.elapsed(at: global)
-            let running = scene.transport.isPlaying && (clip != nil || !surface.playback.isPaused)
-            let exhausted = !content.loops && elapsed*content.rate >= content.rangeDuration
-            let rate = running && !exhausted ? scene.transport.speed*content.rate : 0
-            return Self(ownerID: owner,clipID: clip?.id,content: content,asset: asset,
-                sourceTime: content.requestedTime(elapsed: elapsed),rate: rate,
-                audible: audioEnabled && !content.isMuted && asset.hasAudio && rate > 0)
+        let base = scene.surfaces.flatMap { surface -> [Self] in
+            guard surface.appearance.opacity > 0, let owner = surface.sourceID,
+                  seen.insert(owner).inserted else { return [] }
+            let transition = surface.transition(at: global)
+            let samples: [(RenderSurface, EffectClip?)]
+            if let transition {
+                samples = [(surface.applying(transition.outgoing), transition.outgoing),
+                           (surface.applying(transition.incoming), transition.incoming)]
+            } else {
+                samples = [(surface.evaluated(at: global), surface.timelineClips.last { $0.contains(global) })]
+            }
+            let hasIncomingVideo = transition?.incoming.source.content == .video
+            return samples.enumerated().compactMap { index, sample in
+                let (evaluated, clip) = sample
+                guard evaluated.appearance.opacity > 0, evaluated.content == .video, let content = evaluated.video,
+                      let asset = assets.first(where: { $0.id == content.assetID }),
+                      let key = surface.videoFrameKey(for: clip?.id) else { return nil }
+                let elapsed = clip.map { global - $0.start } ?? surface.playback.elapsed(at: global)
+                let running = scene.transport.isPlaying && (clip != nil || !surface.playback.isPaused)
+                let exhausted = !content.loops && elapsed * content.rate >= content.rangeDuration
+                let rate = running && !exhausted ? scene.transport.speed * content.rate : 0
+                return Self(ownerID: key, clipID: clip?.id, content: content, asset: asset,
+                            sourceTime: content.requestedTime(elapsed: elapsed), rate: rate,
+                            audible: audioEnabled && !content.isMuted && asset.hasAudio && rate > 0 &&
+                                !(hasIncomingVideo && index == 0))
+            }
         }
+        var visualIDs = Set<UUID>()
+        let overlays = scene.surfaces.filter { $0.appearance.opacity > 0 && $0.perspective != nil }
+            .flatMap(\.visuals).filter { visualIDs.insert($0.track.id).inserted }
+            .flatMap { visual -> [Self] in
+                guard visual.track.kind == .media, let samples = visual.evaluate(at: global) else { return [] }
+                return [samples.first, samples.second].compactMap { sample in
+                    guard let sample, sample.source.content == .video, let content = sample.source.video,
+                          let asset = assets.first(where: { $0.id == content.assetID }) else { return nil }
+                    let running = scene.transport.isPlaying && (content.loops || sample.elapsed * content.rate < content.rangeDuration)
+                    return Self(ownerID: sample.frameID, clipID: sample.clipID, content: content, asset: asset,
+                                sourceTime: content.requestedTime(elapsed: sample.elapsed),
+                                rate: running ? scene.transport.speed * content.rate : 0, audible: false)
+                }
+            }
+        return base + overlays
     }
 }
 /// AVPlayer, output and seeks live once per content owner, never in render views.
@@ -208,8 +235,18 @@ struct VideoPlaybackRequest: Equatable {
         let time = scene.transport.elapsed(at: uptime)
         var wanted: [UUID:EffectClip] = [:]
         for surface in scene.surfaces {
-            guard wanted.count < 4, let owner = surface.sourceID else { continue }
-            if let next = surface.timelineClips.filter({ $0.source.content == .video && $0.start > time && $0.start-time <= 1 }).min(by: { $0.start < $1.start }) { wanted[owner] = next }
+            guard wanted.count < 4 else { continue }
+            if let next = surface.timelineClips.filter({ $0.source.content == .video && $0.start > time && $0.start-time <= 1 }).min(by: { $0.start < $1.start }),
+               let key = surface.videoFrameKey(for: next.id), entries[key] == nil { wanted[key] = next }
+        }
+        var seen = Set<UUID>()
+        for overlay in scene.surfaces.filter({ $0.appearance.opacity > 0 }).flatMap(\.visuals) {
+            guard wanted.count < 4 else { break }
+            guard overlay.track.kind == .media, overlay.track.isVisible, overlay.track.opacity > 0,
+                  seen.insert(overlay.track.id).inserted,
+                  let index = overlay.clips.firstIndex(where: { $0.source.content == .video && $0.start > time && $0.start - time <= 1 }) else { continue }
+            let key = overlay.frameID(forClipAt: index)
+            if entries[key] == nil { wanted[key] = overlay.clips[index] }
         }
         for owner in Array(preloaded.keys) where preloaded[owner]?.clipID != wanted[owner]?.id { preloaded.removeValue(forKey: owner)?.stop() }
         for (owner,clip) in wanted where preloaded[owner] == nil {

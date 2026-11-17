@@ -11,7 +11,7 @@ struct RecoveryMetadata: Codable, Equatable {
     var savedAt: Date = .now
 }
 struct ProjectDocument: Codable, Equatable {
-    static let currentVersion = 11
+    static let currentVersion = 14
     var formatVersion = currentVersion
     var project: MappingProject
     var output = ProjectOutputSettings()
@@ -104,7 +104,7 @@ enum ProjectCodec {
                 project["lighting"] = ["controllers": [], "fixtures": [], "looks": [], "cues": []] as [String: [String]]
                 json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
             }
-            if version == 10 { json["formatVersion"] = ProjectDocument.currentVersion }
+            if (10...13).contains(version) { json["formatVersion"] = ProjectDocument.currentVersion }
             let migrated = try JSONSerialization.data(withJSONObject: json)
             let document = try JSONDecoder().decode(ProjectDocument.self, from: migrated)
             try validate(document); return document
@@ -115,6 +115,9 @@ enum ProjectCodec {
         func check(_ condition: Bool, _ text: String) throws { if !condition { throw ProjectFileError.invalid(text) } }
         let p = document.project
         try check(document.formatVersion == ProjectDocument.currentVersion, "unsupported write version")
+        try check(ChoreographyClip.validSequence(document.project.choreographyClips), "invalid or overlapping choreography")
+        let markers = document.project.showMarkers
+        try check(markers.count <= 2048 && Set(markers.map(\.id)).count == markers.count && markers.allSatisfy(\.isValid), "invalid show markers")
         try check(document.project.song?.isValid != false, "invalid soundtrack")
         if let issue = document.project.lighting.validationIssue() { throw ProjectFileError.invalid(issue) }
         try check(!p.name.isEmpty && p.name.count <= 80, "project name")
@@ -126,16 +129,17 @@ enum ProjectCodec {
         try check(p.videoAudio.isValid && p.videoAssets.count <= 64 && Set(p.videoAssets.map(\.id)).count == p.videoAssets.count && p.videoAssets.allSatisfy(\.isValid), "video asset/audio metadata")
         try check(p.videoAssets.reduce(Int64(0), { $0+$1.byteCount }) <= VideoImportService.maximumProjectBytes, "project video bytes")
         try check(p.referencedVideoIDs.isSubset(of: Set(p.videoAssets.map(\.id))), "missing video asset identity")
-        let allVideos = (p.surfaces.map(\.source)+p.objects.map(\.source)).compactMap(\.video) + p.timelineClips.compactMap { $0.source.video } + p.looks.flatMap(\.entries).compactMap { $0.source?.video }
+        let allVideos = (p.surfaces.map(\.source) + p.objects.map(\.source) + p.additionalSources).compactMap(\.video) + p.timelineClips.compactMap { $0.source.video } + p.looks.flatMap(\.entries).compactMap { $0.source?.video }
         try check(allVideos.allSatisfy { !p.videoProblem($0) }, "video source range")
         try check(p.timelineClips.allSatisfy { !p.videoProblem($0.source.video) }, "video clip range")
         let assetIDs = Set(p.imageAssets.map(\.id))
         try check(p.referencedImageIDs.isSubset(of: assetIDs), "missing asset identity")
         try check(p.referencePhoto?.isValid ?? true, "reference photo settings")
         try check(EffectClip.validSequence(p.timelineClips), "timeline clips or overlaps")
+        if let issue = p.visualValidationIssue { throw ProjectFileError.invalid(issue) }
         let activeOwners = Set(p.timelineTracks.map(\.id))
         try check(p.timelineClips.allSatisfy { activeOwners.contains($0.sourceID) }, "missing timeline target")
-        let sources = p.surfaces.map(\.source) + p.objects.map(\.source)
+        let sources = p.surfaces.map(\.source) + p.objects.map(\.source) + p.additionalSources
         try check(Set(sources.map(\.id)).count == sources.count, "duplicate content-owner IDs")
         func color(_ value: SIMD4<Float>) -> Bool { (0..<4).allSatisfy { value[$0].isFinite && (0...1).contains(value[$0]) } }
         func tags(_ value: [String]) -> Bool { value.count <= 16 && Set(value).count == value.count && value.allSatisfy { !$0.isEmpty && $0.count <= 80 } }

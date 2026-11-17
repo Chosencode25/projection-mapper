@@ -4,6 +4,8 @@
 
 | Read this | For |
 |---|---|
+| [Winter Lights Encore](V2.09_REHEARSAL.md) | Rehearse v2.09 layers, regions, titles, countdowns, and singing faces |
+| [Edit and Show](EDIT_SHOW_WORKSPACES.md) | Switch between authoring and running a show |
 | [Getting started](GETTING_STARTED.md) | Downloads, demo, Test Mode and your first layout |
 | [Keyboard shortcuts](KEYBOARD_SHORTCUTS.md) | Complete build 16 playback, editing, timeline, file, panel and output shortcuts |
 | [Current app improvements](LOCAL_APP_GUIDE.md) | Workspace, surface search, timeline tools and playback improvements |
@@ -11,7 +13,7 @@
 | [Output guide](V2.01_USER_GUIDE.md) | v2.01 Test Window, external output and calibration |
 | [Image import](IMAGE_IMPORT_GUIDE.md) | Image placement and editor reference photos |
 | [Video import](VIDEO_IMPORT_GUIDE.md) | Video ranges, playback ownership and audio |
-| [Current verification](LOCAL_SHORTCUTS_VERIFICATION.md) | Build 16 automated results, packaging and current limits |
+| [Current verification](V2.09_VERIFICATION.md) | v2.09 automated results, rendering measurements, and pending checks |
 | [Projector verification](V2.01_VERIFICATION.md) | Output foundations and pending hardware checklist |
 
 ## Develop and contribute

@@ -200,6 +200,7 @@ struct TimelineViewRequest: Equatable {
 
 extension EditorSession {
     func canPerformEditorAction(_ action: EditorAction) -> Bool {
+        if workspace == .show && !action.isTransport { return false }
         let busy = isSavingMedia || isImportingImage || isImportingVideo
         switch action {
         case .duplicate: return !busy && (selectedLightingCue != nil || selectedClip != nil || selectedSurface != nil || selectedObject != nil) && !isMaskEditing

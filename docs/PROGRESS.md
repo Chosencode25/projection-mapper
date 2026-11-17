@@ -1,8 +1,30 @@
 # Project Progress
 
-Last updated: November 9, 2026.
+Last updated: November 17, 2026.
 
 ## Current state
+
+**November 17 v2.09 installation:** Installed the tested v2.09/build 28 universal app in Applications. All 11 files match the Release product and strict signature verification passed. The previous v2.05/build 20 app is retained at `builds/v2.09/Previous-Applications.app`. Source delivery to GitHub is being prepared under the user’s explicit request. The existing 342 passing Release checks apply. User visual and listening rehearsal and hardware acceptance remain pending.
+
+**November 11 v2.09 implementation:** Added visual layers, face-local regions, projected titles and countdowns, and song-timed singing faces. Portable format 14 migrates older projects. The signed universal build 28 is under `builds/v2.09/`. 342 Release tests passed, including the Winter Lights Encore save-and-reopen check and a 1080p offscreen render comparison. User visual and listening rehearsal and physical output checks are pending. See the [verification record](V2.09_VERIFICATION.md) and [Encore rehearsal guide](V2.09_REHEARSAL.md).
+
+**November 11 v2.08 implementation:** Added holiday presets, projection and fixture choreography, two-source crossfades and beat queues on the isolated v2.08 branch. 335 Release checks passed with the pinned Xcode. The signed universal app and chorus rehearsal are under `builds/v2.08/`. User rehearsal is pending. See the [chorus rehearsal](V2.08_REHEARSAL.md).
+
+**November 11 v2.08 planning:** Drafted the [holiday choreography plan](V2.08_PLAN.md) for presets, ordered chases and layout waves, projection and palette crossfades, and queued beat and bar triggers. A chorus rehearsal will use Test Mode and simulated fixtures. Implementation and verification are pending.
+
+**November 11 v2.07 implementation:** Added the local HTTPS remote and phone editor from the v2.06 baseline. The current setup uses a supplied certificate identity and local hostname. 3 focused Debug and 332 Release checks passed with the pinned Xcode. The signed universal local build and archive are under `builds/v2.07/`. Real phone rehearsal is pending. See the [rehearsal guide](V2.07_REHEARSAL.md).
+
+**November 11 v2.07 planning:** Drafted the [phone browser remote and editor plan](V2.07_PLAN.md), starting with browser pairing and Show controls before phone mapping edits. Implementation and device verification are pending.
+
+**November 9 Show rehearsal controls:** Build 25 adds a loop-aware next cue, readiness summary, projection fade and Pause and Edit when leaving a running rehearsal. The pinned Xcode passed 36 focused Release checks. The signed universal app is at `builds/v2.06/show-rehearsal/`. User visual acceptance is pending.
+
+**November 9 two-finger panning:** Build 24 lets precise scrolling pan both axes together over the zoomed Edit canvas. Four focused Release checks passed with Xcode 27.0 beta 5 (27A5237l). The signed universal build is at `builds/v2.06/trackpad/`. Physical trackpad acceptance is pending.
+
+**November 9 canvas and timeline navigation:** Added Edit canvas zoom and pan, Fit, 100% and selection framing. Timeline zoom follows the playhead and can frame the selected clip, cue or loop. 29 focused Release checks passed with the pinned Xcode. The signed universal build 23 is under `builds/v2.06/navigation/`. Visual acceptance is pending. See the [workspace guide](EDIT_SHOW_WORKSPACES.md).
+
+**November 9 workspace split:** Added a top-level Edit and Show switch on the v2.06 branch, with shared playback and read-only Show previews. 27 focused Release checks passed with the pinned Xcode. Signed universal build 22 is under `builds/v2.06/workspaces/`. User visual acceptance is pending. See the [workspace guide](EDIT_SHOW_WORKSPACES.md).
+
+**November 9 v2.06 implementation:** Added editable show markers, waveform loop drawing, fixture groups, timed moves and dimmer fades, and a manual cue list on the isolated v2.06 branch. 12 focused Debug and 324 Release checks passed. The signed universal build and rehearsal are available locally under `builds/v2.06/`. User visual and listening checks are pending. See the [timeline and cues rehearsal](V2.06_REHEARSAL.md).
 
 **November 9 v2.05 delivery:** Installed the verified v2.05/build 20 in Applications and backed up the previous app. This source update includes the [song transport plan](V2.05_PLAN.md) and the revised roadmap that defers physical hardware work. The local app archive and user rehearsal project remain in the project build folder.
 

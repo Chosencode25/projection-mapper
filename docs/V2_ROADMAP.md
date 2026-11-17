@@ -1,6 +1,6 @@
 # V2 Roadmap — Projection, Lighting and Show Playback
 
-Updated November 8, 2026. The local rehearsal build is **v2.05/build 20**, with portable format 11 and automated verification. v2.05/build 20 is installed in Applications. Physical projector and optical timing acceptance remain pending. The latest published download remains v1.15.1. See [progress](PROGRESS.md), [current verification](LOCAL_SHORTCUTS_VERIFICATION.md) and [projector verification](V2.01_VERIFICATION.md).
+Updated November 17, 2026. The local rehearsal build is **v2.09/build 28**, with portable format 14. v2.09/build 28 is installed in Applications. Physical projector and optical timing acceptance remain pending. The latest published download remains v1.15.1. See [progress](PROGRESS.md), [current verification](V2.09_VERIFICATION.md) and [projector verification](V2.01_VERIFICATION.md).
 
 v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and simulated fixtures. Native moving-head and Arduino control and physical checks are deferred until equipment is available. A local phone editor follows the desktop cue foundation. Projection, fixtures and music share show time, and the existing Test Mode remains available. The v2.03 encoder and adapter discovery are preserved as local development work. Read the [detailed implementation steps](V2_IMPLEMENTATION_PLAN.md), [development requirements](PROJECT_DEVELOPMENT.md) and [GitHub workflow](GITHUB_WORKFLOW.md) before implementing or delivering a milestone.
 
@@ -13,10 +13,10 @@ v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and 
 | v2.03 · Native USB-DMX Moving Head | Add selectable USB-DMX profiles and documented 9-/11-channel controls. Deferred. Resume when the adapter and moving head are available. |
 | v2.04 · Native Arduino Relay and RGB Control | Add serial profiles and settings, switched plugs and binary RGB strips. Deferred. Resume when the board and firmware are available. |
 | v2.05 · Music and Show Transport | Implemented and [automatically verified](V2.05_VERIFICATION.md). User rehearsal pending. |
-| v2.06 · Timeline and Cues | Add song-aware tracks, beat/lyric/section markers, curves, fades and manual cues. |
-| v2.07 · Phone Browser Editor and Remote | Pair over local Wi-Fi by QR code. Edit corners, masks and effects, operate playback, see fixture status, undo and save. |
-| v2.08 · Holiday Choreography | Add holiday effects, chases, waves, crossfades, beat-aligned triggers and optional live audio reaction. |
-| v2.09 · Layers, Regions and Text | Add layered visuals, target regions, text, countdowns and authored singing-face animation. |
+| v2.06 · Timeline and Cues | Adds song-aware marker lanes, fixture curves and fades, group targeting, and manual cues. See the [rehearsal guide](V2.06_REHEARSAL.md). |
+| v2.07 · Phone Browser Editor and Remote | Local HTTPS remote and editor implemented. Browser pairing with a supplied trusted identity passed automated loopback checks. Phone rehearsal is pending. See the [verification record](V2.07_VERIFICATION.md). |
+| v2.08 · Holiday Choreography | Add holiday effects, chases, waves, crossfades, beat-aligned triggers and optional live audio reaction. See the [v2.08 verification record](V2.08_VERIFICATION.md). |
+| v2.09 · Layers, Regions and Text | Add layered visuals, target regions, text, countdowns and authored singing-face animation. See the [v2.09 verification record](V2.09_VERIFICATION.md). |
 | v2.10 · Reusable Shows and Layouts | Assign reusable layout roles, share templates and record cue performances against song time. |
 | v2.11 · Show Mode and Readiness | Preload and validate media and fixtures, lock edits, and add operator controls, separate blackouts and failure recovery. |
 | v2.12 · External Synchronization and Lighting Integration | Verify a specific xLights/FPP workflow and MIDI/OSC controls. Measure trigger/follow behavior and timing offsets. |

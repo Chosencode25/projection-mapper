@@ -4,6 +4,18 @@ import SwiftUI
 @MainActor
 final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let session = EditorSession()
+    private lazy var phoneRemote: PhoneRemote = {
+        let remote = PhoneRemote(session: session)
+        remote.save = { [weak self] completion in
+            guard let self else { completion(false); return }
+            self.saveProject(completion: completion)
+        }
+        remote.canAcceptCommands = { [weak self] in
+            guard let self else { return false }
+            return !self.isPrompting && self.editorWindow?.attachedSheet == nil && NSApp.modalWindow == nil
+        }
+        return remote
+    }()
     private lazy var displayDiscovery = DisplayDiscoveryService(output: session.output)
     private var editorWindow: NSWindow?
     private var shortcutsWindow: NSWindow?
@@ -41,6 +53,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
             window.cancelEditing = { [weak self] in self?.session.cancelEditorSelection() }
             window.contentView = NSHostingView(rootView: EditorWindowView(
                 session: session,
+                phoneRemote: phoneRemote,
                 newProject: { [weak self] in self?.newProject() },
                 projectChanged: { [weak self] in self?.updateWindowTitle() },
                 refreshDisplays: { [weak self] in self?.displayDiscovery.refresh() },
@@ -77,6 +90,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
 
     func windowWillClose(_ notification: Notification) {
         if let closing = notification.object as? NSWindow, closing === editorWindow {
+            phoneRemote.stop()
             session.closeOutput()
             closing.contentView = nil
             closing.delegate = nil
@@ -85,6 +99,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        phoneRemote.stop()
         session.releaseRuntimeResources()
         session.closeOutput()
         editorWindow?.contentView = nil

@@ -33,7 +33,7 @@ struct LightingWorkspace: View {
             HStack {
                 Button("Resume Fixtures") { simulation.resume(); session.refreshLighting() }
                     .disabled(!simulation.isStopped)
-                Button("Stop Fixtures") { simulation.stop(); session.refreshLighting() }
+                Button("Stop Fixtures") { session.stopManualFixtures() }
                     .disabled(simulation.isStopped)
                 Toggle("Fixture Blackout", isOn: Binding(get: { simulation.blackout }, set: {
                     simulation.blackout = $0
@@ -380,8 +380,9 @@ private struct FixtureTestControls: View {
     }
 }
 
-private struct FixturePreview: View {
+struct FixturePreview: View {
     let session: EditorSession
+    var allowsPlacement = true
     @State private var editing = false
     @State private var draft: PlacementEdit?
 
@@ -406,8 +407,10 @@ private struct FixturePreview: View {
                 Text("Fixture Preview").font(.headline)
                 Text("Simulated output · schematic").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Toggle("Edit Placement", isOn: $editing).toggleStyle(.switch).controlSize(.small)
-                    .disabled(fixtures.isEmpty)
+                if allowsPlacement {
+                    Toggle("Edit Placement", isOn: $editing).toggleStyle(.switch).controlSize(.small)
+                        .disabled(fixtures.isEmpty)
+                }
             }
             GeometryReader { geometry in
                 let size = geometry.size

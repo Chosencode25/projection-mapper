@@ -20,8 +20,10 @@ struct ProjectInspectorView: View {
                     case .edit:
                         if let face = session.selectedSurface {
                             FaceInspector(session: session, face: face).id(face.id)
+                            VisualCompositionControls(session: session, ownerID: session.project.source(for: face).id, face: face).id(face.id)
                         } else if let object = session.selectedObject {
                             ObjectInspector(session: session, object: object).id(object.id)
+                            VisualCompositionControls(session: session, ownerID: object.source.id).id(object.id)
                         } else {
                             Label("Select a surface", systemImage: "cursorarrow.click").font(.headline)
                             Text("Click a face in the canvas or choose a surface or object in the left sidebar.")
@@ -153,6 +155,11 @@ private struct GeneratorPresetControls: View {
     @State private var selectedID: UUID?
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            Menu("Holiday Presets") {
+                ForEach(SurfaceContent.holidayPresets) { content in
+                    Button(content.title) { session.applyHolidayPreset(content) }
+                }
+            }
             Text("EFFECT PRESETS").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             TextField("New preset name", text: $name).textFieldStyle(.roundedBorder)
             Button("Save new preset") {
@@ -200,14 +207,14 @@ private struct GeneratorControls: View {
                     ForEach(0..<8) { value in Text("\(value * 45)°").tag(value) }
                 }
             }
-            if source.content == .noise || source.content == .plasma {
+            if source.content == .noise || source.content == .plasma || SurfaceContent.holidayPresets.contains(source.content) {
                 slider("Contrast", value: source.generator.intensity, range: 0.1...1) { $0.intensity = $1 }
             }
-            if source.content == .particles {
+            if source.content == .particles || SurfaceContent.holidayPresets.contains(source.content) {
                 Stepper("Particles · \(source.generator.density * source.generator.density)", value: Binding(get: { source.generator.density }, set: { value in edit { $0.density = value } }), in: 4...16)
                 slider("Particle size", value: source.generator.particleSize, range: 0.04...0.35) { $0.particleSize = $1 }
             }
-            if source.content == .noise || source.content == .particles {
+            if source.content == .noise || source.content == .particles || SurfaceContent.holidayPresets.contains(source.content) {
                 Stepper("Seed · \(source.generator.seed)", value: Binding(get: { Int(source.generator.seed) }, set: { value in edit { $0.seed = UInt32(value) } }), in: 0...999999)
             }
         }

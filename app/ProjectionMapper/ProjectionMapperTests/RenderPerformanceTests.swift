@@ -153,7 +153,7 @@ struct RenderPerformanceTests {
         VideoAsset(name: "preparation fixture",fileExtension: "mp4",byteCount: 4096,duration: 4,width: 16,height: 16,
             frameRate: 60,hasAudio: false,codec: "H.264",transform: [1,0,0,1,0,0])
     }
-    private func videoFrame(_ asset: VideoAsset,color: SIMD4<UInt8>) throws -> VideoFrame {
+    private func videoFrame(_ asset: VideoAsset,color: SIMD4<UInt8>, clipID: UUID? = nil) throws -> VideoFrame {
         var buffer: CVPixelBuffer?
         #expect(CVPixelBufferCreate(kCFAllocatorDefault,16,16,kCVPixelFormatType_32BGRA,
             [kCVPixelBufferIOSurfacePropertiesKey:[:]] as CFDictionary,&buffer) == kCVReturnSuccess)
@@ -165,7 +165,7 @@ struct RenderPerformanceTests {
             let offset = y*CVPixelBufferGetBytesPerRow(pixels)+x*4
             for component in 0..<4 { base[offset+component] = color[component] }
         } }
-        return VideoFrame(buffer: pixels,asset: asset,clipID: nil,sourceTime: 0)
+        return VideoFrame(buffer: pixels,asset: asset,clipID: clipID,sourceTime: 0)
     }
     private func pixels(_ renderer: MetalRenderer) throws -> [UInt8] {
         let texture = try makeTexture(renderer,width: 32,height: 32)
@@ -385,4 +385,79 @@ private struct NativeSample: Codable {
 private struct IdleSample: Codable {
     let state: String; let wallSeconds: Double; let cpuPercent: Double; let newSubmissions: Int
     let editorActive: Bool; let outputActive: Bool; let peakResidentBytes: Int64
+}
+
+extension RenderPerformanceTests {
+    @Test func encore1080pRenderingAndPreviewLineComparison() throws {
+        var checkout = URL(fileURLWithPath: #filePath)
+        for _ in 0..<4 { checkout.deleteLastPathComponent() }
+        let package = checkout.appendingPathComponent("assets/demos/Winter Lights Encore.projectionmap")
+        let project = try ProjectPackageStore().read(package).project
+        var base = project
+        let visualIDs = Set(base.visualTracks.map(\.id))
+        base.visualLayers = nil
+        base.faceRegions = nil
+        base.timelineClips.removeAll { visualIDs.contains($0.sourceID) }
+        let asset = try #require(project.videoAssets.first)
+        let renderer = try MetalRenderer()
+        let texture = try makeTexture(renderer, width: 1920, height: 1080)
+
+        func scene(_ project: MappingProject, time: Double) throws -> RenderScene {
+            var scene = project.renderScene
+            scene.transport.sampleSong(time, playing: true)
+            let requests = VideoPlaybackRequest.requests(scene: scene, assets: project.videoAssets, audioEnabled: false, at: 0)
+            #expect(requests.count <= 2)
+            for (index, request) in requests.enumerated() {
+                let color: SIMD4<UInt8> = index == 0 ? SIMD4(35, 60, 190, 255) : SIMD4(190, 175, 30, 255)
+                scene.videoFrames[request.ownerID] = try videoFrame(asset, color: color, clipID: request.clipID)
+            }
+            return scene
+        }
+
+        func profile(_ name: String, project: MappingProject, start: Double) throws {
+            var elapsed: [Double] = []
+            var gpu: [Double] = []
+            for frame in 0..<28 {
+                let time = start + Double(frame) / 30
+                let current = try scene(project, time: time)
+                renderer.setScene(current)
+                let began = ProcessInfo.processInfo.systemUptime
+                let command = try #require(renderer.encodeScene(to: pass(texture), evaluationTime: time))
+                command.commit()
+                command.waitUntilCompleted()
+                try #require(command.status == .completed)
+                if frame >= 4 {
+                    elapsed.append((ProcessInfo.processInfo.systemUptime - began) * 1000)
+                    if command.gpuEndTime > command.gpuStartTime {
+                        gpu.append((command.gpuEndTime - command.gpuStartTime) * 1000)
+                    }
+                }
+            }
+            let median = elapsed.sorted()[elapsed.count / 2]
+            let gpuMedian = gpu.isEmpty ? "unavailable" : String(format: "%.3f", gpu.sorted()[gpu.count / 2])
+            print("v2.09 1080p \(name): \(String(format: "%.3f", median)) ms median submit+wait, \(gpuMedian) ms median GPU")
+        }
+
+        try profile("v2.08 visual content", project: base, start: 5.25)
+        try profile("linked layers and outline", project: project, start: 5.25)
+        try profile("two video frames, outline fade and singing face", project: project, start: 12)
+
+        func panorama(_ project: MappingProject) throws -> Data {
+            let time = 8.57
+            renderer.setScene(try scene(project, time: time))
+            let command = try #require(renderer.encodeScene(to: pass(texture), evaluationTime: time))
+            command.commit()
+            command.waitUntilCompleted()
+            try #require(command.status == .completed)
+            // The lower face-local window outline differs, so compare only the panorama.
+            let rect = MTLRegionMake2D(180, 160, 1560, 330)
+            var bytes = Data(count: rect.size.width * rect.size.height * 4)
+            bytes.withUnsafeMutableBytes {
+                texture.getBytes($0.baseAddress!, bytesPerRow: rect.size.width * 4, from: rect, mipmapLevel: 0)
+            }
+            return bytes
+        }
+
+        #expect(try panorama(base) == panorama(project))
+    }
 }

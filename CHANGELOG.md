@@ -1,5 +1,45 @@
 # Changelog
 
+## v2.09 — Layers, Regions, and Text
+
+- Add reorderable projection layers with opacity, placement, blend modes, and independent clip lanes.
+- Add face-local regions, animated outlines, and reusable polygon shapes.
+- Project greetings, song titles, and playhead-based countdowns. Author singing-face mouth shapes against the song timeline.
+- Save compositions and mouth shapes in portable format 14 and include the Winter Lights Encore rehearsal.
+
+## v2.08 — Holiday Choreography
+
+- Add six holiday effects, ordered chases, authored spatial waves, and per-owner projection and palette crossfades.
+- Add downbeat markers and queued beat or bar triggers for GO and lighting looks.
+- Save choreography, fades and downbeats in format 13.
+
+## v2.07 — Phone Browser Editor and Remote
+
+- Add a Mac-hosted HTTPS phone remote with QR pairing, Mac approval, and revocable permissions.
+- Add phone playback, cue and blackout controls, mapping and mask edits, effect settings, and Mac-backed undo and save.
+
+## Local v2.06/build 25 — Show rehearsal controls
+
+- Highlight the next timed cue through loop wraps, surface advisory readiness, and add a dedicated projection fade. Require a pause before unlocking Edit during playback.
+
+## Local v2.06/build 24 — Two-finger canvas panning
+
+- Pan both axes together by scrolling with two fingers over a zoomed Edit canvas. Keep timeline scrolling independent.
+
+## Local v2.06/build 23 — Editor navigation
+
+- Add Edit canvas pinch zoom, pan, Fit, 100% and selection framing. Center timeline zoom on the playhead and add clip, cue and loop zoom targets.
+
+## Local v2.06/build 22 — Edit and Show workspaces
+
+- Separate editing from rehearsal while sharing the active project and playhead. Add a read-only Show preview, cue readout and operator controls. Preserve Edit timeline zoom, Snap and Follow when switching.
+
+## v2.06 — Timeline and Cues
+
+- Add beat, lyric and section marker lanes, tapping, tab-separated import, waveform-based beat suggestions and marker snapping.
+- Add linear and eased moving-head transitions, dimmer fades, fixture group targeting, and a manual cue list with GO, release and stop.
+- Add waveform loop drawing and save markers and cue transitions in portable format 12.
+
 ## v2.05 — Music and Show Transport
 
 - Add one portable soundtrack, an aligned waveform, loop playback, and a shared song clock for projection, video and simulated fixtures.
