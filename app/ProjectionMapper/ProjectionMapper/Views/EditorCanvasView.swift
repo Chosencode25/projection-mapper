@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import simd
 
 struct EditorCanvasView: View {
     let session: EditorSession
@@ -8,6 +9,7 @@ struct EditorCanvasView: View {
     @GestureState private var pinchScale = 1.0
     @GestureState private var panDelta = CGSize.zero
     @State private var pendingDrop: URL?
+    @State private var isDropTarget = false
     @State private var dropFaceID: UUID?
     @State private var dropOwnerID: UUID?
     var output: OutputSelectionState { session.output }
@@ -52,6 +54,8 @@ struct EditorCanvasView: View {
                            let region = session.project.regions.first(where: { $0.id == session.selectedVisualID && $0.faceID == face.id }) {
                             RegionCanvas(session: session, face: face, region: region, interactive: true)
                                 .frame(width: width, height: height)
+                        } else if let id = session.selectedVisualID, session.selectedClip == nil, !session.isMaskEditing {
+                            VisualPlacementOverlay(session: session, visualID: id).frame(width: width, height: height)
                         } else if session.isMaskEditing, session.editorDisplay.maskHandles, let face = surface, face.mask != nil {
                             MaskCanvas(session: session,face: face,projected: true)
                                 .frame(width: width,height: height).id(face.id)
@@ -90,15 +94,21 @@ struct EditorCanvasView: View {
                     }
                     .dropDestination(for: URL.self) { urls, location in
                         guard urls.count == 1, let url = urls.first else { session.editMessage = "Drop one PNG, JPEG, MP4 or MOV at a time."; return false }
-                        let fallback = session.selectedImageTarget
                         session.selectSurface(at: SIMD2(Float(location.x/max(1,width)),Float(location.y/max(1,height))))
                         if let face = session.selectedSurface, let object = session.project.object(for: face) {
                             pendingDrop = url; dropFaceID = face.id; dropOwnerID = object.source.id
                         } else {
-                            let target = session.selectedImageTarget ?? fallback ?? .newFace
+                            let target = session.selectedImageTarget ?? .newFace
                             Task { await session.importMedia(from: url,target: target) }
                         }
                         return true
+                    } isTargeted: { isDropTarget = $0 }
+                    .overlay {
+                        if isDropTarget {
+                            RoundedRectangle(cornerRadius: 8).stroke(Color.accentColor, lineWidth: 3).allowsHitTesting(false)
+                            Label("Drop onto a face or empty canvas", systemImage: "square.and.arrow.down")
+                                .padding(8).background(.regularMaterial, in: Capsule()).allowsHitTesting(false)
+                        }
                     }
                     .position(x: viewport.width / 2 + (0.5 - center.x) * width,
                               y: viewport.height / 2 + (0.5 - center.y) * height)
@@ -136,9 +146,9 @@ struct EditorCanvasView: View {
                         .padding(8)
                 }
             }
-            Text(pansCanvas ? "Drag to pan · turn off Pan to edit" : canvasHint)
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                .help(canvasHint + " · " + output.selectedName + " · " + output.renderSizeText)
+            if session.isMaskEditing || session.isRegionEditing {
+                Text(canvasHint).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
             Group {
                 if session.scene.invalidCount > 0 || !session.project.joinWarnings.isEmpty || !session.imageProblems.isEmpty ||
                     !session.videoProblems.isEmpty || !session.videoPlayback.problems.isEmpty {
@@ -275,6 +285,103 @@ private struct CanvasScrollMonitor: NSViewRepresentable {
         func stopMonitoring() {
             if let monitor { NSEvent.removeMonitor(monitor) }
             monitor = nil
+        }
+    }
+}
+
+
+/// Converts between the selected visual's coordinates and the mapped face. Matches
+/// the renderer's shared input/crop transform and region bounding-box coordinates.
+struct VisualCanvasCoordinates {
+    let corners: NormalizedRectangle
+    let fromFace: simd_float3x3
+    init(project: MappingProject, face: MappingSurface, visualID: UUID) {
+        corners = face.corners
+        if let region = project.regions.first(where: { $0.id == visualID }) {
+            let origin = region.shape.points.reduce(SIMD2<Float>(repeating: 1), simd_min)
+            let end = region.shape.points.reduce(SIMD2<Float>.zero, simd_max)
+            let size = simd_max(end - origin, SIMD2<Float>(repeating: 0.00001))
+            fromFace = simd_float3x3(columns: (SIMD3(1 / size.x, 0, 0), SIMD3(0, 1 / size.y, 0), SIMD3(-origin.x / size.x, -origin.y / size.y, 1)))
+        } else {
+            let map = project.object(for: face)?.mode == .repeatContent ? FaceInputMap.full : face.layout.inputMap
+            fromFace = project.appearance(for: face).matrix * map.matrix
+        }
+    }
+    func project(_ point: SIMD2<Float>) -> SIMD2<Float>? {
+        let face = fromFace.inverse * SIMD3(point.x, point.y, 1)
+        return MaskEditorGeometry.project(SIMD2(face.x, face.y), corners: corners)
+    }
+    func unproject(_ point: SIMD2<Float>) -> SIMD2<Float>? {
+        guard let face = MaskEditorGeometry.unproject(point, corners: corners) else { return nil }
+        let local = fromFace * SIMD3(face.x, face.y, 1)
+        return SIMD2(local.x, local.y)
+    }
+}
+
+private struct VisualPlacementOverlay: View {
+    let session: EditorSession
+    let visualID: UUID
+    @State private var dragStart: VisualTrack?
+    @State private var dragPoint: SIMD2<Float>?
+    private var faces: [MappingSurface] {
+        if let region = session.project.regions.first(where: { $0.id == visualID }) {
+            return session.project.surfaces.filter { $0.id == region.faceID }
+        }
+        guard let layer = session.project.layers.first(where: { $0.id == visualID }) else { return [] }
+        return session.project.surfaces.filter { session.project.source(for: $0).id == layer.ownerID && $0.layout.isVisible }
+    }
+    var body: some View {
+        GeometryReader { geometry in
+            if let track = session.project.visualTrack(visualID) {
+                ForEach(faces) { face in
+                    let coordinates = VisualCanvasCoordinates(project: session.project, face: face, visualID: visualID)
+                    let corners = [SIMD2<Float>(-0.5, -0.5), SIMD2(0.5, -0.5), SIMD2(0.5, 0.5), SIMD2(-0.5, 0.5)]
+                    Path { path in
+                        let points = corners.compactMap { point(track, offset: $0, coordinates: coordinates, size: geometry.size) }
+                        if let first = points.first {
+                            path.move(to: first); points.dropFirst().forEach { path.addLine(to: $0) }; path.closeSubpath()
+                        }
+                    }.stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])).allowsHitTesting(false)
+                    handle(track, offset: .zero, mode: 0, coordinates: coordinates, size: geometry.size)
+                    ForEach(corners.indices, id: \.self) { index in
+                        handle(track, offset: corners[index], mode: 1, coordinates: coordinates, size: geometry.size)
+                    }
+                    handle(track, offset: SIMD2(0, -0.7), mode: 2, coordinates: coordinates, size: geometry.size)
+                }
+            }
+        }.coordinateSpace(name: visualID)
+    }
+    private func point(_ track: VisualTrack, offset: SIMD2<Float>, coordinates: VisualCanvasCoordinates, size: CGSize) -> CGPoint? {
+        let angle = track.rotation * .pi / 180, delta = offset * track.size
+        let rotated = SIMD2(cos(angle) * delta.x - sin(angle) * delta.y, sin(angle) * delta.x + cos(angle) * delta.y)
+        guard let output = coordinates.project(track.center + rotated), output.x.isFinite, output.y.isFinite else { return nil }
+        return CGPoint(x: CGFloat(output.x) * size.width, y: CGFloat(output.y) * size.height)
+    }
+    @ViewBuilder private func handle(_ track: VisualTrack, offset: SIMD2<Float>, mode: Int, coordinates: VisualCanvasCoordinates, size: CGSize) -> some View {
+        if let position = point(track, offset: offset, coordinates: coordinates, size: size) {
+            Circle().fill(Color.accentColor).overlay(Circle().stroke(.white, lineWidth: 1))
+                .frame(width: mode == 0 ? 14 : 10, height: mode == 0 ? 14 : 10).position(position)
+                .help(mode == 0 ? "Move layer" : mode == 1 ? "Resize layer" : "Rotate layer")
+                .accessibilityLabel(mode == 0 ? "Move selected layer" : mode == 1 ? "Resize selected layer" : "Rotate selected layer")
+                .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named(visualID))
+                    .onChanged { drag in
+                        guard size.width > 0, size.height > 0,
+                              let local = coordinates.unproject(SIMD2(Float(drag.location.x / size.width), Float(drag.location.y / size.height))) else { return }
+                        if dragStart == nil { dragStart = track; dragPoint = local; session.beginContinuousEdit("Place Layer") }
+                        guard let initial = dragStart, let start = dragPoint else { return }
+                        session.updateVisual(visualID) { next in
+                            if mode == 0 { next.center = simd_clamp(initial.center + local - start, SIMD2(repeating: -1), SIMD2(repeating: 2)) }
+                            else if mode == 1 {
+                                let delta = local - initial.center, angle = initial.rotation * .pi / 180
+                                let unrotated = SIMD2(cos(angle) * delta.x + sin(angle) * delta.y, -sin(angle) * delta.x + cos(angle) * delta.y)
+                                next.size = simd_clamp(abs(unrotated) * 2, SIMD2(repeating: 0.01), SIMD2(repeating: 4))
+                            } else {
+                                let delta = local - initial.center
+                                var angle = atan2(delta.y, delta.x) * 180 / .pi + 90
+                                if angle > 180 { angle -= 360 }; next.rotation = min(180, max(-180, angle))
+                            }
+                        }
+                    }.onEnded { _ in dragStart = nil; dragPoint = nil; session.endContinuousEdit() })
         }
     }
 }

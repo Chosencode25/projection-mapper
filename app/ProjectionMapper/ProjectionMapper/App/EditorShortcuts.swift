@@ -206,8 +206,9 @@ extension EditorSession {
         case .duplicate: return !busy && (selectedLightingCue != nil || selectedClip != nil || selectedSurface != nil || selectedObject != nil) && !isMaskEditing
         case .delete: return !busy && (selectedLightingCue != nil || selectedClip != nil || selectedSurface != nil || selectedObject != nil)
         case .ungroup: return !busy && selectedObject != nil
-        case .lock, .visibility: return !busy && (selectedSurface != nil || selectedObject != nil)
-        case .forward, .backward: return !busy && selectedClip == nil && selectedSurface != nil
+        case .lock: return !busy && selectedVisualID == nil && selectedClip == nil && (selectedSurface != nil || selectedObject != nil)
+        case .visibility: return !busy && selectedClip == nil && selectedMouthKey == nil && selectedLightingCue == nil && (selectedVisualID != nil || selectedSurface != nil || selectedObject != nil)
+        case .forward, .backward: return !busy && selectedClip == nil && selectedMouthKey == nil && selectedLightingCue == nil && (selectedVisualID != nil || selectedSurface != nil)
         case .addSurface, .group, .importImage, .importVideo: return !busy
         case .addClip: return !busy && selectedSource != nil
         case .captureClip: return !busy && selectedClip != nil
@@ -240,17 +241,21 @@ extension EditorSession {
             setPlaying(false, at: uptime); seekPlayback(to: min(3600, max(0, target)), at: uptime)
         case .addSurface: addSurface()
         case .duplicate:
-            if let cue = selectedLightingCue {
+            if selectedMouthKey != nil { duplicateSelectedMouthKey() }
+            else if let cue = selectedLightingCue {
                 duplicateLightingCue(cue, at: min(3600, transport.elapsed(at: uptime)))
             } else if let clip = selectedClip { duplicateTimelineClip(clip.id) }
+            else if let visual = selectedVisualID { duplicateVisual(visual) }
             else if let object = selectedObject { duplicateObject(object.id) }
             else if let face = selectedSurface { duplicateSurface(face.id) }
         case .delete:
             if isMaskEditing {
                 if maskDraft != nil { removeLastMaskDraftPoint() } else { deleteMaskPoint() }
-            } else if let cue = selectedLightingCue {
+            } else if selectedMouthKey != nil { deleteSelectedMouthKey() }
+            else if let cue = selectedLightingCue {
                 editLighting { $0.cues.removeAll { $0.id == cue.id } }
             } else if let clip = selectedClip { deleteTimelineClip(clip.id) }
+            else if let visual = selectedVisualID { deleteVisual(visual) }
             else if let object = selectedObject { deleteObject(object.id) }
             else if let face = selectedSurface { deleteSurface(face.id) }
         case .deselect: selectedLightingCueID = nil; selectedClipID = nil; selectSurface(nil); cancelGroupingFaces(); isMaskEditing = false; cancelMaskDrawing()
@@ -264,10 +269,11 @@ extension EditorSession {
                 else { setGeometryLocked(!face.layout.isGeometryLocked, faceID: face.id) }
             }
         case .visibility:
-            if let object = selectedObject { setVisible(!object.isVisible, objectID: object.id) }
+            if let id = selectedVisualID { updateVisual(id) { $0.isVisible.toggle() } }
+            else if let object = selectedObject { setVisible(!object.isVisible, objectID: object.id) }
             else if let face = selectedSurface { setVisible(!face.layout.isVisible, faceID: face.id) }
-        case .forward: if let face = selectedSurface { moveSurface(face.id, offset: -1) }
-        case .backward: if let face = selectedSurface { moveSurface(face.id, offset: 1) }
+        case .forward: if let id = selectedVisualID { moveVisual(id, by: 1) } else if let face = selectedSurface { moveSurface(face.id, offset: -1) }
+        case .backward: if let id = selectedVisualID { moveVisual(id, by: -1) } else if let face = selectedSurface { moveSurface(face.id, offset: 1) }
         case .importImage: chooseImage(target: .newFace)
         case .importVideo: chooseVideo(target: .newFace)
         case .addClip:

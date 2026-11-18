@@ -472,6 +472,25 @@ extension MetalRendererTests {
         #expect(open == (try visualPixels(renderer, at: 8)))
     }
 
+    @Test func wrappedSnowAndParticlesDoNotCreateBrightSeams() throws {
+        for content in [SurfaceContent.snowfall, .particles] {
+            var face = MappingSurface(color: SIMD4(1, 1, 1, 1), content: content)
+            face.source.generator.secondaryColor = SIMD4(0, 0, 0, 1)
+            face.source.generator.particleSize = 0.04
+            let renderer = try MetalRenderer(scene: MappingProject(surface: face).renderScene)
+            for time in [0.031, 0.17, 0.51, 1.13, 2.71] {
+                let pixels = try visualPixels(renderer, at: time)
+                // The mapped square occupies pixels 16..<48. Sparse flakes must never
+                // turn a cell-wrap boundary into an almost solid white row or column.
+                for line in 17..<47 {
+                    let row = (17..<47).filter { pixels[(line * 64 + $0) * 4] > 80 }.count
+                    let column = (17..<47).filter { pixels[($0 * 64 + line) * 4] > 80 }.count
+                    #expect(row < 20 && column < 20)
+                }
+            }
+        }
+    }
+
     private func pixel(_ renderer: MetalRenderer, x: Int, y: Int) throws -> [UInt8] {
         let bytes = try visualPixels(renderer, at: 1)
         let index = (y * 64 + x) * 4

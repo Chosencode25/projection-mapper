@@ -117,6 +117,7 @@ struct TimelineTests {
         session.setSourceColor(SIMD4(1,0,0,1))
         let owner = session.project.timelineTracks[0].id
         _ = try #require(session.addTimelineClip(sourceID: owner, at: 5, duration: 5))
+        session.selectedClipID = nil // Select base content before capturing another look.
         session.setSourceColor(SIMD4(0,0,1,1))
         _ = try #require(session.addTimelineClip(sourceID: owner, at: 10, duration: 5))
         let renderer = try MetalRenderer(scene: session.scene)
@@ -314,5 +315,107 @@ struct VisualCompositionTests {
         var root = URL(fileURLWithPath: #filePath)
         for _ in 0..<4 { root.deleteLastPathComponent() }
         return root.appendingPathComponent("assets/demos/Winter Lights Encore.projectionmap", isDirectory: true)
+    }
+}
+
+@MainActor
+struct EditorPolishTests {
+    @Test func selectedClipEditsDoNotModifyBaseAndUndoRestoresClip() throws {
+        let session = EditorSession(presentOutput: { _ in })
+        let source = try #require(session.selectedSource)
+        let id = try #require(session.addTimelineClip(sourceID: source.id, at: 0))
+        session.setSurfaceContent(.snowfall)
+        #expect(session.selectedClip?.source.content == .snowfall)
+        #expect(session.project.surfaces[0].source == source)
+        session.undoProjectEdit()
+        #expect(session.project.timelineClips.first { $0.id == id }?.source.content == source.content)
+    }
+
+    @Test func draftsAutosaveUndoAndNamedProjectsPersist() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let session = EditorSession(presentOutput: { _ in })
+        session.configureAutosave(directory: directory)
+        session.renameProject("Draft rehearsal")
+        try await session.flushAutosave()
+        #expect(session.isManagedDraft && !session.hasUserChanges)
+        let draft = try #require(session.documentURL)
+        #expect(try ProjectPackageStore().read(draft).project.name == "Draft rehearsal")
+        session.renameProject("Second name")
+        try await session.flushAutosave()
+        #expect(!session.availableCheckpoints.isEmpty)
+        session.undoProjectEdit()
+        try await session.flushAutosave()
+        #expect(try ProjectPackageStore().read(draft).project.name == "Draft rehearsal")
+        let named = directory.deletingLastPathComponent().appendingPathComponent(UUID().uuidString + ".projectionmap")
+        defer { try? FileManager.default.removeItem(at: named) }
+        try await session.saveMedia(to: named)
+        #expect(!session.isManagedDraft)
+        session.renameProject("Named project")
+        try await session.flushAutosave()
+        #expect(try ProjectPackageStore().read(named).project.name == "Named project")
+        session.releaseRuntimeResources()
+    }
+
+    @Test func visualAndMouthKeyboardActionsFollowSelection() throws {
+        let session = EditorSession(presentOutput: { _ in })
+        let face = try #require(session.selectedSurface)
+        session.addLayer(ownerID: face.source.id)
+        let visual = try #require(session.selectedVisualID)
+        session.performEditorAction(.visibility)
+        #expect(session.project.visualTrack(visual)?.isVisible == false)
+        #expect(session.selectedSurface?.layout.isVisible == true)
+        #expect(!session.canPerformEditorAction(.lock))
+        session.updateVisual(visual) { $0.kind = .singingFace; $0.mouthKeys = [MouthKey(time: 1, shape: .open)] }
+        let key = try #require(session.project.visualTrack(visual)?.mouthKeys.first)
+        let track = try #require(session.project.timelineTracks.first { $0.id == visual })
+        session.selectMouthKey(key.id, on: track)
+        session.performEditorAction(.duplicate)
+        #expect(session.project.visualTrack(visual)?.mouthKeys.count == 2)
+        session.performEditorAction(.delete)
+        #expect(session.project.visualTrack(visual)?.mouthKeys.count == 1)
+        #expect(session.project.layers.count == 1 && session.project.surfaces.count == 1)
+        session.undoProjectEdit()
+        #expect(session.project.visualTrack(visual)?.mouthKeys.count == 2)
+    }
+
+    @Test func visualHandlesRoundTripSharedCropAndRegionCoordinates() throws {
+        var face = MappingSurface(color: SIMD4(1, 0, 0, 1), content: .solid)
+        face.layout.inputMap = FaceInputMap(origin: SIMD2(0.2, 0.1), size: SIMD2(0.6, 0.8), quarterTurns: 1, mirrored: true)
+        face.appearance.crop = ContentCrop(origin: SIMD2(0.1, 0.2), size: SIMD2(0.8, 0.6))
+        var project = MappingProject(surface: face)
+        let layer = VisualLayer(ownerID: face.source.id, track: VisualTrack(name: "Title"))
+        let region = FaceRegion(faceID: face.id, track: VisualTrack(name: "Window"))
+        project.visualLayers = [layer]; project.faceRegions = [region]
+        for id in [layer.id, region.id] {
+            let mapping = VisualCanvasCoordinates(project: project, face: face, visualID: id)
+            for point in [SIMD2<Float>(0.5, 0.5), SIMD2(0.3, 0.7)] {
+                let projected = try #require(mapping.project(point))
+                let restored = try #require(mapping.unproject(projected))
+                #expect(abs(restored.x - point.x) < 0.0001 && abs(restored.y - point.y) < 0.0001)
+            }
+        }
+    }
+
+    @Test func failedAutosaveKeepsEditsAndLastGoodPackage() async throws {
+        let parent = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: parent) }
+        let session = EditorSession(presentOutput: { _ in })
+        let recovery = ProjectRecoveryStore(directory: parent.appendingPathComponent("recovery"))
+        session.configureRecovery(recovery)
+        session.configureAutosave(directory: parent.appendingPathComponent("drafts"))
+        let named = parent.appendingPathComponent("Good.projectionmap")
+        try await session.saveMedia(to: named)
+        let before = try ProjectPackageStore().read(named)
+        try FileManager.default.moveItem(at: named, to: parent.appendingPathComponent("Moved.projectionmap"))
+        try Data("unrelated file".utf8).write(to: named)
+        session.renameProject("Keep my edits")
+        do { try await session.flushAutosave(); Issue.record("Save should fail") } catch {}
+        #expect(session.hasUserChanges)
+        #expect(try ProjectPackageStore().read(parent.appendingPathComponent("Moved.projectionmap")).project == before.project)
+        #expect(session.project.name == "Keep my edits")
+        #expect(recovery.entries().first?.document.project.name == "Keep my edits")
+        session.releaseRuntimeResources()
     }
 }

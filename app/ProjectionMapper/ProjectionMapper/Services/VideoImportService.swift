@@ -21,6 +21,10 @@ enum VideoImportService {
     /// Chunked, cancellable copying also used by portable saves; destination is staging only.
     static func copy(_ source: URL,to destination: URL) throws {
         let size = try safeFile(source)
+        if !FileManager.default.fileExists(atPath: destination.path),
+           source.path.withCString({ from in destination.path.withCString { to in clonefile(from, to, 0) } }) == 0 {
+            return
+        }
         if let free = try destination.deletingLastPathComponent().resourceValues(forKeys: [.volumeAvailableCapacityKey]).volumeAvailableCapacity,
            Int64(free) < size + 16*1024*1024 { throw ProjectFileError.io("Not enough space to copy the video.") }
         FileManager.default.createFile(atPath: destination.path,contents: nil)

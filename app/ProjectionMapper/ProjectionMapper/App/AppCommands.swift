@@ -19,6 +19,12 @@ struct AppCommands: Commands {
                     Button(url.deletingPathExtension().lastPathComponent) { coordinator.openProject(url) }
                 }
             }
+            Divider()
+            Button("Save Playground…") { coordinator.showPlaygrounds(.save) }
+            Button("New Show from This Playground…") { coordinator.newShowFromCurrentPlayground() }
+            Button("New Show from Playground…") { coordinator.showPlaygrounds(.choose) }
+            Button("Manage Playgrounds…") { coordinator.showPlaygrounds(.manage) }
+            Divider()
             Button("Recover Unsaved Project…") { coordinator.recoverProject() }
         }
         CommandGroup(replacing: .undoRedo) {

@@ -1,6 +1,6 @@
 # V2 Roadmap — Projection, Lighting and Show Playback
 
-Updated November 17, 2026. The local rehearsal build is **v2.09/build 28**, with portable format 14. v2.09/build 28 is installed in Applications. Physical projector and optical timing acceptance remain pending. The latest published download remains v1.15.1. See [progress](PROGRESS.md), [current verification](V2.09_VERIFICATION.md) and [projector verification](V2.01_VERIFICATION.md).
+Updated November 17, 2026. Applications now contains the verified **v2.09/build 32** Playgrounds preview; build 31 is preserved. The preview is **v2.09/build 32**, implementing the first part of v2.10, with portable project format 14 and playground schema 1. See [Playgrounds verification](V2.10_PLAYGROUNDS_VERIFICATION.md) and [progress](PROGRESS.md). Physical projector/optical acceptance remains pending; latest published download remains v1.15.1.
 
 v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and simulated fixtures. Native moving-head and Arduino control and physical checks are deferred until equipment is available. A local phone editor follows the desktop cue foundation. Projection, fixtures and music share show time, and the existing Test Mode remains available. The v2.03 encoder and adapter discovery are preserved as local development work. Read the [detailed implementation steps](V2_IMPLEMENTATION_PLAN.md), [development requirements](PROJECT_DEVELOPMENT.md) and [GitHub workflow](GITHUB_WORKFLOW.md) before implementing or delivering a milestone.
 
@@ -17,13 +17,18 @@ v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and 
 | v2.07 · Phone Browser Editor and Remote | Local HTTPS remote and editor implemented. Browser pairing with a supplied trusted identity passed automated loopback checks. Phone rehearsal is pending. See the [verification record](V2.07_VERIFICATION.md). |
 | v2.08 · Holiday Choreography | Add holiday effects, chases, waves, crossfades, beat-aligned triggers and optional live audio reaction. See the [v2.08 verification record](V2.08_VERIFICATION.md). |
 | v2.09 · Layers, Regions and Text | Add layered visuals, target regions, text, countdowns and authored singing-face animation. See the [v2.09 verification record](V2.09_VERIFICATION.md). |
-| v2.10 · Reusable Shows and Layouts | Assign reusable layout roles, share templates and record cue performances against song time. |
+| v2.10 · Reusable Shows and Layouts | Playgrounds implemented locally; user rehearsal pending. Layout roles, programmed templates/packs and cue-performance recording remain planned. |
 | v2.11 · Show Mode and Readiness | Preload and validate media and fixtures, lock edits, and add operator controls, separate blackouts and failure recovery. |
 | v2.12 · External Synchronization and Lighting Integration | Verify a specific xLights/FPP workflow and MIDI/OSC controls. Measure trigger/follow behavior and timing offsets. |
 | v2.13 · Playlists and Scheduling | Build playlists, idle scenes, schedule rules, graceful endings and restart handling. |
 | v2.14 · Phone Timeline and Preview | Move and trim clips, edit cue timing and view a lightweight Mac-generated preview. |
 | v2.15 · Export and Portable Delivery | Collect portable show assets and export mapped output or unmapped content with explicit audio and timing. |
 | v2.16 · Acceptance, Packaging and Release | Rehearse the full show, measure timing, record compatibility, and prepare a release for separately authorized publication. |
+
+## New workflow concepts — November 17, 2026
+
+- [Dedicated Lighting workspace](LIGHTING_WORKSPACE_PLAN.md): a lighting-focused scene, inspector and fixture timeline inside the same synchronized project. Interface concept saved; implementation/version assignment pending.
+- [Playgrounds](REUSABLE_SETUPS_PLAN.md): implemented locally as the first part of v2.10; save placement/configuration and create independent blank shows. User visual/listening rehearsal remains pending. Existing role assignment, programmed templates and recording scope remains planned.
 
 ## Hardware that is still unidentified
 

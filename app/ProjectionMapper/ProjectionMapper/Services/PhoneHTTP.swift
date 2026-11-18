@@ -95,7 +95,18 @@ final class PhoneHTTPListener {
         sec_protocol_options_set_min_tls_protocol_version(tls.securityProtocolOptions, .TLSv12)
         sec_protocol_options_set_local_identity(tls.securityProtocolOptions, identity)
         let parameters = NWParameters(tls: tls, tcp: NWProtocolTCP.Options())
-        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(ip), port: endpointPort)
+        try start(parameters: parameters, address: ip, port: endpointPort)
+    }
+
+    func startLocal(address: String, port: UInt16) throws {
+        guard let ip = IPv4Address(address), let endpointPort = NWEndpoint.Port(rawValue: port) else {
+            throw PhoneError("Choose an available local network address.")
+        }
+        try start(parameters: NWParameters(tls: nil, tcp: NWProtocolTCP.Options()), address: ip, port: endpointPort)
+    }
+
+    private func start(parameters: NWParameters, address: IPv4Address, port: NWEndpoint.Port) throws {
+        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(address), port: port)
         let next = try NWListener(using: parameters)
         listener = next
         next.newConnectionHandler = { [weak self] connection in

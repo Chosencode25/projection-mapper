@@ -3,15 +3,16 @@ import SwiftUI
 struct SurfaceSidebarView: View {
     let session: EditorSession
     @State private var search = ""
+    @State private var collapsedObjects: Set<UUID> = []
     private var query: String { search.trimmingCharacters(in: .whitespacesAndNewlines) }
     private func matches(_ values: [String]) -> Bool { query.isEmpty || values.contains { $0.localizedCaseInsensitiveContains(query) } }
     private var tags: [String] { Array(Set(session.project.surfaces.flatMap(\.tags) + session.project.objects.flatMap(\.tags))).sorted() }
 
     var body: some View {
         let faces = session.project.surfaces.filter { face in
-            matches([face.name, session.project.object(for: face)?.name ?? ""] + face.tags)
+            matches([face.name, session.project.object(for: face)?.name ?? ""] + face.tags + session.project.layers.filter { $0.ownerID == session.project.source(for: face).id }.map { $0.track.name } + session.project.regions.filter { $0.faceID == face.id }.map { $0.track.name })
         }
-        let objects = session.project.objects.filter { matches([$0.name] + $0.tags) }
+        let objects = session.project.objects.filter { object in matches([object.name] + object.tags) || faces.contains { $0.layout.objectID == object.id } }
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Surfaces").font(.headline)
@@ -22,8 +23,8 @@ struct SurfaceSidebarView: View {
             }.padding(.horizontal, 14).padding(.top, 14)
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
-                TextField("Find a surface…", text: $search).textFieldStyle(.plain).font(.caption)
-                    .accessibilityLabel("Find surfaces and objects")
+                TextField("Find…", text: $search).textFieldStyle(.plain).font(.caption)
+                    .accessibilityLabel("Find surfaces, objects, layers and regions")
                 if !search.isEmpty {
                     Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
                         .buttonStyle(.plain).foregroundStyle(.secondary).accessibilityLabel("Clear surface search")
@@ -36,25 +37,29 @@ struct SurfaceSidebarView: View {
             }.font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary).padding(.horizontal, 14)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4) {
-                    ForEach(faces) { face in faceRow(face) }
-                    if faces.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(query.isEmpty ? "Your canvas starts here" : "No matching surfaces").font(.subheadline.weight(.medium))
-                            Text(query.isEmpty ? "Add a surface or import media using Add in the top bar." : "Try a different name, object or tag.")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }.padding(10)
+                    ForEach(objects) { object in
+                        DisclosureGroup(isExpanded: Binding(get: { !collapsedObjects.contains(object.id) || !query.isEmpty }, set: { expanded in
+                            if expanded { collapsedObjects.remove(object.id) } else { collapsedObjects.insert(object.id) }
+                        })) {
+                            ForEach(faces.filter { $0.layout.objectID == object.id }) { face in
+                                faceRow(face)
+                                visualRows(owner: nil, face: face.id).padding(.leading, 16)
+                            }
+                            visualRows(owner: object.source.id, face: nil)
+                        } label: { objectRow(object) }
                     }
-                    if !objects.isEmpty {
-                        Text("OBJECTS · SHARED CONTENT").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
-                            .padding(.horizontal, 10).padding(.top, 14).padding(.bottom, 4)
-                        ForEach(objects) { object in objectRow(object) }
+                    ForEach(faces.filter { $0.layout.objectID == nil }) { face in
+                        faceRow(face)
+                        visualRows(owner: face.source.id, face: face.id).padding(.leading, 16)
+                    }
+                    if faces.isEmpty && objects.isEmpty {
+                        Button("Add Surface", systemImage: "plus") { session.addSurface() }.padding(12)
                     }
                 }.padding(.horizontal, 8).padding(.bottom, 10)
             }
             Divider()
             VStack(alignment: .leading, spacing: 8) {
                 if session.isGroupingFaces {
-                    Text("Choose the faces that should share one content canvas.").font(.caption).foregroundStyle(.secondary)
                     HStack {
                         Button("Create object (\(session.groupingSelection.count))") { session.createObject() }
                             .buttonStyle(.borderedProminent).disabled(session.groupingSelection.isEmpty)
@@ -77,6 +82,34 @@ struct SurfaceSidebarView: View {
         }
         .frame(maxHeight: .infinity).background(Color(nsColor: .controlBackgroundColor).opacity(0.55))
         .onChange(of: session.project.id) { _, _ in search = "" }
+    }
+
+    private func visualRows(owner: UUID?, face: UUID?) -> some View {
+        let layers = session.project.layers.filter { $0.ownerID == owner }.map(\.track)
+        let regions = session.project.regions.filter { $0.faceID == face }.map(\.track)
+        return ForEach(layers + regions) { track in
+            HStack {
+                Button {
+                    if let face { session.selectSurface(face) }
+                    else if let object = session.project.objects.first(where: { $0.source.id == owner }) { session.selectObject(object.id) }
+                    session.selectVisual(track.id)
+                } label: {
+                    Label(track.name, systemImage: regions.contains(where: { $0.id == track.id }) ? "selection.pin.in.out" : "square.stack")
+                        .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                }.buttonStyle(.plain)
+                Button { session.updateVisual(track.id) { $0.isVisible.toggle() } } label: {
+                    Image(systemName: track.isVisible ? "eye" : "eye.slash")
+                }.buttonStyle(.plain).accessibilityLabel("Visibility of " + track.name)
+            }.font(.caption).padding(8)
+                .background(session.selectedVisualID == track.id ? Color.accentColor.opacity(0.16) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 5))
+                .contextMenu {
+                    Button("Duplicate") { session.duplicateVisual(track.id) }
+                    Button("Bring Forward") { session.moveVisual(track.id, by: 1) }
+                    Button("Send Backward") { session.moveVisual(track.id, by: -1) }
+                    Button("Delete", role: .destructive) { session.deleteVisual(track.id) }
+                }
+        }
     }
 
     private func faceRow(_ face: MappingSurface) -> some View {

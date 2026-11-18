@@ -249,7 +249,7 @@ private struct LightingControllerEditor: View {
                 ForEach(LightingSimulationProfile.allCases) { Text($0.rawValue).tag($0) }
             }
             if draft.profile != .simulation {
-                Text("This controller will show intended values without sending them.").foregroundStyle(.secondary)
+                Label("Simulation", systemImage: "testtube.2").foregroundStyle(.secondary)
             }
             if let message = session.lightingMessage { Text(message).foregroundStyle(.orange) }
             HStack {
@@ -385,6 +385,7 @@ struct FixturePreview: View {
     var allowsPlacement = true
     @State private var editing = false
     @State private var draft: PlacementEdit?
+    @State private var selectedFixtureID: UUID?
 
     private struct PlacementEdit {
         var id: UUID
@@ -449,6 +450,9 @@ struct FixturePreview: View {
                 .coordinateSpace(name: "fixturePreview")
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
+            if allowsPlacement, let selected = fixtures.first(where: { $0.id == selectedFixtureID }) {
+                GroupBox(selected.name) { FixtureTestControls(session: session, fixture: selected) }
+            }
             if editing {
                 Text("Drag the fixture markers to position them. Drag either strip marker to shape the line.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -483,7 +487,7 @@ struct FixturePreview: View {
             .frame(width: 26, height: 26)
             .foregroundStyle(.white)
             .background(.black.opacity(0.8), in: Circle())
-            .overlay { Circle().strokeBorder(.white.opacity(editing ? 0.75 : 0.3)) }
+            .overlay { Circle().strokeBorder(selectedFixtureID == fixture.id ? Color.accentColor : .white.opacity(editing ? 0.75 : 0.3), lineWidth: selectedFixtureID == fixture.id ? 2 : 1) }
             .overlay(alignment: .bottom) {
                 if !endpoint {
                     Text(label).font(.caption2).lineLimit(1).fixedSize()
@@ -491,6 +495,7 @@ struct FixturePreview: View {
                         .offset(y: 12).allowsHitTesting(false).accessibilityHidden(true)
                 }
             }
+            .onTapGesture { if allowsPlacement { selectedFixtureID = fixture.id } }
             .position(anchor)
             .accessibilityLabel("\(label), \(detail)")
             .help("\(label) · \(detail)")

@@ -1,5 +1,29 @@
 # Changelog
 
+## Local v2.09/build 32 — Playgrounds preview for v2.10
+
+- Save house mapping and fixture configuration as independent local Playgrounds; start blank shows from the current setup, a library entry or a supported project file, with optional new-song selection.
+- Add library rename/notes, duplicate, confirmed setup updates and portable playground import/export. Keep reference-photo assets and clear programming/timing.
+- New shows are separate autosaved drafts, paused at zero with output closed and fixtures dark. Existing shows and saved playgrounds remain independent. Broader v2.10 remains planned.
+- Full Release succeeded with 362 tests reported; seven added Playgrounds checks passed in Release/Debug. Full Debug had two phone curl failures; the five phone checks passed in isolation. Final universal local app and archive verified. User visual/listening acceptance remains pending. No Git delivery or release.
+
+## Local v2.09/build 31 — Editor workflow polish
+
+- Organize objects, faces, layers, and regions in one sidebar; show selected clip, cue, layer, region, and mouth-key controls in the inspector.
+- Remove repeated instructions and duplicate headings; add resizable panels, timeline group collapse, layout reset, and direct layer placement handles.
+- Edit clip content directly, preserve base content, and route keyboard actions to the selected visual or mouth key.
+- Autosave named projects and local drafts in the background, retain five checkpoints, and offer Retry or Save a Copy after a failure. Reuse unchanged video validation and clone media on supported filesystems.
+- Fix white wrap-boundary seams in Snowfall and Particles antialiasing.
+
+## Local v2.09/build 30 — Easy Local Remote
+
+- Start a Mac-hosted HTTP remote with automatic private-address discovery, QR pairing, and Mac approval on a trusted network.
+- Keep certificate-based HTTPS setup under Advanced.
+
+## Local v2.09/build 29 — Phone remote stability
+
+- Keep phone pairing through unrelated network path updates and brief local endpoint interruptions. Revoke it when the bound interface changes or its address stays unavailable.
+
 ## v2.09 — Layers, Regions, and Text
 
 - Add reorderable projection layers with opacity, placement, blend modes, and independent clip lanes.

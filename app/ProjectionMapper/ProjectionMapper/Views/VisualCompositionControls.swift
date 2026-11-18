@@ -1,80 +1,42 @@
 import SwiftUI
 
-struct VisualCompositionControls: View {
+struct VisualCompositionControls<SourceControls: View>: View {
     let session: EditorSession
     let ownerID: UUID
     var face: MappingSurface?
-    @State private var layersExpanded = false
-    @State private var regionsExpanded = false
+    @ViewBuilder let sourceControls: () -> SourceControls
 
     private var layers: [VisualLayer] { session.project.layers.filter { $0.ownerID == ownerID } }
     private var regions: [FaceRegion] { session.project.regions.filter { $0.faceID == face?.id } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            DisclosureGroup("Layers", isExpanded: $layersExpanded) {
-                VStack(alignment: .leading, spacing: 9) {
-                    Label("Base content", systemImage: "square")
-                        .foregroundStyle(.secondary)
-                    ForEach(layers) { layer in row(layer.track, orderedIDs: layers.map(\.id)) }
-                    Button("Add layer", systemImage: "plus") { session.addLayer(ownerID: ownerID) }
-                        .disabled(layers.count >= MappingProject.maximumLayersPerOwner)
-                    if let track = layers.first(where: { $0.id == session.selectedVisualID })?.track {
-                        VisualTrackControls(session: session, track: track).id(track.id)
-                    }
-                }.padding(.top, 8)
-            }.padding(10).background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
-            if let face {
-                DisclosureGroup("Regions", isExpanded: $regionsExpanded) {
-                    VStack(alignment: .leading, spacing: 9) {
-                        ForEach(regions) { region in row(region.track, orderedIDs: regions.map(\.id)) }
-                        Button("Add region", systemImage: "plus") { session.addRegion(faceID: face.id) }
-                            .disabled(regions.count >= MappingProject.maximumRegionsPerFace)
-                        if let region = regions.first(where: { $0.id == session.selectedVisualID }) {
-                            RegionControls(session: session, region: region, face: face)
-                            VisualTrackControls(session: session, track: region.track).id(region.id)
-                        }
-                    }.padding(.top, 8)
-                }.padding(10).background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+            if let region = regions.first(where: { $0.id == session.selectedVisualID }), let face {
+                RegionControls(session: session, region: region, face: face)
+                VisualTrackControls(session: session, track: region.track, sourceControls: sourceControls).id(region.id)
+            } else if let layer = layers.first(where: { $0.id == session.selectedVisualID }) {
+                VisualTrackControls(session: session, track: layer.track, sourceControls: sourceControls).id(layer.id)
             }
-        }
-        .onChange(of: session.selectedVisualID, initial: true) { _, id in
-            if layers.contains(where: { $0.id == id }) { layersExpanded = true }
-            if regions.contains(where: { $0.id == id }) { regionsExpanded = true }
+            HStack {
+                Button("Add Layer", systemImage: "plus") { session.addLayer(ownerID: ownerID) }
+                    .disabled(layers.count >= MappingProject.maximumLayersPerOwner)
+                if let face {
+                    Button("Add Region", systemImage: "plus") { session.addRegion(faceID: face.id) }
+                        .disabled(regions.count >= MappingProject.maximumRegionsPerFace)
+                }
+            }.controlSize(.small)
         }
     }
 
-    private func row(_ track: VisualTrack, orderedIDs: [UUID]) -> some View {
-        HStack(spacing: 7) {
-            Button {
-                session.selectVisual(track.id)
-            } label: {
-                Label(track.name, systemImage: session.selectedVisualID == track.id ? "circle.inset.filled" : "circle")
-                    .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
-            }.buttonStyle(.plain)
-            Button {
-                session.updateVisual(track.id) { $0.isVisible.toggle() }
-            } label: {
-                Image(systemName: track.isVisible ? "eye" : "eye.slash")
-            }.buttonStyle(.borderless).accessibilityLabel(track.isVisible ? "Hide \(track.name)" : "Show \(track.name)")
-            Menu {
-                Button("Move forward") { session.moveVisual(track.id, by: 1) }
-                    .disabled(orderedIDs.last == track.id)
-                Button("Move backward") { session.moveVisual(track.id, by: -1) }
-                    .disabled(orderedIDs.first == track.id)
-                Button("Duplicate") { session.duplicateVisual(track.id) }
-                Button("Remove", role: .destructive) { session.deleteVisual(track.id) }
-            } label: {
-                Image(systemName: "ellipsis.circle").accessibilityLabel("\(track.name) actions")
-            }.menuStyle(.borderlessButton).fixedSize()
-        }
-    }
+
 }
 
-private struct VisualTrackControls: View {
+private struct VisualTrackControls<SourceControls: View>: View {
     let session: EditorSession
     let track: VisualTrack
+    @ViewBuilder let sourceControls: () -> SourceControls
     @State private var name = ""
+    @FocusState private var naming: Bool
     @State private var mouth = MouthShape.open
     @State private var snapMouth = true
 
@@ -91,7 +53,10 @@ private struct VisualTrackControls: View {
         TextField("Name", text: $name)
             .textFieldStyle(.roundedBorder)
             .onAppear { name = track.name }
-            .onSubmit { session.renameVisual(track.id, name) }
+            .focused($naming)
+            .onSubmit { session.renameVisual(track.id, name); naming = false }
+            .onChange(of: naming) { _, focused in if !focused { session.renameVisual(track.id, name) } }
+            .onExitCommand { name = track.name; naming = false }
         Picker("Source", selection: bind(\.kind)) {
             ForEach(VisualSourceKind.allCases) { Text($0.title).tag($0) }
         }
@@ -130,35 +95,7 @@ private struct VisualTrackControls: View {
         }
     }
 
-    private var mediaControls: some View {
-        Group {
-            Picker("Content", selection: bind(\.source.content)) {
-                ForEach(SurfaceContent.allCases.filter {
-                    ($0 != .image || track.source.image != nil) && ($0 != .video || track.source.video != nil)
-                }) { Text($0.title).tag($0) }
-            }
-            if track.source.content != .image && track.source.content != .video {
-                ColorPicker("Color", selection: color(\.source.color), supportsOpacity: true)
-                if track.source.content.isProceduralAnimation {
-                    ColorPicker("Background", selection: color(\.source.generator.secondaryColor), supportsOpacity: true)
-                    Slider(value: bind(\.source.generator.rate), in: 0.25...4, onEditingChanged: session.continuousEditing) {
-                        Text("Speed")
-                    }
-                }
-            }
-            HStack {
-                Button("Import image…") { session.chooseImage(target: .owner(track.id)) }
-                    .disabled(session.isImportingImage || session.isSavingMedia)
-                Button("Import video…") { session.chooseVideo(target: .owner(track.id)) }
-                    .disabled(session.isImportingVideo || session.isSavingMedia)
-            }
-            if track.source.content == .video {
-                Toggle("Loop video", isOn: Binding(get: { track.source.video?.loops == true }, set: { enabled in
-                    session.updateVisual(track.id) { $0.source.video?.loops = enabled }
-                }))
-            }
-        }
-    }
+    private var mediaControls: some View { sourceControls() }
 
     private func color(_ keyPath: WritableKeyPath<VisualTrack, SIMD4<Float>>) -> Binding<Color> {
         Binding(get: {

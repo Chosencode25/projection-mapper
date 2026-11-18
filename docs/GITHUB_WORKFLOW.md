@@ -170,3 +170,9 @@ The existing 342 passing Release checks apply to this source. Visual and
 listening rehearsal and physical output acceptance remain pending. This delivery
 backs up source and installs the local app. The latest published app download
 remains v1.15.1.
+
+## Explicit build 32 backup request — November 17, 2026
+
+The user invoked the saved **Install** and **Backup** commands. This explicitly authorizes installing the verified v2.09/build 32 Playgrounds preview and committing/pushing the current active source, accumulated phone/editor changes and documentation despite the normal milestone-only cadence. Preserve the old app and existing Git history. Back up on `codex/v2.10-playgrounds`; main remains the last completed milestone because the rest of v2.10 is still planned. No release/tag/app asset upload is authorized by Backup.
+
+The installed app matches the 11 verified Release files and passes strict/deep signature verification with arm64/x86_64 executable slices. Build 31 is preserved under `builds/v2.10/playgrounds/Previous-Applications.app`. The existing 362-test Release result, Debug phone-failure qualification and isolated five-phone-test pass remain the evidence; no source edits or rebuild occurred for this delivery. Publication and user/hardware acceptance remain separate.

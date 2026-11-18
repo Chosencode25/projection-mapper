@@ -16,6 +16,13 @@ final class EditorSession {
     var canvasZoom = 1.0
     var canvasCenter = CGPoint(x: 0.5, y: 0.5)
     var timelineScrollX = 0.0
+    var timelineScrollY = 0.0
+    var collapsedTimelineOwners: Set<UUID> = []
+    var showsVisualTracks = true
+    var sidebarWidth = 244.0
+    var inspectorWidth = 320.0
+    var timelineHeight = 224.0
+    var layoutRevision = 0
     var timelineScale = 24.0
     var timelineSnap = true
     var timelineFollow = true
@@ -253,6 +260,25 @@ final class EditorSession {
         guard project.song == nil else { return }
         transport.setSpeed(value, at: uptime); updateOutputScene(at: uptime)
     }
+    var selectedMouthKeyID: UUID?
+    var selectedMouthKey: MouthKey? {
+        selectedVisualID.flatMap { project.visualTrack($0)?.mouthKeys.first { $0.id == selectedMouthKeyID } }
+    }
+    func selectMouthKey(_ id: UUID, on track: TimelineTrack) {
+        selectTimelineTrack(track); selectedClipID = nil; selectedMouthKeyID = id
+    }
+    func deleteSelectedMouthKey() {
+        guard let id = selectedVisualID, let key = selectedMouthKey else { return }
+        updateVisual(id) { $0.mouthKeys.removeAll { $0.id == key.id } }; selectedMouthKeyID = nil
+    }
+    func duplicateSelectedMouthKey() {
+        guard let id = selectedVisualID, let key = selectedMouthKey, let track = project.visualTrack(id) else { return }
+        var time = key.time + 0.1
+        while track.mouthKeys.contains(where: { abs($0.time - time) < 0.00001 }) { time += 0.1 }
+        guard time <= 3600 else { return }
+        let copy = MouthKey(time: time, shape: key.shape)
+        updateVisual(id) { $0.mouthKeys.append(copy) }; selectedMouthKeyID = copy.id
+    }
     var selectedVisualID: UUID?
     var isRegionEditing = false
     var regionDraft: [SIMD2<Float>]?
@@ -438,6 +464,11 @@ final class EditorSession {
     var selectedSurface: MappingSurface? { project.surfaces.first { $0.id == selectedSurfaceID } }
     var selectedObject: MappingObject? { project.objects.first { $0.id == selectedObjectID } }
     var selectedSource: SurfaceSource? {
+        if let clip = selectedClip {
+            let base = project.timelineTracks.first { $0.id == clip.sourceID }?.source ?? SurfaceSource()
+            return clip.source.applying(to: base)
+        }
+        if let id = selectedVisualID, let track = project.visualTrack(id) { return track.source }
         if let object = selectedObject { return object.source }
         return selectedSurface.map { project.source(for: $0) }
     }
@@ -460,11 +491,106 @@ final class EditorSession {
         var current = project; current.modifiedAt = savedBaseline.modifiedAt
         return isRecovered || current != savedBaseline || mediaStamps != savedMediaStamps
     }
+    var playgroundImageFiles: [UUID: Data] { imageFiles.filter { $0.key == project.referencePhoto?.assetID } }
     var document: ProjectDocument {
         ProjectDocument(project: project,output: ProjectOutputSettings(destination: output.savedPreference,resolution: output.testResolution))
     }
+    private var draftDirectory: URL?
+    private var documentAutosaveTask: Task<Void, Never>?
+    private var firstPendingSave: Date?
+    private struct VideoSaveSignature: Equatable, Sendable {
+        let size: UInt64
+        let modified: Date
+        let inode: UInt64
+        init(_ url: URL) throws {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            size = (attributes[.size] as? NSNumber)?.uint64Value ?? 0
+            modified = attributes[.modificationDate] as? Date ?? .distantPast
+            inode = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0
+        }
+    }
+    private struct VideoSaveValidation: Sendable {
+        let asset: VideoAsset
+        let url: URL
+        let signature: VideoSaveSignature
+    }
+    private var validatedVideoFiles: [UUID: VideoSaveValidation] = [:]
+    private var lastCheckpoint = Date.distantPast
+    var availableCheckpoints: [URL] {
+        guard let directory = draftDirectory?.deletingLastPathComponent().appendingPathComponent("Checkpoints/" + project.id.uuidString) else { return [] }
+        return ((try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension == "projectionmap" }.sorted { $0.lastPathComponent > $1.lastPathComponent }
+    }
+    func restoreCheckpoint(_ url: URL) {
+        Task { @MainActor in
+            do {
+                repeat { try await flushAutosave() } while hasUserChanges
+                let original = project, destination = documentURL
+                try load(ProjectPackageStore().read(url), from: url)
+                documentURL = destination; savedBaseline = original
+                scheduleDocumentSave()
+            } catch { editMessage = error.localizedDescription }
+        }
+    }
+    private(set) var isAutosaving = false
+    private(set) var autosaveError: String?
+    var isManagedDraft: Bool {
+        guard let documentURL, let draftDirectory else { return false }
+        return documentURL.deletingLastPathComponent().standardizedFileURL == draftDirectory.standardizedFileURL
+    }
+    var saveStatus: String {
+        if autosaveError != nil { return "Save failed" }
+        if isSavingMedia || isAutosaving { return "Saving…" }
+        if hasUserChanges { return "Editing…" }
+        return isManagedDraft ? "Draft saved" : "Saved"
+    }
+    var availableDrafts: [URL] {
+        guard let draftDirectory else { return [] }
+        return ((try? FileManager.default.contentsOfDirectory(at: draftDirectory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? [])
+            .filter { $0.pathExtension == "projectionmap" }
+            .sorted { ((try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) >
+                      ((try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) }
+    }
+    func openDraft(_ url: URL) {
+        Task { @MainActor in
+            do { repeat { try await flushAutosave() } while hasUserChanges; try load(ProjectPackageStore().read(url), from: url) }
+            catch { editMessage = error.localizedDescription }
+        }
+    }
+    func configureAutosave(directory: URL) {
+        draftDirectory = directory
+        if documentURL == nil { isRecovered = true }
+        scheduleDocumentSave()
+    }
+    func scheduleDocumentSave() {
+        guard draftDirectory != nil, hasUserChanges, !isAutosaving else { return }
+        if firstPendingSave == nil { firstPendingSave = .now }
+        documentAutosaveTask?.cancel()
+        let delay = max(0, min(2, 10 - Date().timeIntervalSince(firstPendingSave!)))
+        documentAutosaveTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard let self, !Task.isCancelled else { return }
+            do { try await self.flushAutosave() }
+            catch { self.autosaveError = error.localizedDescription }
+        }
+    }
+    func flushAutosave() async throws {
+        guard let draftDirectory else { return }
+        while isSavingMedia || isAutosaving { try await Task.sleep(for: .milliseconds(30)) }
+        guard hasUserChanges else { return }
+        try FileManager.default.createDirectory(at: draftDirectory, withIntermediateDirectories: true)
+        let target = documentURL ?? draftDirectory.appendingPathComponent(project.id.uuidString + ".projectionmap")
+        do { try await saveMedia(to: target, autosaving: true) }
+        catch {
+            autosaveError = error.localizedDescription
+            try? await flushRecoveryMedia()
+            throw error
+        }
+    }
+
     func configureRecovery(_ store: ProjectRecoveryStore) { recoveryStore = store; scheduleRecovery() }
     private func scheduleRecovery() {
+        scheduleDocumentSave()
         autosaveTask?.cancel()
         guard recoveryStore != nil else { return }
         guard hasUserChanges else { recoveryStore?.remove(projectID: project.id); return }
@@ -476,7 +602,7 @@ final class EditorSession {
         }
     }
     private func flushRecoveryMedia() async throws {
-        guard hasUserChanges, let recoveryStore, !isSavingMedia else { return }
+        guard hasUserChanges, let recoveryStore, !isSavingMedia, !isAutosaving else { return }
         videoFileLeases += 1
         defer { videoFileLeases -= 1; cleanupManagedVideos() }
         let data = try ProjectCodec.encode(document), original = documentURL, source = assetSourceURL
@@ -526,6 +652,7 @@ final class EditorSession {
         managedVideoURLs.formUnion(videoFiles.values.filter { $0.deletingLastPathComponent() == VideoImportService.stagingDirectory })
         imagePixels = media.pixels; imageFiles = media.files; imageProblems = media.problems; referencePhotoVisible = true
         mediaGeneration = UUID()
+        documentAutosaveTask?.cancel(); firstPendingSave = nil; autosaveError = nil; lastCheckpoint = .distantPast
         project = document.project; savedBaseline = project; isRecovered = recovering || document.recovery != nil
         documentURL = isRecovered ? nil : url; assetSourceURL = url
         if isRecovered, let path = document.recovery?.originalPath {
@@ -636,7 +763,7 @@ final class EditorSession {
     func selectSurface(_ id: UUID?) {
         guard id == nil || project.surfaces.contains(where: { $0.id == id }) else { return }
         selectedClipID = nil
-        selectedVisualID = nil
+        selectedVisualID = nil; selectedMouthKeyID = nil
         isRegionEditing = false; regionDraft = nil
         selectedLightingCueID = nil
         if id != nil { inspectorTab = .edit }
@@ -665,7 +792,7 @@ final class EditorSession {
         selectedClipID = nil
         selectedLightingCueID = nil
         inspectorTab = .edit
-        selectedVisualID = nil; isRegionEditing = false; regionDraft = nil
+        selectedVisualID = nil; selectedMouthKeyID = nil; isRegionEditing = false; regionDraft = nil
         clearMaskEditing(); selectedObjectID = id; selectedSurfaceID = nil; selectedCorner = nil; editMessage = nil
     }
     func selectCorner(_ corner: SurfaceCorner?) {
@@ -918,6 +1045,17 @@ final class EditorSession {
         updateSource { $0.generator.secondaryColor = color; $0.secondaryBinding = nil }
     }
     private func updateSource(now: Date = .now, _ edit: (inout SurfaceSource) -> Void) {
+        if var clip = selectedClip, let source = selectedSource {
+            var edited = source; edit(&edited)
+            clip.source = SourceLook(source: edited)
+            clip.source.primaryBinding = nil; clip.source.secondaryBinding = nil
+            _ = updateTimelineClip(clip)
+            return
+        }
+        if let id = selectedVisualID {
+            updateVisual(id) { edit(&$0.source) }
+            return
+        }
         let objectID = selectedObjectID ?? selectedSurface?.layout.objectID
         if let i = project.objects.firstIndex(where: { $0.id == objectID }) {
             let old = project.objects[i].source; edit(&project.objects[i].source)
@@ -1073,16 +1211,45 @@ final class EditorSession {
         guard let i = project.objects.firstIndex(where: { $0.id == objectID }), project.objects[i].links.contains(where: { $0.id == linkID }) else { return }
         project.objects[i].links.removeAll { $0.id == linkID }; changed()
     }
+    func startPlaygroundShow(_ setup: ProjectDocument, images: [UUID: Data]) async throws {
+        let fresh = try PlaygroundExtraction.extract(setup, name: setup.project.name)
+        let bytes = try ProjectCodec.encode(fresh)
+        guard let draftDirectory else { throw ProjectFileError.io("Draft storage is unavailable.") }
+        let baseline = project
+        let target = draftDirectory.appendingPathComponent(fresh.project.id.uuidString + ".projectionmap")
+        let loaded = try await Task.detached(priority: .userInitiated) {
+            try FileManager.default.createDirectory(at: draftDirectory, withIntermediateDirectories: true)
+            let document = try ProjectCodec.decode(bytes)
+            try ProjectPackageStore().write(document, to: target, imageFiles: images)
+            let media = ImageImportService.loadAssets(document.project, package: target)
+            guard media.problems.isEmpty else { throw ProjectFileError.invalid("The playground reference photo could not be loaded.") }
+            return media
+        }.value
+        guard baseline == project else {
+            try? FileManager.default.removeItem(at: target)
+            throw ProjectFileError.io("The current show changed during creation. Try again.")
+        }
+        try load(fresh, from: target, loadedMedia: loaded)
+        workspace = .edit
+        songVolume = 1; songMuted = false; songDeviceID = nil
+        collapsedTimelineOwners = []; timelineScrollX = 0; timelineScrollY = 0
+        selectedSurfaceID = nil; selectedObjectID = nil
+        documentAutosaveTask?.cancel(); firstPendingSave = nil; autosaveError = nil; lastCheckpoint = .distantPast
+        UserDefaults.standard.set(target.path, forKey: "ProjectionMapper.lastDraft")
+        fileMessage = "New show from playground — Draft saved"
+    }
+
     func resetProject(now: Date = .now) {
         clearSongRuntime()
         projectorOutput.close()
         clearEditHistory(); mediaStamps.removeAll(); savedMediaStamps.removeAll(); identifyingSourceID = nil
         imagePixels.removeAll(); imageFiles.removeAll(); imageProblems.removeAll(); mediaGeneration = UUID(); referencePhotoVisible = true
-        clearRecovery(); documentURL = nil; assetSourceURL = nil; isRecovered = false; fileMessage = nil
+        clearRecovery(); documentAutosaveTask?.cancel(); firstPendingSave = nil; autosaveError = nil; lastCheckpoint = .distantPast
+        documentURL = nil; assetSourceURL = nil; isRecovered = draftDirectory != nil; fileMessage = nil
         videoPlayback.reset(); videoFiles.removeAll(); videoPosters.removeAll(); videoProblems.removeAll(); videoAudioEnabled = false; cleanupManagedVideos()
         resetLighting()
         selectedClipID = nil; selectVisual(nil); timelineViewRequest = nil; timelineMessage = nil; clearMaskEditing(); resetEditorDisplay(); inspectorTab = .edit; sourcePlayback.removeAll(); transport = AnimationTransport(); showOutput = ShowOutputState(); calibration = CalibrationState(); lastLookReport = nil; project = MappingProject(now: now); savedBaseline = project; selectedSurfaceID = project.surfaces.first?.id
-        selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); isGroupingFaces = false; editMessage = nil; editCheckpoint = snapshotForHistory(); updateOutputScene()
+        selectedObjectID = nil; selectedCorner = nil; groupingSelection.removeAll(); isGroupingFaces = false; editMessage = nil; editCheckpoint = snapshotForHistory(); updateOutputScene(); scheduleDocumentSave()
     }
 }
 
@@ -1322,14 +1489,14 @@ extension EditorSession {
     /// Capture the owner before a picker or drop; async completion never follows a new selection.
     func chooseImage(target: ImageImportTarget) {
         guard !isImportingImage else { return }
-        let token = mediaGeneration, expected = sourceForImageTarget(target)
+        let token = mediaGeneration, expected = sourceForImageTarget(target), expectedClip = selectedClipID
         let panel = NSOpenPanel(); panel.allowedContentTypes = [.png,.jpeg]
         panel.allowsMultipleSelection = false; panel.canChooseDirectories = false
         panel.message = target == .reference ? "Choose an editor-only reference photo" : "Choose an image for this content owner"
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             Task { @MainActor [weak self] in
-                guard let self, token == self.mediaGeneration, expected == self.sourceForImageTarget(target) else { return }
+                guard let self, token == self.mediaGeneration, expected == self.sourceForImageTarget(target), expectedClip == self.selectedClipID else { return }
                 await self.importImage(from: url,target: target)
             }
         }
@@ -1339,12 +1506,12 @@ extension EditorSession {
                          try await Task.detached(priority: .userInitiated) { try ImageImportService.read(url) }.value
                      }) async {
         guard !isImportingImage else { editMessage = "Wait for the current image import to finish."; return }
-        let generation = mediaGeneration, expected = sourceForImageTarget(target)
+        let generation = mediaGeneration, expected = sourceForImageTarget(target), expectedClip = selectedClipID
         isImportingImage = true
         defer { isImportingImage = false }
         do {
             let imported = try await decode(url)
-            guard generation == mediaGeneration, expected == sourceForImageTarget(target) else {
+            guard generation == mediaGeneration, expected == sourceForImageTarget(target), expectedClip == selectedClipID else {
                 editMessage = "The target changed during import. Choose the image again."; return
             }
             try installImage(imported,target: target)
@@ -1384,7 +1551,10 @@ extension EditorSession {
         }
         if let ownerID {
             let image = ImageContent(assetID: asset.id,canvasAspect: Float(output.aspectRatio))
-            if let i = candidate.objects.firstIndex(where: { $0.source.id == ownerID }) {
+            if let index = candidate.timelineClips.firstIndex(where: { $0.id == selectedClipID && $0.sourceID == ownerID }) {
+                candidate.timelineClips[index].source.content = .image
+                candidate.timelineClips[index].source.image = image
+            } else if let i = candidate.objects.firstIndex(where: { $0.source.id == ownerID }) {
                 candidate.objects[i].source.content = .image; candidate.objects[i].source.image = image
             } else if let i = candidate.surfaces.firstIndex(where: { $0.source.id == ownerID }) {
                 candidate.surfaces[i].source.content = .image; candidate.surfaces[i].source.image = image
@@ -1455,14 +1625,14 @@ extension EditorSession {
     func cancelVideoImport() { videoImportTask?.cancel(); mediaGeneration = UUID() }
     func chooseVideo(target: ImageImportTarget) {
         guard !isImportingVideo else { return }
-        let generation = mediaGeneration, expected = sourceForImageTarget(target)
+        let generation = mediaGeneration, expected = sourceForImageTarget(target), expectedClip = selectedClipID
         let panel = NSOpenPanel(); panel.allowedContentTypes = [.mpeg4Movie,.quickTimeMovie]
         panel.allowsMultipleSelection = false; panel.canChooseDirectories = false
         panel.message = "Choose an SDR H.264/HEVC video for this content owner"
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             Task { @MainActor [weak self] in
-                guard let self, generation == self.mediaGeneration, expected == self.sourceForImageTarget(target) else { return }
+                guard let self, generation == self.mediaGeneration, expected == self.sourceForImageTarget(target), expectedClip == self.selectedClipID else { return }
                 await self.importMedia(from: url,target: target)
             }
         }
@@ -1473,12 +1643,12 @@ extension EditorSession {
             return try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
         }) async {
         guard !isImportingVideo else { editMessage = "Wait for the current video import to finish."; return }
-        let generation = mediaGeneration, expected = sourceForImageTarget(target)
+        let generation = mediaGeneration, expected = sourceForImageTarget(target), expectedClip = selectedClipID
         isImportingVideo = true
         defer { isImportingVideo = false }
         do {
             let imported = try await read(url)
-            guard !Task.isCancelled, generation == mediaGeneration, expected == sourceForImageTarget(target) else {
+            guard !Task.isCancelled, generation == mediaGeneration, expected == sourceForImageTarget(target), expectedClip == selectedClipID else {
                 if imported.url.deletingLastPathComponent() == VideoImportService.stagingDirectory { try? FileManager.default.removeItem(at: imported.url) }
                 editMessage = "The target changed during import. Choose the video again."; return
             }
@@ -1517,8 +1687,12 @@ extension EditorSession {
         case .reference: throw ProjectFileError.invalid("Reference photos accept images only.")
         }
         if let owner {
-            let content = VideoContent(assetID: asset.id,outPoint: asset.duration,canvasAspect: Float(output.aspectRatio))
-            if let i = candidate.objects.firstIndex(where: { $0.source.id == owner }) {
+            var content = VideoContent(assetID: asset.id,outPoint: asset.duration,canvasAspect: Float(output.aspectRatio))
+            if let index = candidate.timelineClips.firstIndex(where: { $0.id == selectedClipID && $0.sourceID == owner }) {
+                content.loops = true
+                candidate.timelineClips[index].source.content = .video
+                candidate.timelineClips[index].source.video = content
+            } else if let i = candidate.objects.firstIndex(where: { $0.source.id == owner }) {
                 candidate.objects[i].source.content = .video; candidate.objects[i].source.video = content
             } else if let i = candidate.surfaces.firstIndex(where: { $0.source.id == owner }) {
                 candidate.surfaces[i].source.content = .video; candidate.surfaces[i].source.video = content
@@ -1554,33 +1728,66 @@ extension EditorSession {
     func enableVideoAudio(_ enabled: Bool) { videoAudioEnabled = enabled; if enabled { videoPlayback.rearmAudio() }; updateOutputScene() }
     /// Native Save runs asset copies off the main actor; edits after the snapshot remain dirty.
     func cancelMediaSave() { saveWorker?.cancel() }
-    func saveMedia(to url: URL) async throws {
-        guard !isSavingMedia else { throw ProjectFileError.io("A media save is already in progress.") }
+    func saveMedia(to url: URL, autosaving: Bool = false) async throws {
+        if !autosaving {
+            documentAutosaveTask?.cancel()
+            while isAutosaving { try await Task.sleep(for: .milliseconds(30)) }
+        }
+        guard !isSavingMedia && !isAutosaving else { throw ProjectFileError.io("A media save is already in progress.") }
         let snapshot = project, stampSnapshot = mediaStamps, generation = mediaGeneration, data = try ProjectCodec.encode(document)
         let images = imageFiles, videos = videoFiles, soundtrack = songBytes, source = assetSourceURL
-        isSavingMedia = true; videoFileLeases += 1
-        defer { saveWorker = nil; isSavingMedia = false; videoFileLeases -= 1; cleanupManagedVideos() }
+        let previousValidations = validatedVideoFiles
+        let checkpointDirectory = draftDirectory?.deletingLastPathComponent().appendingPathComponent("Checkpoints/" + project.id.uuidString)
+        let checkpointDue = Date().timeIntervalSince(lastCheckpoint) > 30 && FileManager.default.fileExists(atPath: url.path)
+        var completed = false
+        if autosaving { isAutosaving = true } else { isSavingMedia = true }
+        videoFileLeases += 1
+        defer {
+            saveWorker = nil; isSavingMedia = false; isAutosaving = false
+            videoFileLeases -= 1; cleanupManagedVideos()
+            if completed && hasUserChanges { scheduleDocumentSave() }
+        }
         let worker = Task.detached(priority: .userInitiated) {
             let document = try ProjectCodec.decode(data)
+            var validations: [UUID: VideoSaveValidation] = [:]
             for asset in document.project.videoAssets {
                 try Task.checkCancellation()
                 guard let file = videos[asset.id] else { throw ProjectFileError.invalid("Missing video; relink before saving.") }
-                let actual = try await VideoImportService.inspect(file).0
-                guard actual.byteCount == asset.byteCount, actual.duration >= asset.duration-0.00001,
-                      actual.width == asset.width, actual.height == asset.height, actual.transform == asset.transform else {
-                    throw ProjectFileError.invalid("Video changed; relink before saving.")
+                let signature = try VideoSaveSignature(file)
+                let previous = previousValidations[asset.id]
+                if previous?.asset != asset || previous?.url != file || previous?.signature != signature {
+                    let actual = try await VideoImportService.inspect(file).0
+                    guard actual.byteCount == asset.byteCount, actual.duration >= asset.duration-0.00001,
+                          actual.width == asset.width, actual.height == asset.height, actual.transform == asset.transform else {
+                        throw ProjectFileError.invalid("Video changed; relink before saving.")
+                    }
                 }
+                validations[asset.id] = VideoSaveValidation(asset: asset, url: file, signature: signature)
+            }
+            if checkpointDue, let checkpointDirectory, FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.createDirectory(at: checkpointDirectory, withIntermediateDirectories: true)
+                let checkpoint = checkpointDirectory.appendingPathComponent(String(Date().timeIntervalSince1970) + ".projectionmap")
+                try FileManager.default.copyItem(at: url, to: checkpoint)
+                let existing = try FileManager.default.contentsOfDirectory(at: checkpointDirectory, includingPropertiesForKeys: nil)
+                    .sorted { $0.lastPathComponent > $1.lastPathComponent }
+                for old in existing.dropFirst(5) { try? FileManager.default.removeItem(at: old) }
             }
             try ProjectPackageStore().write(document,to: url,assetsFrom: source,imageFiles: images,videoFiles: videos,songBytes: soundtrack)
+            return validations
         }
-        saveWorker = worker
-        try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
+        saveWorker = Task { try await withTaskCancellationHandler { _ = try await worker.value } onCancel: { worker.cancel() } }
+        let validations = try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
         guard generation == mediaGeneration else { throw ProjectFileError.io("Project changed while saving; the captured project was saved separately.") }
+        validatedVideoFiles = validations
         documentURL = url; assetSourceURL = url; savedBaseline = snapshot; savedMediaStamps = stampSnapshot; isRecovered = false
         // Keep staged originals alive: future package replacement must not invalidate undo media.
         editCheckpoint = snapshotForHistory()
         if !hasUserChanges { clearRecovery() } else { scheduleRecovery() }
-        fileMessage = "Saved \(url.lastPathComponent)"; updateOutputScene()
+        completed = true
+        if checkpointDue { lastCheckpoint = .now }
+        autosaveError = nil; firstPendingSave = nil
+        if isManagedDraft { UserDefaults.standard.set(url.path, forKey: "ProjectionMapper.lastDraft") }
+        fileMessage = nil; updateOutputScene()
     }
 }
 
@@ -1698,7 +1905,7 @@ extension EditorSession {
         clearSongRuntime()
         resetLighting()
         closeOutput()
-        autosaveTask?.cancel(); videoImportTask?.cancel(); saveWorker?.cancel()
+        autosaveTask?.cancel(); documentAutosaveTask?.cancel(); videoImportTask?.cancel(); saveWorker?.cancel()
         videoPlayback.reset(); clearEditHistory(); videoFiles.removeAll(); cleanupManagedVideos()
     }
     func identifySelectedObject() {
@@ -1838,7 +2045,7 @@ extension EditorSession {
     func selectLightingCue(_ id: UUID?) {
         if id != nil {
             clearMaskEditing()
-            selectedClipID = nil
+            selectedClipID = nil; selectedMouthKeyID = nil
         }
         selectedLightingCueID = id
     }
@@ -2265,7 +2472,8 @@ extension EditorSession {
 extension EditorSession {
     func selectVisual(_ id: UUID?) {
         guard selectedVisualID != id else { return }
-        selectedVisualID = id
+        selectedVisualID = id; selectedMouthKeyID = nil; selectedLightingCueID = nil
+        selectedClipID = nil
         isRegionEditing = false
         regionDraft = nil
     }

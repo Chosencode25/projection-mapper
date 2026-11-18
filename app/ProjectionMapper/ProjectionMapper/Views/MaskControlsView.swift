@@ -62,8 +62,6 @@ struct MaskControls: View {
                         .font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false,vertical: true)
                 }
                 Button("Remove mask…",role: .destructive) { confirmRemove = true }
-                Text("Drag points in either editor. Add point splits the selected edge. Holes reveal lower faces. Masks follow output corners and stay fixed when content crops or input regions change.")
-                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false,vertical: true)
                 if PerspectiveTransform(face.corners) == nil {
                     Text("Output corners are invalid; use the face-local square to repair your mask.").font(.caption).foregroundStyle(.orange)
                 }

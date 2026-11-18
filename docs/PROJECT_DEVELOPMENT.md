@@ -70,3 +70,7 @@ Use v2.02 for fixture patching, simulation and basic cues, v2.03 for native USB-
 ## Song sync before hardware — November 8, 2026
 
 Proceed with [v2.05 music and show transport](V2.05_PLAN.md) using Mac audio, Test Mode and simulated fixtures. Retain the v2.03 and v2.04 scope and numbering and defer hardware-dependent work and acceptance until the equipment is available. Preserve unfinished local v2.03 work separately.
+
+## Project chat shorthand
+
+See [the proposed one-word commands](CHAT_COMMANDS.md) for the saved working reference. These do not replace the project rules or expand a task merely because a command word is mentioned.

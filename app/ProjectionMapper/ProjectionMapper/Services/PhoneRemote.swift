@@ -2,11 +2,83 @@ import Darwin
 import Foundation
 import Network
 import Observation
+import SystemConfiguration
 
 enum PhoneRole: String, CaseIterable, Identifiable {
     case viewer = "Viewer", operatorRole = "Operator", editor = "Editor"
     var id: Self { self }
     var canOperate: Bool { self != .viewer }
+}
+
+/// Identity of the local endpoint, independent of default internet routes and VPN paths.
+struct PhoneNetworkBinding: Equatable, Sendable, Identifiable {
+    let interfaceName: String
+    let address: String
+    let netmask: String
+
+    var id: String { interfaceName + ":" + address }
+    var title: String { interfaceName + " · " + address }
+
+    static func isPrivateIPv4(_ address: String) -> Bool {
+        let octets = address.split(separator: ".", omittingEmptySubsequences: false).compactMap { UInt8($0) }
+        return octets.count == 4 && (octets[0] == 10 || octets[0] == 127 ||
+            (octets[0] == 192 && octets[1] == 168) || (octets[0] == 172 && (16...31).contains(octets[1])))
+    }
+
+    static func available() -> [Self] {
+        var interfaces: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&interfaces) == 0, let first = interfaces else { return [] }
+        defer { freeifaddrs(first) }
+        let physical = SCNetworkInterfaceCopyAll() as? [SCNetworkInterface] ?? []
+        var wifi = Set<String>()
+        var lan = Set<String>()
+        for interface in physical {
+            guard let name = SCNetworkInterfaceGetBSDName(interface) as String?,
+                  let type = SCNetworkInterfaceGetInterfaceType(interface) else { continue }
+            if type == kSCNetworkInterfaceTypeIEEE80211 { wifi.insert(name); lan.insert(name) }
+            if type == kSCNetworkInterfaceTypeEthernet { lan.insert(name) }
+        }
+        var bindings: [Self] = []
+        var item: UnsafeMutablePointer<ifaddrs>? = first
+        while let current = item {
+            item = current.pointee.ifa_next
+            let entry = current.pointee
+            let name = String(cString: entry.ifa_name)
+            guard lan.contains(name), let raw = entry.ifa_addr, raw.pointee.sa_family == UInt8(AF_INET) else { continue }
+            var numeric = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            guard getnameinfo(raw, socklen_t(raw.pointee.sa_len), &numeric, socklen_t(numeric.count), nil, 0, NI_NUMERICHOST) == 0 else { continue }
+            let address = String(decoding: numeric.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+            if isPrivateIPv4(address), let binding = Self.current(address: address), !bindings.contains(binding) {
+                bindings.append(binding)
+            }
+        }
+        return bindings.sorted {
+            if wifi.contains($0.interfaceName) != wifi.contains($1.interfaceName) { return wifi.contains($0.interfaceName) }
+            return $0.id < $1.id
+        }
+    }
+
+    static func current(address: String) -> Self? {
+        var interfaces: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&interfaces) == 0, let first = interfaces else { return nil }
+        defer { freeifaddrs(first) }
+        func numeric(_ raw: UnsafePointer<sockaddr>?) -> String? {
+            guard let raw, raw.pointee.sa_family == UInt8(AF_INET) else { return nil }
+            var buffer = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            guard getnameinfo(raw, socklen_t(raw.pointee.sa_len), &buffer, socklen_t(buffer.count),
+                              nil, 0, NI_NUMERICHOST) == 0 else { return nil }
+            return String(decoding: buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+        }
+        var item: UnsafeMutablePointer<ifaddrs>? = first
+        while let current = item {
+            item = current.pointee.ifa_next
+            let entry = current.pointee
+            guard entry.ifa_flags & UInt32(IFF_UP | IFF_RUNNING) == UInt32(IFF_UP | IFF_RUNNING),
+                  numeric(entry.ifa_addr) == address, let mask = numeric(entry.ifa_netmask) else { continue }
+            return Self(interfaceName: String(cString: entry.ifa_name), address: address, netmask: mask)
+        }
+        return nil
+    }
 }
 
 @MainActor
@@ -16,6 +88,8 @@ final class PhoneRemote {
     private let listener = PhoneHTTPListener()
     private let port: UInt16
     private var host = ""
+    private(set) var isEncrypted = true
+    private var origin: String { (isEncrypted ? "https://" : "http://") + host }
     private var invite = ""
     private var inviteUntil = Date.distantPast
     private var pendingToken: String?
@@ -28,7 +102,9 @@ final class PhoneRemote {
     private var revision = UUID()
     private var revisionProject: MappingProject?
     private var networkMonitor: NWPathMonitor?
-    private var networkIdentity: String?
+    private var networkIdentity: PhoneNetworkBinding?
+    private let networkBinding: (String) -> PhoneNetworkBinding?
+    private var networkLossTask: Task<Void, Never>?
     private var bindAddress = ""
     private var identificationID: UUID?
     var role = PhoneRole.viewer
@@ -42,7 +118,9 @@ final class PhoneRemote {
     var save: ((@escaping @MainActor @Sendable (Bool) -> Void) -> Void)?
     var canAcceptCommands: (() -> Bool)?
 
-    init(session: EditorSession, port: UInt16 = 9443) {
+    init(session: EditorSession, port: UInt16 = 9443,
+         networkBinding: @escaping (String) -> PhoneNetworkBinding? = { PhoneNetworkBinding.current(address: $0) }) {
+        self.networkBinding = networkBinding
         self.session = session
         self.port = port
         listener.handle = { [weak self] request in
@@ -54,9 +132,11 @@ final class PhoneRemote {
             case .ready:
                 self.status = "Ready on " + self.host
                 self.newInvitation()
-            case .failed(let error), .waiting(let error):
+            case .failed(let error):
                 self.stop()
                 self.status = error.localizedDescription
+            case .waiting:
+                self.checkNetworkBinding()
             default: break
             }
         }
@@ -65,61 +145,80 @@ final class PhoneRemote {
     func start(hostname: String, address: String, identity: Data, password: String) throws {
         let name = hostname.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         let labels = name.split(separator: ".", omittingEmptySubsequences: false)
-        let octets = address.split(separator: ".", omittingEmptySubsequences: false).compactMap { UInt8($0) }
-        let privateAddress = octets.count == 4 && (octets[0] == 10 || octets[0] == 127 ||
-            (octets[0] == 192 && octets[1] == 168) || (octets[0] == 172 && (16...31).contains(octets[1])))
         guard name.utf8.count <= 253, labels.count >= 2,
               labels.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 63 && !$0.hasPrefix("-") && !$0.hasSuffix("-") }),
               name.utf8.allSatisfy({ (97...122).contains($0) || (48...57).contains($0) || $0 == 45 || $0 == 46 }),
-              privateAddress, Self.hasAddress(address), identity.count <= 1_048_576 else {
+              PhoneNetworkBinding.isPrivateIPv4(address), let binding = networkBinding(address), identity.count <= 1_048_576 else {
             throw PhoneError("Enter a DNS hostname and a private IPv4 address assigned to this Mac.")
         }
         stop()
         host = name + ":" + String(port)
-        bindAddress = address
+        isEncrypted = true
         try listener.start(address: address, port: port, identityData: identity, password: password)
+        monitorNetwork(binding)
+    }
+
+    func startLocal(address: String? = nil) throws {
+        let selected = address ?? PhoneNetworkBinding.available().first?.address
+        guard let selected, PhoneNetworkBinding.isPrivateIPv4(selected), let binding = networkBinding(selected) else {
+            throw PhoneError("Connect the Mac to your home Wi-Fi or Ethernet, then refresh the network list.")
+        }
+        stop()
+        host = selected + ":" + String(port)
+        isEncrypted = false
+        try listener.startLocal(address: selected, port: port)
+        monitorNetwork(binding)
+    }
+
+    private func monitorNetwork(_ binding: PhoneNetworkBinding) {
+        bindAddress = binding.address
+        networkIdentity = binding
         status = "Starting…"
         isRunning = true
         let monitor = NWPathMonitor()
         networkMonitor = monitor
-        monitor.pathUpdateHandler = { [weak self] path in
-            let fingerprint = path.debugDescription
-            let isAvailable = path.status == .satisfied
+        monitor.pathUpdateHandler = { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, self.networkMonitor === monitor else { return }
-                if !isAvailable || !Self.hasAddress(self.bindAddress) || (self.networkIdentity != nil && self.networkIdentity != fingerprint) {
-                    self.stop()
-                    self.status = "Network changed. Start Phone Remote again."
-                } else {
-                    self.networkIdentity = fingerprint
-                }
+                self.checkNetworkBinding()
             }
         }
         monitor.start(queue: .main)
     }
 
-    private static func hasAddress(_ address: String) -> Bool {
-        var interfaces: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&interfaces) == 0, let first = interfaces else { return false }
-        defer { freeifaddrs(first) }
-        var item: UnsafeMutablePointer<ifaddrs>? = first
-        while let current = item {
-            item = current.pointee.ifa_next
-            guard let raw = current.pointee.ifa_addr, raw.pointee.sa_family == UInt8(AF_INET) else { continue }
-            var numeric = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-            if getnameinfo(raw, socklen_t(raw.pointee.sa_len), &numeric, socklen_t(numeric.count),
-                           nil, 0, NI_NUMERICHOST) == 0,
-               String(decoding: numeric.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self) == address {
-                return true
+    /// Repeated path notifications preserve pairing while the bound endpoint is unchanged.
+    func checkNetworkBinding() {
+        guard isRunning else { return }
+        if let current = networkBinding(bindAddress) {
+            networkLossTask?.cancel()
+            networkLossTask = nil
+            if current != networkIdentity {
+                stop()
+                status = "Remote network address changed. Start Phone Remote again."
+            }
+            return
+        }
+        guard networkLossTask == nil else { return }
+        networkLossTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(2)) }
+            catch { return }
+            guard let self, self.isRunning else { return }
+            self.networkLossTask = nil
+            if self.networkBinding(self.bindAddress) != nil {
+                self.checkNetworkBinding()
+            } else {
+                self.stop()
+                self.status = "Remote network address unavailable. Start Phone Remote again."
             }
         }
-        return false
     }
 
     func stop() {
         listener.stop()
         networkMonitor?.cancel()
         networkMonitor = nil
+        networkLossTask?.cancel()
+        networkLossTask = nil
         networkIdentity = nil
         isRunning = false
         revoke()
@@ -135,7 +234,7 @@ final class PhoneRemote {
         role = .viewer
         invite = UUID().uuidString.lowercased() + UUID().uuidString.lowercased()
         inviteUntil = Date().addingTimeInterval(120)
-        pairingURL = URL(string: "https://\(host)/#\(invite)")
+        pairingURL = URL(string: "\(origin)/#\(invite)")
     }
 
     func approve() {
@@ -171,7 +270,7 @@ final class PhoneRemote {
                 return PhoneResponse(status: "200 OK", type: type, body: Data(value.utf8))
             }
         }
-        guard request.method == "POST", request.headers["origin"] == "https://" + host,
+        guard request.method == "POST", request.headers["origin"] == origin,
               request.headers["content-type"] == "application/json" else {
             return .json(["error": "Unexpected request origin."], status: "403 Forbidden")
         }

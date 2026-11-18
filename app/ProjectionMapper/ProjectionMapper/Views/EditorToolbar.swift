@@ -6,6 +6,10 @@ struct EditorToolbar: View {
     let openOutput: () -> Void
     var openProject: () -> Void = {}
     var saveProject: () -> Void = {}
+    var savePlayground: () -> Void = {}
+    var newPlaygroundShow: () -> Void = {}
+    var choosePlayground: () -> Void = {}
+    var managePlaygrounds: () -> Void = {}
     var showFixtures: () -> Void = {}
 
     var body: some View {
@@ -26,6 +30,26 @@ struct EditorToolbar: View {
                 Button("New project…", action: newProject)
                 Button("Open project…", action: openProject)
                 Button("Save project", action: saveProject)
+                Divider()
+                Button("Save Playground…", action: savePlayground)
+                Button("New Show from This Playground…", action: newPlaygroundShow)
+                Button("New Show from Playground…", action: choosePlayground)
+                Button("Manage Playgrounds…", action: managePlaygrounds)
+                Divider()
+                if !session.availableDrafts.isEmpty {
+                    Menu("Drafts") {
+                        ForEach(session.availableDrafts, id: \.path) { url in
+                            Button((try? ProjectPackageStore().read(url).project.name) ?? "Draft") { session.openDraft(url) }
+                        }
+                    }
+                }
+                if !session.availableCheckpoints.isEmpty {
+                    Menu("Restore Checkpoint") {
+                        ForEach(session.availableCheckpoints, id: \.path) { url in
+                            Button(Date(timeIntervalSince1970: Double(url.deletingPathExtension().lastPathComponent) ?? 0).formatted()) { session.restoreCheckpoint(url) }
+                        }
+                    }
+                }
                 Divider()
                 Button("Project settings & libraries") { showInspector(.project) }
             } label: { Label("Project", systemImage: "folder") }
@@ -48,12 +72,6 @@ struct EditorToolbar: View {
                 Divider()
                 Button("Group faces…") { session.beginGroupingFaces() }
             } label: { Label("Add", systemImage: "plus") }
-            if !compact {
-                HStack(spacing: 6) {
-                    if session.hasUserChanges { Circle().fill(Color.accentColor).frame(width: 6, height: 6) }
-                    Text(session.project.name).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
-                }.frame(maxWidth: 150, alignment: .leading).help(session.project.name)
-            }
             Spacer(minLength: 0)
             Button {
                 session.setPlaying(!session.transport.isPlaying)
@@ -69,6 +87,11 @@ struct EditorToolbar: View {
                 Divider()
                 Button("Fixtures & Simulation", action: showFixtures)
                 Button("Playback readiness & output settings") { showInspector(.show) }
+                Button("Reset workspace layout") {
+                    session.isSidebarVisible = true; session.isInspectorVisible = true; session.isTimelineVisible = true
+                    session.canvasZoom = 1; session.canvasCenter = CGPoint(x: 0.5, y: 0.5)
+                    session.sidebarWidth = 244; session.inspectorWidth = 320; session.timelineHeight = 224; session.layoutRevision += 1
+                }
                 Button("Restart playback") { session.restartPlayback() }
                 Button("Fade to black") { session.fadeToBlack() }
                 Button("Restore output") { session.restoreOutput() }

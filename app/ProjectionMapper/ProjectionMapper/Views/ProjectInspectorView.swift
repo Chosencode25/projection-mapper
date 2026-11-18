@@ -4,11 +4,22 @@ struct ProjectInspectorView: View {
     @Bindable var session: EditorSession
     let refreshDisplays: () -> Void
     let openOutput: () -> Void
-    @FocusState private var nameIsFocused: Bool
+    private var inspectorIdentity: String {
+        let selection: UUID?
+        if let id = session.selectedLightingCueID { selection = id }
+        else if let id = session.selectedClipID { selection = id }
+        else if let id = session.selectedMouthKeyID { selection = id }
+        else if let id = session.selectedVisualID { selection = id }
+        else if let id = session.selectedObjectID { selection = id }
+        else { selection = session.selectedSurfaceID }
+        return String(describing: session.inspectorTab) + ":" + (selection?.uuidString ?? "none")
+    }
     var body: some View {
         VStack(spacing: 0) {
             Picker("Inspector section", selection: $session.inspectorTab) {
-                ForEach(InspectorTab.allCases) { Text($0.rawValue).tag($0) }
+                Text("Selection").tag(InspectorTab.edit)
+                Text("Output").tag(InspectorTab.show)
+                Text("Project").tag(InspectorTab.project)
             }.pickerStyle(.segmented).labelsHidden().accessibilityLabel("Inspector section").padding(12)
             Divider()
             ScrollView {
@@ -18,16 +29,20 @@ struct ProjectInspectorView: View {
                     }
                     switch session.inspectorTab {
                     case .edit:
-                        if let face = session.selectedSurface {
-                            FaceInspector(session: session, face: face).id(face.id)
-                            VisualCompositionControls(session: session, ownerID: session.project.source(for: face).id, face: face).id(face.id)
+                        if let cue = session.selectedLightingCue {
+                            SelectedCueInspector(session: session, cue: cue)
+                        } else if let clip = session.selectedClip {
+                            SelectedClipInspector(session: session, clip: clip)
+                        } else if let key = session.selectedMouthKey, let id = session.selectedVisualID {
+                            SelectedMouthKeyInspector(session: session, trackID: id, key: key)
+                        } else if let face = session.selectedSurface {
+                            if session.selectedVisualID == nil { FaceInspector(session: session, face: face).id(face.id) }
+                            VisualCompositionControls(session: session, ownerID: session.project.source(for: face).id, face: face) { SourceInspector(session: session) }.id(face.id)
                         } else if let object = session.selectedObject {
-                            ObjectInspector(session: session, object: object).id(object.id)
-                            VisualCompositionControls(session: session, ownerID: object.source.id).id(object.id)
+                            if session.selectedVisualID == nil { ObjectInspector(session: session, object: object).id(object.id) }
+                            VisualCompositionControls(session: session, ownerID: object.source.id) { SourceInspector(session: session) }.id(object.id)
                         } else {
                             Label("Select a surface", systemImage: "cursorarrow.click").font(.headline)
-                            Text("Click a face in the canvas or choose a surface or object in the left sidebar.")
-                                .foregroundStyle(.secondary)
                             Button("Add surface", systemImage: "plus") { session.addSurface() }
                         }
                     case .show:
@@ -45,10 +60,7 @@ struct ProjectInspectorView: View {
                         }
                     case .project:
                         Text("PROJECT").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                        TextField("Project name", text: Binding(get: { session.project.name }, set: { session.renameProject($0) }))
-                            .textFieldStyle(.roundedBorder).accessibilityLabel("Project name").focused($nameIsFocused)
-                            .onSubmit { session.finishNameEditing(); nameIsFocused = false }
-                            .onChange(of: nameIsFocused) { _, focused in if !focused { session.finishNameEditing() } }
+                        NameEditor(name: session.project.name, title: "Project name", apply: { session.renameProject($0); session.finishNameEditing() }).id(session.project.id)
                         LabeledContent("Surfaces", value: "\(session.project.surfaces.count)")
                         LabeledContent("Objects", value: "\(session.project.objects.count)")
                         Divider()
@@ -57,11 +69,9 @@ struct ProjectInspectorView: View {
                         LookLibraryControls(session: session).id(session.project.id)
                         Divider()
                         PaletteLibraryControls(session: session).id(session.project.id)
-                        Label("Use Project in the top bar to save or open a mapping.", systemImage: "info.circle")
-                            .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                 }.font(.subheadline).padding(16).frame(maxWidth: .infinity, alignment: .leading)
-            }.id(session.inspectorTab)
+            }.id(inspectorIdentity)
         }.frame(maxHeight: .infinity).background(Color(nsColor: .controlBackgroundColor).opacity(0.45))
     }
 }
@@ -84,7 +94,7 @@ private struct InspectorSection<Content: View>: View {
     }
 }
 
-private struct SourceInspector: View {
+struct SourceInspector: View {
     let session: EditorSession
     private var bindingFaceID: UUID? {
         if let face = session.selectedSurface { return face.id }
@@ -96,13 +106,6 @@ private struct SourceInspector: View {
             let source = session.project.resolvedSource(selectedSource)
             Picker("Content", selection: Binding(get: { source.content }, set: { session.setSurfaceContent($0) })) {
                 ForEach(SurfaceContent.allCases.filter { ($0 != .image || source.image != nil) && ($0 != .video || source.video != nil) }) { Text($0.title).tag($0) }
-            }
-            if session.project.timelineClips.contains(where: { $0.sourceID == source.id }) {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "film.stack")
-                    Text("Timeline controls playback. Edit these settings, select a clip, then choose Apply Edited Content.")
-                }.font(.caption).foregroundStyle(.secondary).padding(8)
-                    .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
             }
             ImageContentControls(session: session)
             VideoContentControls(session: session)
@@ -117,8 +120,6 @@ private struct SourceInspector: View {
                 if let faceID = bindingFaceID {
                     SourcePaletteBindingControl(session: session, source: source, faceID: faceID, channel: .primary)
                 }
-                Text(session.selectedObject != nil || session.selectedSurface?.layout.objectID != nil ? "Color edits affect every face in this object's shared content." : "Color edits affect this independent face.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
             if source.content.isProceduralAnimation && source.content != .video {
                 ColorPicker("Color 2", selection: Binding(get: {
@@ -133,16 +134,14 @@ private struct SourceInspector: View {
                     SourcePaletteBindingControl(session: session, source: source, faceID: faceID, channel: .secondary)
                 }
                 GeneratorControls(session: session, source: source)
-                HStack {
-                    Button(session.selectedPlayback.isPaused ? "Resume owner" : "Pause owner") {
-                        session.setSelectedPaused(!session.selectedPlayback.isPaused)
-                    }
-                    Button("Restart owner") { session.restartSelectedPlayback() }
-                }.disabled(session.project.timelineClips.contains { $0.sourceID == source.id })
-                Text(session.selectedObject != nil || session.selectedSurface?.layout.objectID != nil ? "Owner playback affects every face in this object." : "Owner playback affects this independent face.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Text(session.selectedObject != nil || session.selectedSurface?.layout.objectID != nil ? "These colors and timing are shared by the object’s faces." : "This face uses the shared project clock.")
-                    .font(.caption).foregroundStyle(.secondary)
+                if session.selectedClip == nil {
+                    HStack {
+                        Button(session.selectedPlayback.isPaused ? "Resume owner" : "Pause owner") {
+                            session.setSelectedPaused(!session.selectedPlayback.isPaused)
+                        }
+                        Button("Restart owner") { session.restartSelectedPlayback() }
+                    }.disabled(session.project.timelineClips.contains { $0.sourceID == source.id })
+                }
             }
             InspectorSection("Effect presets") { GeneratorPresetControls(session: session).id(source.id) }
         }
@@ -177,8 +176,6 @@ private struct GeneratorPresetControls: View {
             }
             Button("Reset effect settings") { session.resetGeneratorSettings() }
                 .disabled(session.selectedSource?.content.isProceduralAnimation != true)
-            Text("Presets copy effect/colors only and are included when you save this project.")
-                .font(.caption).foregroundStyle(.secondary)
         }
     }
 }
@@ -249,8 +246,6 @@ private struct PlaybackControls: View {
             }
             Slider(value: Binding(get: { min(60,max(0,seekSeconds)) }, set: { value in seekSeconds = value; session.seekPlayback(to: value) }), in: 0...60)
                 .accessibilityLabel("Scrub first 60 seconds")
-            Text("Seek 0–3600 s; slider covers the first minute. Effects loop every 8 / effect-speed seconds.")
-                .font(.caption).foregroundStyle(.secondary)
             Text(session.transport.isPlaying ? "Playing · all animations share one clock" : "Paused · choose an animated content type, then Play")
                 .font(.caption).foregroundStyle(.secondary)
         }
@@ -281,7 +276,6 @@ private struct FaceInspector: View {
             if let object = session.project.object(for: face) {
                 VStack(alignment: .leading, spacing: 5) {
                     Label("Shared with " + object.name, systemImage: "cube.fill").font(.caption.weight(.medium))
-                    Text("Content edits affect every linked face. Corners and masks stay local to this face.").font(.caption).foregroundStyle(.secondary)
                     Button("Edit shared object") { session.selectObject(object.id) }.buttonStyle(.borderless).font(.caption)
                 }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
@@ -290,7 +284,6 @@ private struct FaceInspector: View {
             InspectorSection("Object membership & tags") {
                 TagsEditor(tags: face.tags, apply: { session.setTags($0, faceID: face.id) }).id(face.id)
                 if let object = session.project.object(for: face) {
-                    Text("Content shared with \(object.name). Changes affect every linked face.").font(.caption).foregroundStyle(.secondary)
                     Button("Inspect object") { session.selectObject(object.id) }
                     Button("Detach to independent content") { session.detachSurface(face.id) }
                 }
@@ -382,7 +375,6 @@ private struct ObjectInspector: View {
             InspectorSection("Object geometry & tags") {
                 TagsEditor(tags: object.tags, apply: { session.setTags($0, objectID: object.id) }).id(object.id)
                 Toggle("Lock all member output geometry",isOn: Binding(get: { object.isGeometryLocked },set: { session.setGeometryLocked($0,objectID: object.id) }))
-                Text("Unlocking the object preserves each face's own lock.").font(.caption).foregroundStyle(.secondary)
                 ObjectMoveControls(session: session,objectID: object.id).id(object.id)
                 ObjectResetControls(session: session,objectID: object.id).id(object.id)
                 Toggle("Object visible", isOn: Binding(get: { object.isVisible }, set: { session.setVisible($0, objectID: object.id) }))
@@ -392,7 +384,6 @@ private struct ObjectInspector: View {
             }
             InspectorSection("Appearance") {
                 AppearanceEditor(session: session,value: object.appearance,scope: "Object appearance · inherited by faces",apply: { session.setAppearance($0,objectID: object.id) })
-                Text("Shared crop and flips preserve joined sampling. Faces with overrides keep their own controls.").font(.caption).foregroundStyle(.secondary)
             }
             InspectorSection("Members & object actions") {
                 HStack {
@@ -400,8 +391,6 @@ private struct ObjectInspector: View {
                     Button("Ungroup") { session.ungroupObject(object.id) }
                 }
                 Button("Delete object and faces") { session.deleteObject(object.id) }.disabled(!session.project.canMoveObject(object.id))
-                Text("Faces keep independent output corners. Grouping arranges input regions side by side using the frontmost checked face's content.")
-                    .font(.caption).foregroundStyle(.secondary)
                 ForEach(session.project.surfaces.filter { $0.layout.objectID == object.id }) { face in
                     Button("Edit \(face.name)") { session.selectSurface(face.id) }
                 }
@@ -453,7 +442,6 @@ private struct EdgeLinkEditor: View {
             Toggle("Deliberate seam", isOn: $seam)
             Button("Link without moving input") { link(align: false) }.disabled(first == nil || second == nil || first == second)
             Button("Align second input and link") { link(align: true) }.disabled(first == nil || second == nil || first == second || seam)
-            Text("Alignment adjusts the second face's input region only. Closed objects may need deliberate seams.").font(.caption).foregroundStyle(.secondary)
         }
     }
 }
@@ -486,6 +474,7 @@ private struct NameEditor: View {
             .onSubmit { apply(draft); focused = false }
             .onChange(of: focused) { _, value in if !value { apply(draft) } }
             .onChange(of: name) { _, value in if !focused { draft = value } }
+            .onExitCommand { draft = name; focused = false }
     }
 }
 
@@ -521,7 +510,6 @@ private struct AppearanceEditor: View {
             cropField("Width",get: { $0.size.x },set: { $0.size.x = $1 })
             cropField("Height",get: { $0.size.y },set: { $0.size.y = $1 })
             if invalidCrop { Text("Crop must have positive size and fit inside 0–1. Reduce its size before moving its origin.").font(.caption).foregroundStyle(.orange) }
-            Text("Brightness clips above white; opacity reveals lower faces. Controls preserve output corners and input regions.").font(.caption).foregroundStyle(.secondary)
         }
     }
 }
@@ -595,5 +583,109 @@ private struct ObjectMoveControls: View {
             }.disabled(!session.project.canMoveObject(objectID))
             Text(session.project.canMoveObject(objectID) ? "Click or drag the center square; arrows move the object and Shift moves 1%. Offsets are normalized 0–1 and stop at canvas edges." : "Unlock the object and every locked member face to move all faces together.").font(.caption).foregroundStyle(.secondary)
         }
+    }
+}
+
+private struct SelectedClipInspector: View {
+    let session: EditorSession
+    let clip: EffectClip
+    @State private var transition = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(session.project.timelineTracks.first { $0.id == clip.sourceID }?.name ?? "Clip").font(.headline)
+            LabeledContent("Start (s)") {
+                TextField("Start", value: Binding(get: { clip.start }, set: { value in
+                    var next = clip; next.start = value; _ = session.updateTimelineClip(next)
+                }), format: .number)
+            }
+            LabeledContent("Duration (s)") {
+                TextField("Duration", value: Binding(get: { clip.duration }, set: { value in
+                    _ = session.updateTimelineClip(clip.trimming(start: clip.start, duration: value))
+                }), format: .number)
+            }
+            SourceInspector(session: session)
+            Button("Transition…") { transition = true }
+                .popover(isPresented: $transition) { ClipTransitionEditor(session: session, clip: clip) }
+            if clip.source.content == .video {
+                Button("Split at Playhead") { session.splitSelectedVideoClip(at: session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)) }
+            }
+            if let message = session.timelineMessage { Text(message).font(.caption).foregroundStyle(.orange) }
+            HStack {
+                Button("Capture Base Content") {
+                    if let base = session.project.timelineTracks.first(where: { $0.id == clip.sourceID })?.source {
+                        var next = clip; next.source = SourceLook(source: base); _ = session.updateTimelineClip(next)
+                    }
+                }
+                Button("Duplicate") { session.duplicateTimelineClip(clip.id) }
+                Button("Delete", role: .destructive) { session.deleteTimelineClip(clip.id) }
+            }
+        }.textFieldStyle(.roundedBorder)
+    }
+}
+
+private struct SelectedCueInspector: View {
+    let session: EditorSession
+    let cue: LightingCue
+    private func binding<Value>(_ path: WritableKeyPath<LightingCue, Value>) -> Binding<Value> {
+        Binding(get: { cue[keyPath: path] }, set: { value in
+            var next = cue; next[keyPath: path] = value; session.putLightingCue(next)
+        })
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Lighting cue").font(.headline)
+            NameEditor(name: cue.name, title: "Cue name", apply: { value in
+                var next = cue; next.name = value; session.putLightingCue(next)
+            }).id(cue.id)
+            LabeledContent("Time (s)") { TextField("Time", value: binding(\.time), format: .number) }
+            LabeledContent("Move lead (s)") { TextField("Lead", value: binding(\.lead), format: .number) }
+            Picker("Movement", selection: Binding(get: { cue.motionCurve ?? .snap }, set: { value in
+                var next = cue; next.motionCurve = value; session.putLightingCue(next)
+            })) { ForEach(CueCurve.allCases) { Text($0.rawValue).tag($0) } }
+            LabeledContent("Dimmer fade (s)") {
+                TextField("Fade", value: Binding(get: { cue.dimmerFade ?? 0 }, set: { value in
+                    var next = cue; next.dimmerFade = value; session.putLightingCue(next)
+                }), format: .number)
+            }
+            Toggle("Manual only", isOn: Binding(get: { cue.isManual }, set: { value in
+                var next = cue; next.manualOnly = value; session.putLightingCue(next)
+            }))
+            HStack {
+                Button("GO") { session.nextManualCueID = cue.id; session.goManualCue() }
+                Button("Duplicate") { session.duplicateLightingCue(cue, at: session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)) }
+                Button("Delete", role: .destructive) { session.editLighting { $0.cues.removeAll { $0.id == cue.id } } }
+            }
+            if let message = session.lightingMessage { Text(message).font(.caption).foregroundStyle(.orange) }
+        }.textFieldStyle(.roundedBorder)
+    }
+}
+
+
+private struct SelectedMouthKeyInspector: View {
+    let session: EditorSession
+    let trackID: UUID
+    let key: MouthKey
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Mouth Key").font(.headline)
+            LabeledContent("Time (s)") {
+                TextField("Time", value: Binding(get: { key.time }, set: { value in
+                    session.updateVisual(trackID) { track in
+                        guard let index = track.mouthKeys.firstIndex(where: { $0.id == key.id }) else { return }
+                        track.mouthKeys[index].time = value
+                    }
+                }), format: .number)
+            }
+            Picker("Shape", selection: Binding(get: { key.shape }, set: { shape in
+                session.updateVisual(trackID) { track in
+                    guard let index = track.mouthKeys.firstIndex(where: { $0.id == key.id }) else { return }
+                    track.mouthKeys[index].shape = shape
+                }
+            })) { ForEach(MouthShape.allCases) { Text($0.title).tag($0) } }
+            HStack {
+                Button("Duplicate") { session.duplicateSelectedMouthKey() }
+                Button("Delete", role: .destructive) { session.deleteSelectedMouthKey() }
+            }
+        }.textFieldStyle(.roundedBorder)
     }
 }

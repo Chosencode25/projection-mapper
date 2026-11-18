@@ -627,6 +627,13 @@ struct WorkspaceTests {
 
 @MainActor
 struct PhoneRemoteTests {
+    @Test func localBindingIdentifiesTheSelectedIPv4Endpoint() {
+        let loopback = PhoneNetworkBinding.current(address: "127.0.0.1")
+        #expect(loopback?.interfaceName == "lo0")
+        #expect(loopback?.address == "127.0.0.1")
+        #expect(PhoneNetworkBinding.current(address: "invalid") == nil)
+    }
+
     @Test func parserRejectsDuplicateLengthAndTruncatedRequests() throws {
         let prefix = "POST /command HTTP/1.1\r\nHost: remote.localhost:9443\r\n"
         #expect(try PhoneRequest.parse(Data((prefix + "Content-Length: 2\r\n\r\n{").utf8)) == nil)
@@ -676,6 +683,70 @@ struct PhoneRemoteTests {
         return bytes
     }
 
+    @Test func localHTTPAutoSelectsAndRequiresApprovalAndExactOrigin() async throws {
+        let candidates = PhoneNetworkBinding.available()
+        #expect(candidates.allSatisfy { PhoneNetworkBinding.isPrivateIPv4($0.address) && $0.interfaceName != "lo0" })
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let remote = PhoneRemote(session: session, port: 19444)
+        defer { remote.stop() }
+        if candidates.isEmpty { try remote.startLocal(address: "127.0.0.1") }
+        else { try remote.startLocal() }
+        for _ in 0..<100 where remote.pairingURL == nil { try await Task.sleep(for: .milliseconds(20)) }
+        let invitation = try #require(remote.pairingURL)
+        #expect(invitation.scheme == "http" && !remote.isEncrypted)
+        #expect(invitation.host == (candidates.first?.address ?? "127.0.0.1"))
+        let code = try #require(invitation.fragment)
+        let base = "http://" + (invitation.host ?? "") + ":19444"
+        func request(_ path: String, payload: [String: Any]? = nil, token: String = "", origin: String? = nil,
+                     host: String? = nil) async throws -> Data {
+            var args = ["-sS", "--noproxy", "*", "--max-time", "4", "--http1.1"]
+            if let host { args += ["-H", "Host: " + host] }
+            if let payload {
+                let json = String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+                args += ["-H", "Content-Type: application/json", "-H", "Origin: " + (origin ?? base),
+                         "-H", "Authorization: Bearer " + token, "--data", json]
+            }
+            args.append(base + path)
+            let arguments = args
+            return try await Task.detached { try Self.run("/usr/bin/curl", arguments) }.value
+        }
+        func json(_ bytes: Data) throws -> [String: Any] {
+            try #require(JSONSerialization.jsonObject(with: bytes) as? [String: Any])
+        }
+        let html = try await request("/")
+        #expect(String(decoding: html, as: UTF8.self).contains("<html"))
+        let script = try await request("/remote.js")
+        #expect(String(decoding: script, as: UTF8.self) == PhonePage.script)
+        let wrongHost = try json(await request("/", host: "other.example:19444"))
+        #expect(wrongHost["error"] != nil)
+        let wrongOrigin = try json(await request("/pair", payload: ["code": code], origin: "https://other.example"))
+        #expect(wrongOrigin["error"] != nil)
+        let paired = try json(await request("/pair", payload: ["code": code]))
+        let token = try #require(paired["token"] as? String)
+        let reused = try json(await request("/pair", payload: ["code": code]))
+        #expect(reused["error"] != nil)
+        let pending = try json(await request("/state", payload: [:], token: token))
+        #expect(pending["pending"] as? Bool == true)
+        let command: [String: Any] = ["action": "projectionOff", "projectID": session.project.id.uuidString, "sequence": 1]
+        let unapproved = try json(await request("/command", payload: command, token: token))
+        #expect(unapproved["error"] != nil && !session.showOutput.isBlackout)
+        remote.role = .operatorRole
+        remote.approve()
+        let applied = try json(await request("/command", payload: command, token: token))
+        #expect(applied["projectionBlackout"] as? Bool == true)
+        let replay = try json(await request("/command", payload: command, token: token))
+        #expect(replay["error"] != nil)
+        remote.revoke()
+        let revoked = try json(await request("/state", payload: [:], token: token))
+        #expect(revoked["error"] != nil)
+        remote.newInvitation()
+        let oldInvitation = try json(await request("/pair", payload: ["code": code]))
+        #expect(oldInvitation["error"] != nil)
+        remote.stop()
+        #expect(!remote.isRunning && remote.pairingURL == nil)
+    }
+
     @Test func httpsPairApprovalAndReplayProtection() async throws {
         let folder = try ProjectPersistenceTests().temporary()
         defer { try? FileManager.default.removeItem(at: folder) }
@@ -702,7 +773,9 @@ struct PhoneRemoteTests {
         }.value
         let session = ProjectPersistenceTests().session()
         defer { session.releaseRuntimeResources() }
-        let remote = PhoneRemote(session: session, port: 19443)
+        let originalBinding = PhoneNetworkBinding(interfaceName: "lo0", address: "127.0.0.1", netmask: "255.0.0.0")
+        var binding: PhoneNetworkBinding? = originalBinding
+        let remote = PhoneRemote(session: session, port: 19443, networkBinding: { _ in binding })
         defer { remote.stop() }
         try remote.start(hostname: "remote.localhost", address: "127.0.0.1", identity: bytes, password: "test")
         for _ in 0..<100 where remote.pairingURL == nil { try await Task.sleep(for: .milliseconds(20)) }
@@ -731,8 +804,29 @@ struct PhoneRemoteTests {
         #expect(result["projectionBlackout"] as? Bool == true)
         let replay = try await post("/command", command, token: token)
         #expect(replay["error"] != nil)
-        remote.revoke()
+        for _ in 0..<20 { remote.checkNetworkBinding() }
+        #expect(remote.isRunning && remote.hasPhone)
+        binding = nil
+        remote.checkNetworkBinding()
+        #expect(remote.isRunning && remote.hasPhone)
+        binding = originalBinding
+        remote.checkNetworkBinding()
+        try await Task.sleep(for: .milliseconds(2200))
+        #expect(remote.isRunning && remote.hasPhone)
+        let stillPaired = try await post("/state", [:], token: token)
+        #expect(stillPaired["error"] == nil)
+        binding = PhoneNetworkBinding(interfaceName: "en99", address: "127.0.0.1", netmask: "255.0.0.0")
+        remote.checkNetworkBinding()
+        #expect(!remote.isRunning && !remote.hasPhone && remote.pairingURL == nil)
+        #expect(remote.status.contains("changed"))
+        binding = originalBinding
+        try remote.start(hostname: "remote.localhost", address: "127.0.0.1", identity: bytes, password: "test")
+        for _ in 0..<100 where remote.pairingURL == nil { try await Task.sleep(for: .milliseconds(20)) }
         let revoked = try await post("/state", [:], token: token)
         #expect(revoked["error"] != nil)
+        binding = nil
+        remote.checkNetworkBinding()
+        try await Task.sleep(for: .milliseconds(2200))
+        #expect(!remote.isRunning && remote.status.contains("unavailable"))
     }
 }

@@ -5,7 +5,6 @@ struct PlaybackTimelineView: View {
     @Bindable var session: EditorSession
     @State private var showChoreography = false
     @State private var selectedChoreography: UUID?
-    @State private var showTransition = false
     @State private var cueGroup = ""
     @State private var editMarkers = false
     @State private var showCueList = false
@@ -15,7 +14,19 @@ struct PlaybackTimelineView: View {
         get { session.timelineScale }
         nonmutating set { session.timelineScale = newValue }
     }
-    @State private var showsVisualTracks = true
+    private var showsVisualTracks: Bool {
+        get { session.showsVisualTracks }
+        nonmutating set { session.showsVisualTracks = newValue }
+    }
+    @State private var verticalPosition = ScrollPosition(y: 0)
+    private var visibleTracks: [TimelineTrack] {
+        guard showsVisualTracks else { return session.project.baseTimelineTracks }
+        var owner: UUID?
+        return session.project.timelineTracks.filter { track in
+            if track.visualKind == nil { owner = track.id; return true }
+            return owner.map { !session.collapsedTimelineOwners.contains($0) } ?? true
+        }
+    }
     private var snap: Bool {
         get { session.timelineSnap }
         nonmutating set { session.timelineSnap = newValue }
@@ -41,7 +52,7 @@ struct PlaybackTimelineView: View {
     var body: some View {
         // These collections and the clip editor stay outside the playback animation.
         // Only the transport readout and lightweight overlay redraw at clock cadence.
-        let tracks = showsVisualTracks ? session.project.timelineTracks : session.project.baseTimelineTracks
+        let tracks = visibleTracks
         let clipsByTrack = Dictionary(grouping: session.project.timelineClips, by: \.sourceID)
         let time = session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)
         let horizon = TimelinePresentation.horizon(contentEnd: contentEnd, playhead: max(time, playbackExtent),
@@ -129,21 +140,14 @@ struct PlaybackTimelineView: View {
                     }
                 }
             }
+            .scrollPosition($verticalPosition)
+            .onScrollGeometryChange(for: Double.self) { $0.contentOffset.y } action: { _, offset in session.timelineScrollY = max(0, offset) }
+            .onAppear { verticalPosition.scrollTo(y: session.timelineScrollY) }
             Divider()
-            ScrollView([.horizontal, .vertical]) {
-                VStack(alignment: .leading, spacing: 0) {
-                    if let cue = selectedCue {
-                        cueEditor(cue)
-                    } else {
-                        if let message = session.lightingMessage {
-                            Text(message).font(.caption).foregroundStyle(.orange).padding(.horizontal, 10)
-                        }
-                        clipEditor
-                    }
-                }
+            if let message = session.timelineMessage {
+                Text(message).font(.caption).foregroundStyle(.orange).padding(6)
             }
-            .frame(maxHeight: selectedCue != nil ? 94 : session.selectedClip?.source.content == .video ? 128 : session.selectedClip == nil ? 36 : 68)
-            .scrollIndicators(.automatic)
+
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .onChange(of: session.project.id) { _, _ in
@@ -168,7 +172,7 @@ struct PlaybackTimelineView: View {
 
     private var transportBar: some View {
         HStack(spacing: 10) {
-            Label("Timeline", systemImage: "film.stack").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Image(systemName: "film.stack").foregroundStyle(.secondary)
             TimelineTransportControls(session: session)
             SongMenu(session: session)
             Button("Choreography", systemImage: "sparkles") {
@@ -302,13 +306,20 @@ struct PlaybackTimelineView: View {
 
     private func trackHeader(_ track: TimelineTrack) -> some View {
         HStack(spacing: 7) {
+            if track.visualKind == nil, showsVisualTracks {
+                Button {
+                    if session.collapsedTimelineOwners.contains(track.id) { session.collapsedTimelineOwners.remove(track.id) }
+                    else { session.collapsedTimelineOwners.insert(track.id) }
+                } label: { Image(systemName: session.collapsedTimelineOwners.contains(track.id) ? "chevron.right" : "chevron.down") }
+                    .buttonStyle(.plain).font(.caption2).accessibilityLabel("Expand or collapse " + track.name)
+            }
             Button { session.selectedLightingCueID = nil; session.selectTimelineTrack(track); session.selectedClipID = nil } label: {
                 HStack(spacing: 7) {
                     Image(systemName: track.isVisible ? (track.isObject ? "cube" : "square") : "eye.slash")
                     VStack(alignment: .leading, spacing: 1) {
                         Text(track.name).font(.caption.weight(.semibold)).lineLimit(1)
                         Text(track.visualKind != nil ? (track.isRegion ? "Region" : "Layer") :
-                             track.isObject ? "\(track.faceCount) connected faces" : "Standalone face")
+                             track.isObject ? "\(track.faceCount) faces" : "")
                             .font(.system(size: 9)).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 0)
@@ -321,7 +332,7 @@ struct PlaybackTimelineView: View {
             } label: { Image(systemName: "plus.circle") }
                 .buttonStyle(.borderless).help("Add current content at playhead").accessibilityLabel("Add clip for " + track.name)
         }
-        .padding(.horizontal, 10).frame(height: laneHeight)
+        .padding(.leading, track.visualKind == nil ? 10 : 24).padding(.trailing, 10).frame(height: laneHeight)
         .background((session.selectedVisualID ?? session.selectedSource?.id) == track.id ? Color.accentColor.opacity(0.15) : Color.clear)
         .overlay(alignment: .bottom) { Divider() }
     }
@@ -332,7 +343,7 @@ struct PlaybackTimelineView: View {
             if let visual = session.project.visualTrack(track.id) {
                 ForEach(visual.mouthKeys) { key in
                     Button {
-                        session.selectTimelineTrack(track)
+                        session.selectMouthKey(key.id, on: track)
                         session.setPlaying(false)
                         session.seekPlayback(to: key.time)
                     } label: {
@@ -482,83 +493,8 @@ struct PlaybackTimelineView: View {
         session.putLightingCue(LightingCue(name: look.name, time: snapped(min(3600, max(0, time))), entries: entries))
     }
 
-    private func cueEditor(_ cue: LightingCue) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 8) {
-                Picker("Lighting cue", selection: Binding(get: { cue.id }, set: { session.selectLightingCue($0) })) {
-                    ForEach(lighting.cues.sorted(by: { $0.time < $1.time })) { choice in
-                        Text("\(TimelinePresentation.timecode(choice.time)) · \(choice.name)").tag(choice.id)
-                    }
-                }.labelsHidden().frame(width: 180).help("Select a lighting cue")
-                Text("Time (s)").font(.caption)
-                TextField("Cue time", value: Binding(get: { cue.time }, set: { value in
-                    var copy = cue
-                    copy.time = snapped(value)
-                    session.putLightingCue(copy)
-                }), format: .number.precision(.fractionLength(0...3))).frame(width: 70)
-                Text("Pan/tilt lead (s)").font(.caption)
-                TextField("Pan/tilt lead", value: Binding(get: { cue.lead }, set: { value in
-                    var copy = cue
-                    copy.lead = value
-                    session.putLightingCue(copy)
-                }), format: .number.precision(.fractionLength(0...3))).frame(width: 60)
-                    .disabled(!cue.entries.contains { $0.state.kind == .movingHead })
-                Button("Duplicate at Playhead") {
-                    let time = snapped(min(3600, session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)))
-                    session.duplicateLightingCue(cue, at: time)
-                }
-                Button("Delete", role: .destructive) {
-                    session.editLighting { $0.cues.removeAll { $0.id == cue.id } }
-                }
-            }
-            HStack(spacing: 8) {
-                TextField("Cue name", text: cueBinding(cue, \.name)).frame(width: 140)
-                Picker("Move", selection: Binding(get: { cue.motionCurve ?? .snap }, set: {
-                    var edited = cue
-                    edited.motionCurve = $0
-                    session.putLightingCue(edited)
-                })) {
-                    ForEach(CueCurve.allCases) { Text($0.rawValue).tag($0) }
-                }.fixedSize().disabled(!cue.entries.contains { $0.state.kind == .movingHead })
-                Text("Dimmer fade (s)").font(.caption)
-                TextField("Dimmer fade", value: Binding(get: { cue.dimmerFade ?? 0 }, set: {
-                    var edited = cue
-                    edited.dimmerFade = $0
-                    session.putLightingCue(edited)
-                }), format: .number.precision(.fractionLength(0...3))).frame(width: 60)
-                    .disabled(!cue.entries.contains { $0.state.kind == .movingHead })
-                Toggle("Manual Only", isOn: Binding(get: { cue.isManual }, set: {
-                    var edited = cue
-                    edited.manualOnly = $0
-                    session.putLightingCue(edited)
-                })).toggleStyle(.checkbox)
-                Button("GO") {
-                    session.nextManualCueID = cue.id
-                    session.goManualCue()
-                }.disabled(session.songAudioOnly)
-                Menu("Actions") {
-                    Button("Set Cue Outputs Dark") {
-                        var edited = cue
-                        edited.entries = cue.entries.map { .init(id: $0.id, state: $0.state.darkened) }
-                        session.putLightingCue(edited)
-                    }
-                }.fixedSize()
-            }
-            if let message = session.lightingMessage { Text(message).font(.caption).foregroundStyle(.orange) }
-        }
-        .controlSize(.small).padding(.horizontal, 10).padding(.vertical, 6)
-    }
-
     private var fixtureGroups: [String] {
         Array(Set(lighting.fixtures.map(\.group).filter { !$0.isEmpty })).sorted()
-    }
-
-    private func cueBinding<T>(_ cue: LightingCue, _ key: WritableKeyPath<LightingCue, T>) -> Binding<T> {
-        Binding(get: { cue[keyPath: key] }, set: {
-            var edited = cue
-            edited[keyPath: key] = $0
-            session.putLightingCue(edited)
-        })
     }
 
     private var markerTools: some View {
@@ -636,73 +572,6 @@ struct PlaybackTimelineView: View {
             })
     }
 
-    @ViewBuilder private var clipEditor: some View {
-        if let clip = session.selectedClip {
-            HStack(spacing: 10) {
-                Label("Selected clip", systemImage: "film").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                Picker("Effect", selection: Binding(get: { clip.source.content }, set: { content in
-                    var copy = clip; copy.source.content = content; _ = session.updateTimelineClip(copy)
-                })) {
-                    ForEach(SurfaceContent.allCases.filter { ($0 != .image || clip.source.image != nil) && ($0 != .video || clip.source.video != nil) }) { Text($0.title).tag($0) }
-                }.frame(width: 200)
-                Text("Start").font(.caption)
-                TextField("Start", value: Binding(get: { clip.start }, set: { value in
-                    var copy = clip; copy.start = value; _ = session.updateTimelineClip(copy)
-                }), format: .number.precision(.fractionLength(0...2))).frame(width: 64).accessibilityLabel("Clip start in seconds")
-                Text("Length").font(.caption)
-                TextField("Duration", value: Binding(get: { clip.duration }, set: { value in
-                    let copy = clip.trimming(start: clip.start,duration: value); _ = session.updateTimelineClip(copy)
-                }), format: .number.precision(.fractionLength(0...2))).frame(width: 64).accessibilityLabel("Clip duration in seconds")
-                Text("s").font(.caption).foregroundStyle(.secondary)
-                Button("Transition") { showTransition = true }
-                    .popover(isPresented: $showTransition) {
-                        ClipTransitionEditor(session: session, clip: clip).id(clip.id)
-                    }
-                Menu("Clip Palette Color") {
-                    ForEach(session.project.palettes) { palette in
-                        Menu(palette.name) {
-                            ForEach(palette.slots) { slot in
-                                Button(slot.name) {
-                                    var edited = clip
-                                    edited.source.color = slot.color
-                                    _ = session.updateTimelineClip(edited)
-                                }
-                            }
-                        }
-                    }
-                }.disabled(session.project.palettes.isEmpty)
-                Button("Apply Edited Content", systemImage: "arrow.down.doc") { session.captureTimelineClip(clip.id) }
-                    .help("Copy the track's current editor settings and colors into this selected clip")
-                Button { session.duplicateTimelineClip(clip.id) } label: { Image(systemName: "plus.square.on.square") }.help("Duplicate after clip").accessibilityLabel("Duplicate clip")
-                Button(role: .destructive) { session.deleteTimelineClip(clip.id) } label: { Image(systemName: "trash") }.accessibilityLabel("Delete clip")
-                Spacer(minLength: 0)
-            }.textFieldStyle(.roundedBorder).padding(8)
-            if clip.source.content == .video, let video = clip.source.video,
-               let asset = session.project.videoAssets.first(where: { $0.id == video.assetID }) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading,spacing: 4) {
-                        VideoPoster(pixels: session.videoPosters[asset.id]).frame(width: 110,height: 70)
-                        Text(asset.name).font(.caption).lineLimit(2)
-                        Button("Relink video…") { session.chooseVideo(target: .relink(asset.id)) }.disabled(session.isImportingVideo)
-                    }
-                    VideoRangeControls(content: video,duration: asset.duration) { content in
-                        _ = session.updateTimelineClip(clip.replacingVideo(content))
-                    }
-                }.padding(.horizontal,10).padding(.bottom,8)
-                if let problem = session.videoProblems[asset.id] ?? session.videoPlayback.problems[clip.sourceID] {
-                    Text(problem).font(.caption).foregroundStyle(.orange).padding(.horizontal,10)
-                }
-            }
-        } else {
-            HStack(spacing: 7) {
-                Image(systemName: "cursorarrow.and.square.on.square.dashed")
-                Text("Select a clip to edit · + adds current content · Drag to move; drag edges to trim")
-            }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(8)
-        }
-        if let message = session.timelineMessage {
-            Text(message).font(.caption).foregroundStyle(.orange).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8).padding(.bottom, 5)
-        }
-    }
     private func snapped(_ time: Double) -> Double {
         guard snap else { return time }
         if let marker = session.project.showMarkers.min(by: { abs($0.time - time) < abs($1.time - time) }),
@@ -1092,8 +961,6 @@ struct ManualCueList: View {
             if let edit, let cue = cues.first(where: { $0.id == session.nextManualCueID }) ?? (session.lastManualCueID == nil ? cues.first : nil) {
                 Button("Edit Next Cue") { edit(cue) }
             }
-            Text("GO takes control of the cue’s fixtures. Seeking, looping, or releasing returns them to the timeline.")
-                .font(.caption).foregroundStyle(.secondary)
         }.padding(14).frame(width: 360)
     }
 }
@@ -1120,7 +987,7 @@ struct BeatQueueMenu: View {
     }
 }
 
-private struct ClipTransitionEditor: View {
+struct ClipTransitionEditor: View {
     let session: EditorSession
     let clip: EffectClip
     @State private var duration = 0.5

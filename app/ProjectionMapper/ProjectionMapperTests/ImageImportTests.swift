@@ -45,6 +45,28 @@ struct ImageImportTests {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: url,withIntermediateDirectories: true); return url
     }
+    @Test func selectedClipImportRetainsBaseAndUndoAndRejectsRetargetedCompletion() async throws {
+        let session = EditorSession(presentOutput: { _ in })
+        let base = try #require(session.selectedSource)
+        let clipID = try #require(session.addTimelineClip(sourceID: base.id, at: 0))
+        let image = try fixture()
+        try session.installImage(image, target: .owner(base.id))
+        #expect(session.selectedClip?.source.image?.assetID == image.asset.id)
+        #expect(session.project.surfaces[0].source == base)
+        session.undoProjectEdit()
+        #expect(session.project.timelineClips.first { $0.id == clipID }?.source.image == nil)
+        session.selectedClipID = clipID
+        let gate = ImageDecodeGate()
+        let importing = Task { await session.importImage(from: URL(fileURLWithPath: "/unused"), target: .owner(base.id), decode: { _ in await gate.wait() }) }
+        while !(await gate.started) { await Task.yield() }
+        session.selectSurface(session.project.surfaces[0].id)
+        await gate.finish(image); await importing.value
+        #expect(session.project.surfaces[0].source == base)
+        #expect(session.project.timelineClips.first { $0.id == clipID }?.source.image == nil)
+        #expect(session.editMessage != nil)
+        session.releaseRuntimeResources()
+    }
+
     @Test func historyRestoresReplacedRemovedAndRelinkedImageBytes() throws {
         let s = EditorSession(presentOutput: { _ in }), first = try fixture(), second = try fixture(quadrants: true)
         let owner = s.project.timelineTracks[0].id

@@ -61,6 +61,24 @@
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.package</string>
+				<string>public.directory</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Projection Mapper Playground</string>
+			<key>UTTypeIdentifier</key>
+			<string>local.keith.projectionplayground</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>projectionplayground</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 </dict>
 </plist>

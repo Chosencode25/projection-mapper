@@ -112,6 +112,8 @@ See the [v2.09 milestone plan](V2.09_PLAN.md) for the build order and rehearsal.
 
 ## v2.10 — Reusable Shows and Layouts
 
+November 17 concept update: start with [Playgrounds](REUSABLE_SETUPS_PLAN.md): extract physical placement/configuration from any supported project and create independent blank shows for new songs. Keep the existing role/template/recording scope below as subsequent work. The [dedicated Lighting workspace](LIGHTING_WORKSPACE_PLAN.md) is a related interface concept; its implementation/version assignment is pending.
+
 1. Add display roles/selection groups, distinct from connected-face object membership: windows, roofline, garage or custom user roles. Define multiple membership, explicit target ordering and eligibility for shared versus independent content.
 2. Add a target-assignment screen for applying a show to another layout. Preview unresolved roles, validate missing assignments and require deliberate resolution without modifying the receiving layout's corners, masks or input maps.
 3. Add song-section/effect templates, presets/palette packs and portable import/export of reusable definitions. Namespace/rewrite imported IDs, define asset dependencies and preserve existing data on conflicts. Do not bundle songs or external media without project-authorized assets.

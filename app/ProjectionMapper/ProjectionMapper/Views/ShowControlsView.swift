@@ -59,8 +59,6 @@ struct MasterOutputControls: View {
             .onChange(of: session.showOutput, initial: true) { _, state in
                 statusClockActive = state.isFading(at: ProcessInfo.processInfo.systemUptime)
             }
-            Text("Brightness and duration are saved. Fades and blackout are temporary; Restore returns to the saved brightness. Duration accepts 0–30 seconds.")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -249,7 +247,17 @@ struct SourcePaletteBindingControl: View {
 
     var body: some View {
         Picker(channel == .primary ? "Color 1 palette" : "Color 2 palette", selection: Binding(get: { selectedKey }, set: { key in
-            session.bindColor(faceID: faceID, channel: channel, binding: choices.first { $0.id == key }?.binding)
+            let binding = choices.first { $0.id == key }?.binding
+            if var clip = session.selectedClip {
+                if channel == .primary { clip.source.color = source.color; clip.source.primaryBinding = binding }
+                else { clip.source.generator.secondaryColor = source.generator.secondaryColor; clip.source.secondaryBinding = binding }
+                _ = session.updateTimelineClip(clip)
+            } else if let id = session.selectedVisualID {
+                session.updateVisual(id) { track in
+                    if channel == .primary { track.source.color = source.color; track.source.primaryBinding = binding }
+                    else { track.source.generator.secondaryColor = source.generator.secondaryColor; track.source.secondaryBinding = binding }
+                }
+            } else { session.bindColor(faceID: faceID, channel: channel, binding: binding) }
         })) {
             Text("Independent color").tag(Optional<String>.none)
             ForEach(choices) {
@@ -318,7 +326,6 @@ struct PlaybackReadinessControls: View {
                 Button("Identify Selected") { session.identifySelectedObject() }.disabled(session.selectedSource == nil)
                 Button("Finish") { session.finishIdentification() }.disabled(session.identifyingSourceID == nil)
             }
-            Text("Identification isolates the selected owner in white. Mapping is preserved; blackout still wins.").font(.caption).foregroundStyle(.secondary)
             if let notice = session.historyNotice { Text(notice).font(.caption).foregroundStyle(.orange) }
         }
     }

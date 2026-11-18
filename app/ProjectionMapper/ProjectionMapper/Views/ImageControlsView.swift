@@ -6,11 +6,10 @@ struct ImageContentControls: View {
         VStack(alignment: .leading,spacing: 8) {
             if let source = session.selectedSource {
                 let object = session.selectedObject ?? session.selectedSurface.flatMap { session.project.object(for: $0) }
-                Button(object.map { "Import image for \($0.name)…" } ?? "Import image…") {
+                Button("Import image…") {
                     session.chooseImage(target: .owner(source.id))
                 }.disabled(session.isImportingImage)
-                if let face = session.selectedSurface, object != nil {
-                    Text("Importing for this object replaces content on all of its faces.").font(.caption).foregroundStyle(.secondary)
+                if let face = session.selectedSurface, object != nil, session.selectedClip == nil, session.selectedVisualID == nil {
                     Button("Detach and import on this face…") { session.chooseImage(target: .detach(face.id)) }.disabled(session.isImportingImage)
                 }
                 if source.content == .image, let image = source.image {
@@ -26,12 +25,10 @@ struct ImageContentControls: View {
                         TextField("Width / height",value: Binding(get: { Double(image.canvasAspect) },set: { session.setImageCanvasAspect(Float($0)) }),format: .number.precision(.fractionLength(0...3)))
                             .textFieldStyle(.roundedBorder).accessibilityLabel("Image canvas aspect ratio")
                     }.font(.caption)
-                    Text("Fit shows the whole image; Fill crops to cover; Stretch fills without keeping proportions.").font(.caption).foregroundStyle(.secondary)
                     HStack {
                         Button("Relink image…") { session.chooseImage(target: .relink(image.assetID)) }.disabled(session.isImportingImage)
                         Button("Remove image") { session.removeSelectedImage() }
                     }
-                    Text("Relinking updates every reference to this asset. Replace by importing a new image for this owner.").font(.caption).foregroundStyle(.secondary)
                 }
                 if session.isImportingImage { ProgressView("Preparing image…").controlSize(.small) }
             }
@@ -48,7 +45,6 @@ struct ReferencePhotoControls: View {
         VStack(alignment: .leading,spacing: 10) {
             Button(session.project.referencePhoto == nil ? "Import reference photo…" : "Replace reference photo…") { session.chooseImage(target: .reference) }
                 .disabled(session.isImportingImage)
-            Text("House or display photo, visible only in the editor. It never appears in Test Output.").font(.caption).foregroundStyle(.secondary)
             if let photo = session.project.referencePhoto {
                 Toggle("Show reference photo",isOn: $session.referencePhotoVisible)
                 Toggle("Lock photo alignment",isOn: Binding(get: { photo.isLocked },set: { value in edit { $0.isLocked = value } }))

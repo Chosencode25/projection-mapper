@@ -28,8 +28,29 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         session.configureRecovery(recovery)
+        let drafts = ProjectRecoveryStore.defaultDirectory.deletingLastPathComponent().appendingPathComponent("Drafts", isDirectory: true)
+        session.configureAutosave(directory: drafts)
         showEditor()
-        DispatchQueue.main.async { [weak self] in self?.recoverProject() }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if let path = UserDefaults.standard.string(forKey: "ProjectionMapper.lastDraft"),
+               FileManager.default.fileExists(atPath: path) {
+                let url = URL(fileURLWithPath: path)
+                Task { @MainActor in
+                    do {
+                        let saved = try ProjectPackageStore().read(url)
+                        if self.recovery.entries().contains(where: {
+                            $0.document.project.id == saved.project.id &&
+                            $0.document.project.modifiedAt > saved.project.modifiedAt &&
+                            $0.document.project != saved.project
+                        }) { self.recoverProject(); return }
+                        try self.session.load(saved, from: url)
+                        self.updateWindowTitle()
+                    }
+                    catch { self.recoverProject() }
+                }
+            } else { self.recoverProject() }
+        }
     }
 
     func showEditor() {
@@ -59,7 +80,12 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                 refreshDisplays: { [weak self] in self?.displayDiscovery.refresh() },
                 openOutput: { [weak self] in self?.openOutput() },
                 openProject: { [weak self] in self?.openProject() },
-                saveProject: { [weak self] in self?.saveProject() }
+                saveProject: { [weak self] in self?.saveProject() },
+                savePlayground: { [weak self] in self?.showPlaygrounds(.save) },
+                newPlaygroundShow: { [weak self] in self?.newShowFromCurrentPlayground() },
+                choosePlayground: { [weak self] in self?.showPlaygrounds(.choose) },
+                managePlaygrounds: { [weak self] in self?.showPlaygrounds(.manage) },
+                saveCopy: { [weak self] in self?.saveProject(asNew: true) }
             ))
             window.center()
             editorWindow = window
@@ -107,6 +133,64 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         editorWindow = nil
     }
 
+    func showPlaygrounds(_ mode: PlaygroundsView.Mode) {
+        guard !isPrompting, !session.isImportingImage, !session.isImportingVideo, !session.songBusy else { return }
+        showEditor()
+        guard let window = editorWindow else { return }
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 720, height: 420),
+                            styleMask: [.titled], backing: .buffered, defer: false)
+        panel.isReleasedWhenClosed = false
+        let close = { [weak self, weak panel] in
+            if let panel { window.endSheet(panel); panel.orderOut(nil) }
+            self?.isPrompting = false
+        }
+        panel.contentView = NSHostingView(rootView: PlaygroundsView(mode: mode, current: session.document,
+            currentImages: session.playgroundImageFiles, library: PlaygroundLibrary(), cancel: close,
+            beginShow: { [weak self] document, images, name, song in
+                close()
+                self?.createPlaygroundShow(document, images: images, name: name, chooseSong: song)
+            }, saved: { [weak self] name in
+                close(); self?.session.fileMessage = "Saved playground “\(name)”"
+            }))
+        isPrompting = true
+        window.beginSheet(panel)
+    }
+    func newShowFromCurrentPlayground() {
+        guard !isPrompting, !session.isImportingImage, !session.isImportingVideo, !session.songBusy else { return }
+        showEditor()
+        guard let window = editorWindow else { return }
+        let alert = NSAlert(); alert.messageText = "New Show from This Playground"
+        let name = NSTextField(string: "New Show")
+        name.frame = NSRect(x: 0, y: 0, width: 340, height: 24)
+        alert.accessoryView = name
+        alert.informativeText = "Keep this mapping and fixture setup, and start with empty programming. You can choose a new song next."
+        alert.addButton(withTitle: "Create Show"); alert.addButton(withTitle: "Cancel")
+        isPrompting = true
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }; self.isPrompting = false
+            guard response == .alertFirstButtonReturn else { return }
+            self.createPlaygroundShow(self.session.document, images: self.session.playgroundImageFiles, name: name.stringValue, chooseSong: true)
+        }
+    }
+    private func createPlaygroundShow(_ document: ProjectDocument, images: [UUID: Data], name: String, chooseSong: Bool) {
+        // Validate before save/switch; the original remains open if extraction or the write fails.
+        do {
+            let setup = try PlaygroundExtraction.extract(document, name: name)
+            confirmSaveChanges(action: "start a show from this playground") { [weak self] proceed in
+                guard let self, proceed else { return }
+                self.isPrompting = true
+                Task { @MainActor in
+                    do {
+                        try await self.session.startPlaygroundShow(setup, images: images)
+                        self.phoneRemote.stop()
+                        self.updateWindowTitle(); self.isPrompting = false
+                        if chooseSong { self.session.chooseSong() }
+                    } catch { self.isPrompting = false; self.showFileError(error) }
+                }
+            }
+        } catch { showFileError(error) }
+    }
+
     func newProject() {
         guard !isPrompting else { return }
         showEditor()
@@ -119,7 +203,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !isPrompting else { return false }
-        guard session.hasUserChanges else { return true }
+        guard session.hasUserChanges || session.isAutosaving else { return true }
         confirmSaveChanges(action: "close this project") { [weak self] shouldDiscard in
             guard let self, shouldDiscard else { return }
             if self.session.hasUserChanges { self.session.resetProject() }
@@ -132,7 +216,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !isPrompting else { return .terminateCancel }
-        guard session.hasUserChanges else { return .terminateNow }
+        guard session.hasUserChanges || session.isAutosaving else { return .terminateNow }
         guard !isTerminationPending else { return .terminateCancel }
         isTerminationPending = true
         showEditor()
@@ -235,7 +319,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     func saveProject(asNew: Bool = false, completion: @escaping @MainActor (Bool) -> Void = { _ in }) {
         guard !isPrompting else { completion(false); return }
         showEditor()
-        if !asNew, let url = session.documentURL { writeProject(to: url, completion: completion); return }
+        if !asNew, !session.isManagedDraft, let url = session.documentURL { writeProject(to: url, completion: completion); return }
         guard let window = editorWindow else { completion(false); return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [ProjectPackageStore.contentType]
@@ -312,7 +396,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         let picker = NSPopUpButton(frame: NSRect(x: 0,y: 0,width: 360,height: 28))
         picker.addItems(withTitles: entries.map { $0.document.project.name + " · " + ($0.document.recovery?.savedAt.formatted() ?? "") })
         let alert = NSAlert(); alert.messageText = "Recover unsaved work?"
-        alert.informativeText = "Restore a recovery copy, keep it for later, or delete the selected copy. Restored projects start paused and need Save."
+        alert.informativeText = "Restore a recovery copy or keep it for later. Restored projects start paused and autosave locally."
         alert.accessoryView = picker
         alert.addButton(withTitle: "Restore"); alert.addButton(withTitle: "Later"); alert.addButton(withTitle: "Delete Copy")
         isPrompting = true
@@ -376,19 +460,16 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         alert.beginSheetModal(for: window) { [weak self] _ in self?.isPrompting = false }
     }
     private func confirmSaveChanges(action: String, completion: @escaping @MainActor (Bool) -> Void) {
-        guard session.hasUserChanges else { completion(true); return }
-        guard let window = editorWindow else { completion(false); return }
+        guard session.hasUserChanges || session.isAutosaving else { completion(true); return }
         isPrompting = true
-        let alert = NSAlert(); alert.messageText = "Save changes to \(session.project.name)?"
-        alert.informativeText = "Save your work before you \(action)."
-        alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Discard Changes"); alert.addButton(withTitle: "Cancel")
-        alert.beginSheetModal(for: window) { [weak self] response in
-            guard let self else { completion(false); return }; self.isPrompting = false
-            let choice: ProjectCloseChoice = response == .alertFirstButtonReturn ? .save : response == .alertSecondButtonReturn ? .discard : .cancel
-            if choice == .save { self.saveProject { completion(choice.canProceed(saveSucceeded: $0)) } }
-            else {
-                // The requested action owns the replacement, so a failed Open retains current content.
-                completion(choice.canProceed(saveSucceeded: false))
+        Task { @MainActor in
+            do {
+                repeat { try await session.flushAutosave() } while session.hasUserChanges
+                isPrompting = false; updateWindowTitle()
+                completion(true)
+            } catch {
+                isPrompting = false; showFileError(error)
+                completion(false)
             }
         }
     }

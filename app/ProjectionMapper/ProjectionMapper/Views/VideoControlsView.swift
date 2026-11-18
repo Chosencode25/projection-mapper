@@ -29,7 +29,7 @@ struct VideoRangeControls: View {
                 Text("Canvas aspect")
                 TextField("Width / height",value: Binding(get: { Double(content.canvasAspect) },set: { value in edit { $0.canvasAspect = Float(value) } }),format: .number.precision(.fractionLength(0...3)))
             }.textFieldStyle(.roundedBorder).font(.caption)
-            Text("Source \(duration.formatted(.number.precision(.fractionLength(0...2)))) s · Moving keeps footage; trimming changes its source range.")
+            Text("Source \(duration.formatted(.number.precision(.fractionLength(0...2)))) s")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -40,7 +40,7 @@ struct VideoContentControls: View {
         if let source = session.selectedSource {
             VStack(alignment: .leading,spacing: 8) {
                 Button("Import video…") { session.chooseVideo(target: .owner(source.id)) }.disabled(session.isImportingVideo)
-                if let face = session.selectedSurface, face.layout.objectID != nil {
+                if let face = session.selectedSurface, face.layout.objectID != nil, session.selectedClip == nil, session.selectedVisualID == nil {
                     Button("Detach and import video on this face…") { session.chooseVideo(target: .detach(face.id)) }.disabled(session.isImportingVideo)
                 }
                 if source.content == .video, let video = source.video,
@@ -63,7 +63,6 @@ struct VideoContentControls: View {
                     if let problem = session.videoProblems[asset.id] ?? session.videoPlayback.problems[source.id] {
                         Text(problem).font(.caption).foregroundStyle(.orange)
                     }
-                    Text("Use + in this object's timeline row to add the video. Audio also requires Enable Audio in Show.").font(.caption).foregroundStyle(.secondary)
                 }
                 if session.isImportingVideo {
                     ProgressView("Copying and inspecting video…").controlSize(.small)
@@ -100,8 +99,6 @@ struct VideoAudioControls: View {
                     }
                 }
                 Button("Refresh devices") { devices = VideoAudioDevices.outputs() }
-                Text("Muted on open. Unmute a video/clip and enable audio to hear it. Scrubbing is silent; visual blackout keeps audio. Audio supports 0.5×–2× effective speed.")
-                    .font(.caption).foregroundStyle(.secondary)
             }.padding(.top,8)
         }.onAppear { devices = VideoAudioDevices.outputs() }
     }

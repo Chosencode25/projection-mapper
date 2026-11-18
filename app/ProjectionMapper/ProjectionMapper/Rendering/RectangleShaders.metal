@@ -95,7 +95,7 @@ float4 contentSample(float2 uv, float4 color, uint textured, float phase, float4
             int2 wrapped = (cell + count) % count;
             float2 center = float2(randomValue(wrapped,seed), randomValue(wrapped,seed ^ 0x9e3779b9u));
             float distance = length(p - (float2(cell)+center));
-            float edge = max(length(fwidth(p)),0.002);
+            float edge = max(length(fwidth(uv) * float(count)),0.002);
             glow = max(glow,1.0-smoothstep(max(0.0,parameters.w-edge),parameters.w+edge,distance));
         }
         return mix(secondary,color,glow);
@@ -105,7 +105,7 @@ float4 contentSample(float2 uv, float4 color, uint textured, float phase, float4
         int2 cell = int2(floor(p));
         float2 center = 0.2 + 0.6 * float2(randomValue(cell,seed),randomValue(cell,seed ^ 317u));
         float size = max(0.04, parameters.w);
-        float flake = 1.0 - smoothstep(size, size + max(length(fwidth(p)),0.02), length(fract(p)-center));
+        float flake = 1.0 - smoothstep(size, size + max(length(fwidth(uv) * (parameters.z * sqrt(scale))),0.02), length(fract(p)-center));
         return mix(secondary,color,flake * parameters.y);
     }
     if (textured == 11) {

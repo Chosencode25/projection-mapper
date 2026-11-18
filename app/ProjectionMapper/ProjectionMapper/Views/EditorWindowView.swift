@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct EditorWindowView: View {
     @Bindable var session: EditorSession
@@ -13,6 +14,11 @@ struct EditorWindowView: View {
 
     var openProject: () -> Void = {}
     var saveProject: () -> Void = {}
+    var savePlayground: () -> Void = {}
+    var newPlaygroundShow: () -> Void = {}
+    var choosePlayground: () -> Void = {}
+    var managePlaygrounds: () -> Void = {}
+    var saveCopy: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,6 +30,12 @@ struct EditorWindowView: View {
                     ForEach(ProjectWorkspace.allCases) { Text($0.rawValue).tag($0) }
                 }.labelsHidden().pickerStyle(.segmented).fixedSize().accessibilityLabel("Workspace")
                 Text(session.project.name).font(.subheadline).lineLimit(1)
+                Text(session.saveStatus).font(.caption).foregroundStyle(session.autosaveError == nil ? Color.secondary : Color.orange)
+                    .help(session.autosaveError ?? session.saveStatus)
+                if session.autosaveError != nil {
+                    Button("Retry") { Task { try? await session.flushAutosave() } }
+                    Button("Save a Copy…", action: saveCopy)
+                }
                 Spacer()
                 if let phoneRemote {
                     Button {
@@ -62,32 +74,37 @@ struct EditorWindowView: View {
 
     private var editWorkspace: some View {
         VStack(spacing: 0) {
-            EditorToolbar(session: session, newProject: newProject, openOutput: openOutput, openProject: openProject, saveProject: saveProject, showFixtures: { showsFixtures.toggle() })
+            EditorToolbar(session: session, newProject: newProject, openOutput: openOutput, openProject: openProject, saveProject: saveProject, savePlayground: savePlayground, newPlaygroundShow: newPlaygroundShow, choosePlayground: choosePlayground, managePlaygrounds: managePlaygrounds, showFixtures: { showsFixtures.toggle() })
             Divider()
             VSplitView {
                 Group {
                     if showsFixtures {
                         LightingWorkspace(session: session) { showsFixtures = false }
                     } else {
-                        HStack(spacing: 0) {
+                        HSplitView {
                             if session.isSidebarVisible {
-                                SurfaceSidebarView(session: session).frame(width: 244)
-                                Divider()
+                                SurfaceSidebarView(session: session).frame(minWidth: 180, idealWidth: session.sidebarWidth, maxWidth: 400)
+                                    .onGeometryChange(for: Double.self) { $0.size.width } action: { if NSEvent.pressedMouseButtons != 0 { session.sidebarWidth = $0 } }
                             }
-                            EditorCanvasView(session: session).frame(maxWidth: .infinity, maxHeight: .infinity)
+                            EditorCanvasView(session: session).frame(minWidth: 260, maxWidth: .infinity, maxHeight: .infinity)
+                                .background(SplitInitialPositionView(vertical: true,
+                                    leading: session.isSidebarVisible ? session.sidebarWidth : nil,
+                                    trailing: session.isInspectorVisible ? session.inspectorWidth : nil))
                             if session.isInspectorVisible {
-                                Divider()
                                 ProjectInspectorView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput)
-                                    .frame(width: 320)
+                                    .frame(minWidth: 270, idealWidth: session.inspectorWidth, maxWidth: 500)
+                                    .onGeometryChange(for: Double.self) { $0.size.width } action: { if NSEvent.pressedMouseButtons != 0 { session.inspectorWidth = $0 } }
                             }
                         }
                     }
                 }
                 .frame(minHeight: 240)
                 if session.isTimelineVisible {
-                    PlaybackTimelineView(session: session).frame(minHeight: 184, idealHeight: 224, maxHeight: 300)
+                    PlaybackTimelineView(session: session).frame(minHeight: 184, idealHeight: session.timelineHeight, maxHeight: 400)
+                        .background(SplitInitialPositionView(vertical: false, leading: nil, trailing: session.timelineHeight))
+                        .onGeometryChange(for: Double.self) { $0.size.height } action: { if NSEvent.pressedMouseButtons != 0 { session.timelineHeight = $0 } }
                 }
-            }
+            }.id(session.layoutRevision)
         }
     }
 
@@ -276,5 +293,55 @@ private struct ShowWorkspace: View {
         }
         .frame(width: 260)
         .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+
+/// SwiftUI split views distribute their initial space equally despite ideal sizes.
+/// Set the initial divider positions once, then leave resizing to AppKit/the user.
+private struct SplitInitialPositionView: NSViewRepresentable {
+    let vertical: Bool
+    let leading: Double?
+    let trailing: Double?
+    func makeNSView(context: Context) -> SplitPositionAnchor {
+        SplitPositionAnchor(vertical: vertical, leading: leading, trailing: trailing)
+    }
+    func updateNSView(_ view: SplitPositionAnchor, context: Context) {}
+}
+
+private final class SplitPositionAnchor: NSView {
+    let vertical: Bool
+    let leading: Double?
+    let trailing: Double?
+    private var configured = false
+    private var queued = false
+    init(vertical: Bool, leading: Double?, trailing: Double?) {
+        self.vertical = vertical; self.leading = leading; self.trailing = trailing
+        super.init(frame: .zero)
+    }
+    required init?(coder: NSCoder) { nil }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); schedule() }
+    override func layout() { super.layout(); schedule() }
+    private func schedule() {
+        guard !configured, !queued, window != nil else { return }
+        queued = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }; self.queued = false
+            var ancestor = self.superview
+            while let candidate = ancestor {
+                if let split = candidate as? NSSplitView, split.isVertical == self.vertical, split.arrangedSubviews.count > 1 {
+                    let total = self.vertical ? split.bounds.width : split.bounds.height
+                    guard total > 0 else { return }
+                    self.configured = true
+                    if let leading = self.leading { split.setPosition(leading, ofDividerAt: 0) }
+                    if let trailing = self.trailing {
+                        split.setPosition(total - trailing - split.dividerThickness, ofDividerAt: split.arrangedSubviews.count - 2)
+                    }
+                    return
+                }
+                ancestor = candidate.superview
+            }
+        }
     }
 }

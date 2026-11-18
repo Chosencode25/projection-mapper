@@ -36,8 +36,6 @@ struct CalibrationControls: View {
             .onChange(of: session.showOutput, initial: true) { _, value in
                 statusClockActive = value.isFading(at: ProcessInfo.processInfo.systemUptime)
             }
-            Text("Temporary patterns cover visible mapped faces and bypass content opacity, brightness, crop and flips. Face masks, master brightness, fades and blackout still apply. Normal Content returns to current content; Restore keeps the selected pattern.")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

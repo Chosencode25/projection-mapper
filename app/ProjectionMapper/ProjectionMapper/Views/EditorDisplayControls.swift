@@ -62,8 +62,6 @@ struct JoinInspectionControls: View {
             if session.calibration.pattern.isActive { Button("Return to Normal Content") { session.setCalibrationPattern(.normal) } }
             Text(object.mode == .continuous ? "Patterns use each face's shared input region. Check their alignment across linked edges." : "Repeat mode repeats the whole pattern on each face; choose Continuous to inspect a shared canvas.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false,vertical: true)
-            Text("Edge labels: green joined, cyan deliberate seam, orange mismatch. Arrows follow edge order on the output face. Calibration bypasses appearance/crop/flips, so normal-content appearance warnings may not appear in the test pattern. Masks remain active.")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false,vertical: true)
         }
     }
 }

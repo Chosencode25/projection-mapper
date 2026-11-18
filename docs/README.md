@@ -16,6 +16,10 @@
 | [Current verification](V2.09_VERIFICATION.md) | v2.09 automated results, rendering measurements, and pending checks |
 | [Projector verification](V2.01_VERIFICATION.md) | Output foundations and pending hardware checklist |
 
+## Working together
+
+- [One-word chat commands](CHAT_COMMANDS.md) — our proposed shorthand and what each command means.
+
 ## Develop and contribute
 
 | Read this | For |
