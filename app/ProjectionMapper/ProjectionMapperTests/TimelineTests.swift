@@ -252,7 +252,7 @@ struct VisualCompositionTests {
         var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
         object["formatVersion"] = 13
         let migrated = try ProjectCodec.decode(JSONSerialization.data(withJSONObject: object))
-        #expect(migrated.formatVersion == 14)
+        #expect(migrated.formatVersion == ProjectDocument.currentVersion)
         #expect(migrated.project == project)
         #expect(migrated.project.timelineTracks.count == 1)
     }

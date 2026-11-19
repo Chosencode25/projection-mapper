@@ -187,6 +187,42 @@ struct ChoreographyTarget: Codable, Identifiable, Equatable, Sendable {
     var position: FixturePreviewPoint
 }
 
+/// A reusable recipe. Target IDs, positions and start times belong to each placement.
+struct LightingEffectPreset: Codable, Equatable, Identifiable {
+    var id = UUID()
+    var name: String
+    var pattern: ChoreographyPattern
+    var colors: [SIMD4<Float>]
+    var interval: Double
+    var repeats: Int
+    var angle: Double
+
+    init(clip: ChoreographyClip) {
+        name = clip.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        pattern = clip.pattern
+        colors = clip.colors
+        interval = clip.interval
+        repeats = clip.repeats
+        angle = clip.angle
+    }
+
+    var isValid: Bool {
+        !name.isEmpty && name.count <= 80 &&
+            (1...16).contains(colors.count) &&
+            colors.allSatisfy { color in (0..<4).allSatisfy { (0...1).contains(color[$0]) } } &&
+            (0.05...60).contains(interval) && (1...64).contains(repeats) && (-360...360).contains(angle)
+    }
+
+    func apply(to clip: inout ChoreographyClip) {
+        clip.name = name
+        clip.pattern = pattern
+        clip.colors = colors
+        clip.interval = interval
+        clip.repeats = repeats
+        clip.angle = angle
+    }
+}
+
 struct ChoreographyClip: Codable, Identifiable, Equatable, Sendable {
     var id = UUID()
     var name = "Color Chase"

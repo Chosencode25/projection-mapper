@@ -146,9 +146,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         }
         panel.contentView = NSHostingView(rootView: PlaygroundsView(mode: mode, current: session.document,
             currentImages: session.playgroundImageFiles, library: PlaygroundLibrary(), cancel: close,
-            beginShow: { [weak self] document, images, name, song in
+            beginShow: { [weak self] document, images, name, song, workspace in
                 close()
-                self?.createPlaygroundShow(document, images: images, name: name, chooseSong: song)
+                self?.createPlaygroundShow(document, images: images, name: name, chooseSong: song, startingWorkspace: workspace)
             }, saved: { [weak self] name in
                 close(); self?.session.fileMessage = "Saved playground “\(name)”"
             }))
@@ -169,10 +169,10 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         alert.beginSheetModal(for: window) { [weak self] response in
             guard let self else { return }; self.isPrompting = false
             guard response == .alertFirstButtonReturn else { return }
-            self.createPlaygroundShow(self.session.document, images: self.session.playgroundImageFiles, name: name.stringValue, chooseSong: true)
+            self.createPlaygroundShow(self.session.document, images: self.session.playgroundImageFiles, name: name.stringValue, chooseSong: true, startingWorkspace: self.session.workspace)
         }
     }
-    private func createPlaygroundShow(_ document: ProjectDocument, images: [UUID: Data], name: String, chooseSong: Bool) {
+    private func createPlaygroundShow(_ document: ProjectDocument, images: [UUID: Data], name: String, chooseSong: Bool, startingWorkspace: ProjectWorkspace = .edit) {
         // Validate before save/switch; the original remains open if extraction or the write fails.
         do {
             let setup = try PlaygroundExtraction.extract(document, name: name)
@@ -181,7 +181,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                 self.isPrompting = true
                 Task { @MainActor in
                     do {
-                        try await self.session.startPlaygroundShow(setup, images: images)
+                        try await self.session.startPlaygroundShow(setup, images: images, startingWorkspace: startingWorkspace)
                         self.phoneRemote.stop()
                         self.updateWindowTitle(); self.isPrompting = false
                         if chooseSong { self.session.chooseSong() }

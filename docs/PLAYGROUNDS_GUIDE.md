@@ -1,6 +1,6 @@
 # Playgrounds rehearsal
 
-Local Playgrounds preview: v2.09/build 32, implementing the first part of v2.10. The milestone version is unchanged because broader v2.10 work remains planned.
+Playgrounds was introduced in v2.09/build 32, implementing the first part of v2.10. Local build 33 additionally offers Edit or Lighting as the starting workspace in the chooser. The milestone version is unchanged because broader v2.10 work remains planned.
 
 ## Start two shows from one house
 

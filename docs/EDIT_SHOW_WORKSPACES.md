@@ -1,8 +1,9 @@
-# Edit and Show workspaces
+# Edit, Lighting and Show workspaces
 
-Use the workspace switch above the project window. Both views use the same project, playhead, playback, output and fixture state.
+Use the workspace switch above the project window. All three views use the same project, playhead, playback, output and fixture state.
 
 - **Edit** contains the canvas, surface list, inspector, fixture setup and editable timeline. Existing zoom, Snap and Follow settings persist across workspace switches during the session.
+- **Lighting** (local build 33) contains fixture/group/look selection, a schematic, supported contextual controls and the shared timeline focused on fixtures. See [Lighting rehearsal](LIGHTING_WORKSPACE_GUIDE.md). Movement paths/keyframes remain planned.
 - **Show** contains a read-only projection or fixture preview, a playhead readout, upcoming timed cues, manual GO and release, separate projection and fixture blackout, audio mute, output selection and readiness. Project editing commands and project undo/redo are disabled here.
 
 For the first rehearsal, open the v2.06 sample, pause at 4.5 seconds, and switch to Show → Fixtures. The head should be halfway through its move. Check that the playhead and output do not reset. Switch back to Edit and confirm the selected cue is still available for editing.

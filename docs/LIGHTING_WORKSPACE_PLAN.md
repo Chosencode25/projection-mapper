@@ -1,6 +1,18 @@
 # Dedicated Lighting workspace — concept plan
 
-November 17, 2026. Saved at the user's request after discussing a lighting-focused editor in the same application. Planning only; no implementation or version assignment is authorized by this note. This extends the existing fixture and shared-timeline foundations.
+November 17, 2026. Saved at the user's request after discussing a lighting-focused editor in the same application. Originally planning only. The user subsequently invoked Build for the first section; implementation is now local in v2.09/build 33. No dedicated milestone version has been assigned. This extends the existing fixture and shared-timeline foundations.
+
+## Implementation status — November 17, 2026
+
+Section 1 is implemented and automatically verified locally: dedicated workspace, fixture/group selection, supported manual/look controls, existing cue editing, schematic and shared timeline. Full Release succeeded with 368 tests reported; focused Debug passed 48 checks. User visual/listening acceptance remains pending. See [verification](LIGHTING_WORKSPACE_VERIFICATION.md) and [rehearsal](LIGHTING_WORKSPACE_GUIDE.md). Section 2 was subsequently implemented locally in build 34; see the November 19 status below. Section 3 was subsequently implemented in build 35. Applications retains build 32; Build does not include installation or GitHub backup.
+
+## Movement status — November 19, 2026
+
+Section 2 is implemented locally in **v2.09/build 34**: per-head position keys, incoming curves, an editable pan/tilt path chart in the schematic, per-head position timeline lanes and precise inspector values. Shared-clock simulation, validation, undo, save/reopen/recovery and Playground clearing are covered by new automated checks. Project format is now 15; older projects migrate. See [movement plan](LIGHTING_MOVEMENT_PLAN.md), [verification](LIGHTING_MOVEMENT_VERIFICATION.md) and [rehearsal](LIGHTING_MOVEMENT_GUIDE.md). User visual/listening acceptance remains pending. Section 3 followed in build 35.
+
+## Reusable effects status
+
+Section 3 is implemented in the local build 35 preview. The Lighting Effects editor saves project presets, loads them into independent fixture-group placements and previews active steps in the schematic. See [the rehearsal guide](LIGHTING_EFFECTS_GUIDE.md) for the workflow. User rehearsal remains pending.
 
 ## Experience
 

@@ -90,7 +90,8 @@ struct EditorToolbar: View {
                 Button("Reset workspace layout") {
                     session.isSidebarVisible = true; session.isInspectorVisible = true; session.isTimelineVisible = true
                     session.canvasZoom = 1; session.canvasCenter = CGPoint(x: 0.5, y: 0.5)
-                    session.sidebarWidth = 244; session.inspectorWidth = 320; session.timelineHeight = 224; session.layoutRevision += 1
+                    session.sidebarWidth = 244; session.inspectorWidth = 320; session.timelineHeight = 224
+                    session.lightingSidebarWidth = 220; session.lightingInspectorWidth = 300; session.lightingTimelineHeight = 240; session.layoutRevision += 1
                 }
                 Button("Restart playback") { session.restartPlayback() }
                 Button("Fade to black") { session.fadeToBlack() }

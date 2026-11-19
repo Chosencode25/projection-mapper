@@ -7,6 +7,7 @@ struct EditorWindowView: View {
     @State private var showsPhone = false
     @State private var showsFixtures = false
     @State private var confirmsPauseToEdit = false
+    @State private var pendingWorkspace = ProjectWorkspace.edit
     let newProject: () -> Void
     let projectChanged: () -> Void
     let refreshDisplays: () -> Void
@@ -24,7 +25,7 @@ struct EditorWindowView: View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Picker("Workspace", selection: Binding(get: { session.workspace }, set: { target in
-                    if target == .edit && session.needsPauseToEdit { confirmsPauseToEdit = true }
+                    if target != .show && session.needsPauseToEdit { pendingWorkspace = target; confirmsPauseToEdit = true }
                     else { session.switchWorkspace(to: target) }
                 })) {
                     ForEach(ProjectWorkspace.allCases) { Text($0.rawValue).tag($0) }
@@ -51,6 +52,8 @@ struct EditorWindowView: View {
             Divider()
             if session.workspace == .edit {
                 editWorkspace
+            } else if session.workspace == .lighting {
+                DedicatedLightingWorkspace(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput)
             } else {
                 ShowWorkspace(session: session, openOutput: openOutput)
             }
@@ -58,7 +61,7 @@ struct EditorWindowView: View {
             EditorStatusView(session: session)
         }
         .confirmationDialog("Pause the show to edit?", isPresented: $confirmsPauseToEdit, titleVisibility: .visible) {
-            Button("Pause and Edit") { session.switchWorkspace(to: .edit, pauseRunningShow: true) }
+            Button(pendingWorkspace == .lighting ? "Pause and Open Lighting" : "Pause and Edit") { session.switchWorkspace(to: pendingWorkspace, pauseRunningShow: true) }
             Button("Keep Rehearsing", role: .cancel) {}
         } message: {
             Text("Playback pauses at the current position. The output window stays open.")
@@ -299,7 +302,7 @@ private struct ShowWorkspace: View {
 
 /// SwiftUI split views distribute their initial space equally despite ideal sizes.
 /// Set the initial divider positions once, then leave resizing to AppKit/the user.
-private struct SplitInitialPositionView: NSViewRepresentable {
+struct SplitInitialPositionView: NSViewRepresentable {
     let vertical: Bool
     let leading: Double?
     let trailing: Double?
@@ -309,7 +312,7 @@ private struct SplitInitialPositionView: NSViewRepresentable {
     func updateNSView(_ view: SplitPositionAnchor, context: Context) {}
 }
 
-private final class SplitPositionAnchor: NSView {
+final class SplitPositionAnchor: NSView {
     let vertical: Bool
     let leading: Double?
     let trailing: Double?

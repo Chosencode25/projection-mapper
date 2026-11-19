@@ -3,6 +3,7 @@ import SwiftUI
 /// Timeline controls and selection are runtime state; clips belong to the saved project.
 struct PlaybackTimelineView: View {
     @Bindable var session: EditorSession
+    var lightingFocus = false
     @State private var showChoreography = false
     @State private var selectedChoreography: UUID?
     @State private var cueGroup = ""
@@ -20,6 +21,7 @@ struct PlaybackTimelineView: View {
     }
     @State private var verticalPosition = ScrollPosition(y: 0)
     private var visibleTracks: [TimelineTrack] {
+        if lightingFocus && !session.lightingProjectionReferences { return [] }
         guard showsVisualTracks else { return session.project.baseTimelineTracks }
         var owner: UUID?
         return session.project.timelineTracks.filter { track in
@@ -47,6 +49,9 @@ struct PlaybackTimelineView: View {
 
     private var lighting: ProjectLighting { session.project.lighting }
     private var contentEnd: Double { session.project.timelineContentEnd }
+    private var visibleChoreography: [ChoreographyClip] {
+        session.project.choreographyClips.filter { !lightingFocus || session.lightingProjectionReferences || $0.kind == .fixture }
+    }
     private var selectedCue: LightingCue? { session.selectedLightingCue }
 
     var body: some View {
@@ -88,7 +93,7 @@ struct PlaybackTimelineView: View {
                         }
                         if !session.project.showMarkers.isEmpty { markerHeader }
                         ForEach(tracks) { track in
-                            trackHeader(track)
+                            trackHeader(track).allowsHitTesting(!lightingFocus)
                             if track.visualKind == .singingFace {
                                 Label("Mouth shapes", systemImage: "diamond")
                                     .font(.caption).foregroundStyle(.secondary)
@@ -96,12 +101,33 @@ struct PlaybackTimelineView: View {
                                     .padding(.horizontal, 22).frame(height: laneHeight)
                             }
                         }
-                        if !session.project.choreographyClips.isEmpty {
+                        if !visibleChoreography.isEmpty {
                             Label("Choreography", systemImage: "sparkles").font(.caption)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 10).frame(height: laneHeight)
                         }
-                        if !lighting.fixtures.isEmpty { lightingHeader }
+                        if !lighting.fixtures.isEmpty {
+                            lightingHeader
+                            if lightingFocus {
+                                ForEach(lighting.fixtures) { fixture in
+                                    Button { session.selectLighting(.fixture(fixture.id)) } label: {
+                                        Text(fixture.name).font(.caption).lineLimit(1)
+                                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).frame(height: laneHeight)
+                                            .background(session.selectedLightingFixtureIDs.contains(fixture.id) ? Color.orange.opacity(0.12) : .clear)
+                                    }.buttonStyle(.plain)
+                                    if fixture.kind == .movingHead {
+                                        HStack {
+                                            Label("Positions", systemImage: "point.topleft.down.curvedto.point.bottomright.up").font(.caption)
+                                            Spacer(minLength: 0)
+                                            Button {
+                                                session.selectLighting(.fixture(fixture.id))
+                                                session.captureHeadPositions(at: session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime))
+                                            } label: { Image(systemName: "plus.diamond") }.buttonStyle(.plain).help("Capture position at playhead")
+                                        }.padding(.horizontal, 12).frame(height: laneHeight)
+                                    }
+                                }
+                            }
+                        }
                     }.frame(width: 180)
                     Divider()
                     ScrollView(.horizontal) {
@@ -113,11 +139,22 @@ struct PlaybackTimelineView: View {
                                 }
                                 if !session.project.showMarkers.isEmpty { markerLane }
                                 ForEach(tracks) { track in
-                                    lane(track, clips: clipsByTrack[track.id] ?? [], horizon: horizon)
-                                    if track.visualKind == .singingFace { mouthLane(track) }
+                                    lane(track, clips: clipsByTrack[track.id] ?? [], horizon: horizon).allowsHitTesting(!lightingFocus)
+                                    if track.visualKind == .singingFace { mouthLane(track).allowsHitTesting(!lightingFocus) }
                                 }
-                                if !session.project.choreographyClips.isEmpty { choreographyLane }
-                                if !lighting.fixtures.isEmpty { lightingLane }
+                                if !visibleChoreography.isEmpty { choreographyLane }
+                                if !lighting.fixtures.isEmpty {
+                                    lightingLane(fixture: nil)
+                                    if lightingFocus {
+                                        ForEach(lighting.fixtures) { fixture in
+                                            lightingLane(fixture: fixture)
+                                            if fixture.kind == .movingHead {
+                                                HeadPositionTimelineLane(session: session, fixture: fixture, scale: pixelsPerSecond)
+                                                    .frame(height: laneHeight)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             .background {
                                 TimelineGrid(spacing: Double(tickStep) * pixelsPerSecond)
@@ -175,11 +212,11 @@ struct PlaybackTimelineView: View {
             Image(systemName: "film.stack").foregroundStyle(.secondary)
             TimelineTransportControls(session: session)
             SongMenu(session: session)
-            Button("Choreography", systemImage: "sparkles") {
+            Button(lightingFocus ? "Lighting Effects" : "Choreography", systemImage: "sparkles") {
                 selectedChoreography = nil
                 showChoreography = true
             }.popover(isPresented: $showChoreography) {
-                ChoreographyEditor(session: session, existingID: selectedChoreography, playhead: playhead)
+                ChoreographyEditor(session: session, existingID: selectedChoreography, playhead: playhead, lightingOnly: lightingFocus)
                     .id(selectedChoreography)
             }
             BeatQueueMenu(session: session)
@@ -291,7 +328,7 @@ struct PlaybackTimelineView: View {
     private var choreographyLane: some View {
         ZStack(alignment: .leading) {
             Color.mint.opacity(0.08)
-            ForEach(session.project.choreographyClips) { clip in
+            ForEach(visibleChoreography) { clip in
                 Button {
                     selectedChoreography = clip.id
                     showChoreography = true
@@ -299,7 +336,7 @@ struct PlaybackTimelineView: View {
                     Text(clip.name).font(.caption).lineLimit(1).padding(.horizontal, 5)
                         .frame(width: max(8, clip.duration * pixelsPerSecond), height: 23, alignment: .leading)
                         .clipped().background(.mint.opacity(0.26), in: RoundedRectangle(cornerRadius: 4))
-                }.buttonStyle(.plain).offset(x: clip.start * pixelsPerSecond)
+                }.buttonStyle(.plain).disabled(lightingFocus && clip.kind != .fixture).offset(x: clip.start * pixelsPerSecond)
             }
         }.frame(height: laneHeight)
     }
@@ -452,10 +489,10 @@ struct PlaybackTimelineView: View {
         .overlay(alignment: .bottom) { Divider() }
     }
 
-    private var lightingLane: some View {
+    private func lightingLane(fixture: PatchedFixture?) -> some View {
         ZStack(alignment: .leading) {
             Color.orange.opacity(0.08)
-            ForEach(lighting.cues.filter { !$0.isManual }) { cue in
+            ForEach(lighting.cues.filter { !$0.isManual && (fixture == nil || $0.entries.contains { $0.id == fixture?.id }) }) { cue in
                 if cue.lead > 0, (cue.motionCurve ?? .snap) != .snap {
                     let start = max(0, cue.time - cue.lead)
                     Capsule().fill(Color.orange.opacity(0.35))
@@ -477,15 +514,19 @@ struct PlaybackTimelineView: View {
         }.frame(height: laneHeight)
             .contentShape(Rectangle())
             .gesture(SpatialTapGesture(count: 2).onEnded { value in
-                addCue(at: value.location.x / pixelsPerSecond)
+                addCue(at: value.location.x / pixelsPerSecond, fixture: fixture)
             })
             .overlay(alignment: .bottom) { Divider() }
     }
 
-    private func addCue(at time: Double) {
+    private func addCue(at time: Double, fixture: PatchedFixture? = nil) {
         guard let look = session.selectedFixtureLook else { return }
         let groupIDs = Set(lighting.fixtures.filter { $0.group == cueGroup }.map(\.id))
-        let entries = cueGroup.isEmpty ? look.entries : look.entries.filter { groupIDs.contains($0.id) }
+        var entries = cueGroup.isEmpty ? look.entries : look.entries.filter { groupIDs.contains($0.id) }
+        if let fixture { entries = entries.filter { $0.id == fixture.id } }
+        else if lightingFocus, !session.selectedLightingFixtures.isEmpty {
+            entries = entries.filter { session.selectedLightingFixtureIDs.contains($0.id) }
+        }
         guard !entries.isEmpty else {
             session.lightingMessage = "The selected look has no fixtures in " + cueGroup + "."
             return
@@ -1017,6 +1058,7 @@ private struct ChoreographyEditor: View {
     let session: EditorSession
     let existingID: UUID?
     let playhead: Double
+    var lightingOnly = false
     @State private var draft = ChoreographyClip()
     @State private var targetID: UUID?
     @Environment(\.dismiss) private var dismiss
@@ -1029,11 +1071,13 @@ private struct ChoreographyEditor: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 9) {
-                Text(existingID == nil ? "New Choreography Clip" : "Edit Choreography Clip").font(.headline)
+                Text(lightingOnly ? (existingID == nil ? "New Lighting Effect" : "Edit Lighting Effect") :
+                    (existingID == nil ? "New Choreography Clip" : "Edit Choreography Clip")).font(.headline)
+                if lightingOnly { presetControls }
                 TextField("Name", text: $draft.name)
                 HStack {
                     Picker("Targets", selection: $draft.kind) {
-                        ForEach(ChoreographyTargetKind.allCases) { Text($0.rawValue).tag($0) }
+                        ForEach(ChoreographyTargetKind.allCases.filter { !lightingOnly || $0 == .fixture }) { Text($0.rawValue).tag($0) }
                     }.disabled(!draft.targets.isEmpty)
                     Picker("Pattern", selection: $draft.pattern) {
                         ForEach(ChoreographyPattern.allCases) { Text($0.rawValue).tag($0) }
@@ -1047,6 +1091,7 @@ private struct ChoreographyEditor: View {
                     Text("Repeats")
                     TextField("Repeats", value: $draft.repeats, format: .number).frame(width: 45)
                 }
+                if lightingOnly { groupControls }
                 targetPicker
                 ForEach($draft.targets) { $target in
                     targetRow($target)
@@ -1073,13 +1118,60 @@ private struct ChoreographyEditor: View {
                         if session.setChoreography(clips) { dismiss() }
                     }.buttonStyle(.borderedProminent).disabled(!draft.isValid)
                 }
-                if let message = session.timelineMessage { Text(message).font(.caption).foregroundStyle(.orange) }
+                if let message = session.timelineMessage ?? (lightingOnly ? session.lightingMessage : nil) { Text(message).font(.caption).foregroundStyle(.orange) }
             }.padding(14)
         }.frame(width: 480, height: 440)
             .onAppear {
                 if let original = session.project.choreographyClips.first(where: { $0.id == existingID }) { draft = original }
-                else { draft.start = min(3599, max(0, playhead)) }
+                else {
+                    draft.start = min(3599, max(0, playhead))
+                    if lightingOnly {
+                        draft.kind = .fixture
+                        draft.start = session.lightingInsertionTime(playhead)
+                        draft.targets = session.effectTargets(for: session.selectedLightingFixtures)
+                    }
+                }
             }
+    }
+
+    private var presetControls: some View {
+        let presets = session.project.lighting.lightingEffectPresets
+        let recipe = LightingEffectPreset(clip: draft)
+        let matching = presets.contains { $0.name.caseInsensitiveCompare(recipe.name) == .orderedSame }
+        return HStack {
+            Menu("Load Preset") {
+                ForEach(presets) { preset in
+                    Button(preset.name) { preset.apply(to: &draft) }
+                }
+            }.disabled(presets.isEmpty)
+            Button(matching ? "Update Preset" : "Save Preset") {
+                session.timelineMessage = nil
+                if session.saveLightingEffectPreset(from: draft) { session.timelineMessage = "Saved preset “\(recipe.name)”." }
+            }.disabled(!recipe.isValid)
+            Menu("Remove Preset") {
+                ForEach(presets) { preset in
+                    Button(preset.name, role: .destructive) { session.removeLightingEffectPreset(preset.id) }
+                }
+            }.disabled(presets.isEmpty)
+        }
+    }
+
+    private var groupControls: some View {
+        HStack {
+            Menu("Use Fixture Group") {
+                ForEach(session.lightingGroups, id: \.self) { group in
+                    let fixtures = session.project.lighting.fixtures.filter { $0.group == group }
+                    Button(group) { draft.targets = session.effectTargets(for: fixtures) }
+                        .disabled(fixtures.count > 128)
+                }
+            }.disabled(session.lightingGroups.isEmpty)
+            if draft.pattern == .wave, !draft.targets.isEmpty {
+                Button("Refresh Wave Positions") {
+                    let fixtures = Dictionary(uniqueKeysWithValues: session.project.lighting.fixtures.map { ($0.id, $0) })
+                    draft.targets = session.effectTargets(for: draft.targets.compactMap { fixtures[$0.id] })
+                }
+            }
+        }
     }
 
     private var targetPicker: some View {
@@ -1094,7 +1186,11 @@ private struct ChoreographyEditor: View {
                 guard let targetID, candidates.contains(where: { $0.id == targetID }),
                       !draft.targets.contains(where: { $0.id == targetID }) else { return }
                 let x = min(0.95, 0.1 + Double(draft.targets.count) * 0.15)
-                draft.targets.append(ChoreographyTarget(id: targetID, position: .init(x: x, y: 0.5)))
+                if draft.kind == .fixture, let fixture = session.project.lighting.fixtures.first(where: { $0.id == targetID }) {
+                    draft.targets.append(contentsOf: session.effectTargets(for: [fixture]))
+                } else {
+                    draft.targets.append(ChoreographyTarget(id: targetID, position: .init(x: x, y: 0.5)))
+                }
                 self.targetID = nil
             }.disabled(targetID == nil || draft.targets.count >= 128)
         }
@@ -1132,5 +1228,51 @@ private struct ChoreographyEditor: View {
             }.frame(height: 80).background(.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 5))
                 .accessibilityLabel("Authored wave layout")
         }
+    }
+}
+
+
+private struct HeadPositionTimelineLane: View {
+    let session: EditorSession
+    let fixture: PatchedFixture
+    let scale: Double
+    @State private var draft: HeadPositionKey?
+    @State private var baseline: MappingProject?
+    private var keys: [HeadPositionKey] { session.headPositionKeys(for: fixture.id) }
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Color.cyan.opacity(0.06)
+            ForEach(Array(keys.enumerated()), id: \.element.id) { index, key in
+                let time = draft?.id == key.id ? draft!.time : key.time
+                if index > 0 {
+                    let previous = keys[index - 1]
+                    Path { path in
+                        path.move(to: CGPoint(x: previous.time * scale, y: 32))
+                        path.addLine(to: CGPoint(x: key.time * scale, y: 32))
+                    }.stroke(Color.cyan.opacity(0.3), style: StrokeStyle(lineWidth: 3, dash: key.curve == .snap ? [3, 3] : []))
+                }
+                Image(systemName: session.selectedHeadPositionKeyID == key.id ? "diamond.fill" : "diamond")
+                    .foregroundStyle(.cyan).frame(width: 18, height: 28).contentShape(Rectangle())
+                    .onTapGesture { session.selectHeadPositionKey(key.id) }
+                    .gesture(DragGesture(minimumDistance: 2)
+                        .onChanged { value in
+                            if draft == nil { baseline = session.project; session.selectHeadPositionKey(key.id) }
+                            var next = key; next.time = session.lightingInsertionTime(key.time + value.translation.width / max(1, scale))
+                            draft = next
+                        }.onEnded { _ in
+                            defer { draft = nil; baseline = nil }
+                            guard let draft, baseline == session.project else { return }
+                            session.updateHeadPosition(draft)
+                        })
+                    .offset(x: time * scale)
+                    .help("Position at \(TimelinePresentation.timecode(time)) · \(key.curve.rawValue)")
+                    .accessibilityLabel("\(fixture.name) position key at \(TimelinePresentation.timecode(time))")
+            }
+        }.contentShape(Rectangle())
+            .gesture(SpatialTapGesture(count: 2).onEnded { value in
+                session.selectLighting(.fixture(fixture.id))
+                session.captureHeadPositions(at: value.location.x / max(1, scale))
+            })
+            .overlay(alignment: .bottom) { Divider() }
     }
 }

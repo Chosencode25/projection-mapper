@@ -6,6 +6,7 @@ struct SimulatedFixture: Equatable, Identifiable {
     var slots: [Int]
     var intended: FixtureState
     var effective: FixtureState
+    var activeEffect: String? = nil
     var relayValues: [Bool] {
         switch effective {
         case .head: []
@@ -86,6 +87,7 @@ final class LightingSimulation {
         }
     }
 
+    @ObservationIgnored private var positions = HeadPositionSchedule()
     @ObservationIgnored private var schedule = LightingSchedule()
     @ObservationIgnored private var patch = ProjectLighting()
     @ObservationIgnored private var stoppedPositions: [UUID: FixtureState] = [:]
@@ -150,6 +152,7 @@ final class LightingSimulation {
     func update(_ lighting: ProjectLighting, at time: Double, uptime: Double = ProcessInfo.processInfo.systemUptime, choreography: [ChoreographyClip] = []) {
         if lighting != patch {
             if lighting.cues != patch.cues { schedule = LightingSchedule(cues: lighting.cues) }
+            if lighting.headPositions != patch.headPositions { positions = HeadPositionSchedule(keys: lighting.positionKeys) }
             patch = lighting
             let fixtureIDs = Set(lighting.fixtures.map(\.id))
             manual = manual.filter { fixtureIDs.contains($0.key) }
@@ -162,19 +165,23 @@ final class LightingSimulation {
         let assigned = Dictionary(grouping: lighting.fixtures, by: \.controllerID)
         var next: [UUID: LightingSimulationReport] = [:]
         for controller in lighting.controllers {
+            let canPreviewEffect = controller.profile == .simulation && !failures.contains(controller.id) && !isStopped && !blackout
             let fixtures = (assigned[controller.id] ?? []).map { fixture in
-                let scheduled = schedule.state(for: fixture, at: time)
+                let scheduled = positions.applying(to: schedule.state(for: fixture, at: time), fixtureID: fixture.id, at: time)
                 let sample = choreography.lazy.filter { $0.kind == .fixture }
-                    .compactMap { $0.sample(at: time, target: fixture.id) }.first
+                    .compactMap { clip in clip.sample(at: time, target: fixture.id).map { (clip.name, $0) } }.first
                 let base: FixtureState
-                if let sample, !schedule.hasCue(for: fixture.id, from: sample.stepStart, through: time) {
-                    base = sample.active ? Self.choreographed(scheduled, color: sample.color) : scheduled.darkened
+                var activeEffect: String?
+                if let (name, step) = sample, !schedule.hasCue(for: fixture.id, from: step.stepStart, through: time) {
+                    base = step.active ? Self.choreographed(scheduled, color: step.color) : scheduled.darkened
+                    if step.active && canPreviewEffect { activeEffect = name }
                 } else { base = scheduled }
-                let intended = overrides[fixture.id] ?? manual[fixture.id]?.value(at: uptime) ?? base
+                let override = overrides[fixture.id] ?? manual[fixture.id]?.value(at: uptime)
+                let intended = override ?? base
                 let effective: FixtureState
                 if isStopped { effective = stoppedPositions[fixture.id] ?? fixture.kind.dark }
                 else { effective = blackout ? intended.darkened : intended }
-                return SimulatedFixture(id: fixture.id, slots: fixture.slots, intended: intended, effective: effective)
+                return SimulatedFixture(id: fixture.id, slots: fixture.slots, intended: intended, effective: effective, activeEffect: override == nil ? activeEffect : nil)
             }
             var history = reports[controller.id]?.history ?? []
             let status: LightingSimulationReport.Status
@@ -189,6 +196,7 @@ final class LightingSimulation {
                 let payload = Dictionary(uniqueKeysWithValues: fixtures.map { fixture in
                     var output = fixture
                     output.intended = fixture.effective
+                    output.activeEffect = nil
                     return (fixture.id, output)
                 })
                 let previous = lastSent[controller.id]

@@ -47,7 +47,7 @@ struct MappingProject: Equatable, Codable {
         palettes.isEmpty && looks.isEmpty && imageAssets.isEmpty && referencePhoto == nil && videoAssets.isEmpty && videoAudio == VideoAudioSettings() && timelineClips.isEmpty && layers.isEmpty && regions.isEmpty && regionShapes.isEmpty && showMarkers.isEmpty && choreographyClips.isEmpty && song == nil && lighting == ProjectLighting() && masterOutput == .defaults
     }
     var timelineContentEnd: Double {
-        max(song?.duration ?? 0, timelineClips.map(\.end).max() ?? 0, lighting.cues.filter { !$0.isManual }.map(\.time).max() ?? 0, showMarkers.map(\.time).max() ?? 0, choreographyClips.map(\.end).max() ?? 0, visualTracks.flatMap(\.mouthKeys).map(\.time).max() ?? 0)
+        max(lighting.positionKeys.map(\.time).max() ?? 0, song?.duration ?? 0, timelineClips.map(\.end).max() ?? 0, lighting.cues.filter { !$0.isManual }.map(\.time).max() ?? 0, showMarkers.map(\.time).max() ?? 0, choreographyClips.map(\.end).max() ?? 0, visualTracks.flatMap(\.mouthKeys).map(\.time).max() ?? 0)
     }
     func object(for face: MappingSurface) -> MappingObject? { objects.first { $0.id == face.layout.objectID } }
     func source(for face: MappingSurface) -> SurfaceSource { object(for: face)?.source ?? face.source }

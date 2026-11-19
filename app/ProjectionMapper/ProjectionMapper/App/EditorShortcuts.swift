@@ -201,7 +201,16 @@ struct TimelineViewRequest: Equatable {
 extension EditorSession {
     func canPerformEditorAction(_ action: EditorAction) -> Bool {
         if workspace == .show && !action.isTransport { return false }
+        if workspace == .lighting && !action.isTransport {
+            switch action {
+            case .duplicate, .delete: if selectedLightingCue == nil && selectedHeadPositionKey == nil { return false }
+            case .deselect, .zoomIn, .zoomOut, .fitTimeline, .revealPlayhead, .snap, .follow,
+                 .editInspector, .showInspector, .projectInspector: break
+            default: return false
+            }
+        }
         let busy = isSavingMedia || isImportingImage || isImportingVideo
+        if workspace == .lighting, selectedHeadPositionKey != nil, action == .duplicate || action == .delete { return !busy }
         switch action {
         case .duplicate: return !busy && (selectedLightingCue != nil || selectedClip != nil || selectedSurface != nil || selectedObject != nil) && !isMaskEditing
         case .delete: return !busy && (selectedLightingCue != nil || selectedClip != nil || selectedSurface != nil || selectedObject != nil)
@@ -224,6 +233,10 @@ extension EditorSession {
     /// Shared menu/native-key implementation keeps edits on the normal undo path.
     func performEditorAction(_ action: EditorAction, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard canPerformEditorAction(action), uptime.isFinite else { return }
+        if workspace == .lighting, let key = selectedHeadPositionKey {
+            if action == .delete { deleteHeadPosition(key.id); return }
+            if action == .duplicate { duplicateHeadPosition(at: transport.elapsed(at: uptime)); return }
+        }
         switch action {
         case .playPause: setPlaying(!transport.isPlaying, at: uptime)
         case .stop: stopPlayback(at: uptime)
@@ -258,7 +271,9 @@ extension EditorSession {
             else if let visual = selectedVisualID { deleteVisual(visual) }
             else if let object = selectedObject { deleteObject(object.id) }
             else if let face = selectedSurface { deleteSurface(face.id) }
-        case .deselect: selectedLightingCueID = nil; selectedClipID = nil; selectSurface(nil); cancelGroupingFaces(); isMaskEditing = false; cancelMaskDrawing()
+        case .deselect:
+            if workspace == .lighting { selectLighting(nil); selectedLightingCueID = nil; return }
+            selectedLightingCueID = nil; selectedClipID = nil; selectSurface(nil); cancelGroupingFaces(); isMaskEditing = false; cancelMaskDrawing()
         case .group:
             if groupingSelection.count >= 2 { createObject(faceIDs: groupingSelection) } else { beginGroupingFaces() }
         case .ungroup: if let object = selectedObject { ungroupObject(object.id) }
@@ -313,6 +328,7 @@ extension EditorSession {
     }
     func cancelEditorSelection() {
         endContinuousEdit()
+        if workspace == .lighting { selectLighting(nil); selectedLightingCueID = nil; return }
         if maskDraft != nil { cancelMaskDrawing() }
         else if isGroupingFaces { cancelGroupingFaces() }
         else if isMaskEditing { isMaskEditing = false; selectedMaskVertex = nil }

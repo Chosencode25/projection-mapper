@@ -136,7 +136,7 @@ struct FixtureLook: Codable, Equatable, Identifiable {
     var entries: [FixtureLookEntry]
 }
 
-enum CueCurve: String, Codable, CaseIterable, Identifiable {
+enum CueCurve: String, Codable, CaseIterable, Identifiable, Sendable {
     case snap = "Snap", linear = "Linear", eased = "Ease In/Out"
     var id: Self { self }
     func evaluate(_ fraction: Double) -> Double {
@@ -166,9 +166,14 @@ struct ProjectLighting: Codable, Equatable {
     var fixtures: [PatchedFixture] = []
     var looks: [FixtureLook] = []
     var cues: [LightingCue] = []
+    var effectPresets: [LightingEffectPreset]?
+    var lightingEffectPresets: [LightingEffectPreset] { effectPresets ?? [] }
+    var headPositions: [HeadPositionKey]?
+    var positionKeys: [HeadPositionKey] { headPositions ?? [] }
 
     mutating func removeFixture(_ id: UUID) {
         fixtures.removeAll { $0.id == id }
+        headPositions?.removeAll { $0.fixtureID == id }
         for index in looks.indices { looks[index].entries.removeAll { $0.id == id } }
         for index in cues.indices { cues[index].entries.removeAll { $0.id == id } }
         looks.removeAll { $0.entries.isEmpty }
@@ -209,6 +214,23 @@ struct ProjectLighting: Codable, Equatable {
             reserved[controller.id, default: []].formUnion(unique)
         }
 
+        let presets = lightingEffectPresets
+        guard presets.count <= 128, Set(presets.map(\.id)).count == presets.count,
+              Set(presets.map { $0.name.lowercased() }).count == presets.count,
+              presets.allSatisfy(\.isValid) else { return "Check the effect preset name, colors and timing." }
+        guard positionKeys.count <= 4096, Set(positionKeys.map(\.id)).count == positionKeys.count else {
+            return "Too many position keys or duplicate position identities."
+        }
+        var keyTimes: [UUID: Set<Double>] = [:]
+        for key in positionKeys {
+            guard key.isValid, fixtureByID[key.fixtureID] == .movingHead else {
+                return "Position keys require a moving head, a time from 0–3600 seconds, and pan/tilt from 0–1."
+            }
+            guard keyTimes[key.fixtureID, default: []].insert(key.time).inserted,
+                  keyTimes[key.fixtureID, default: []].count <= 256 else {
+                return "Each moving head supports up to 256 position keys with distinct times."
+            }
+        }
         func validEntries(_ entries: [FixtureLookEntry]) -> Bool {
             !entries.isEmpty && Set(entries.map(\.id)).count == entries.count && entries.allSatisfy { entry in
                 guard fixtureByID[entry.id] == entry.state.kind else { return false }

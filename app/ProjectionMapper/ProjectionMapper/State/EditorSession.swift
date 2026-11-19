@@ -5,7 +5,7 @@ import Observation
 import simd
 
 enum ProjectWorkspace: String, CaseIterable, Identifiable {
-    case edit = "Edit", show = "Show"
+    case edit = "Edit", lighting = "Lighting", show = "Show"
     var id: Self { self }
 }
 
@@ -13,6 +13,13 @@ enum ProjectWorkspace: String, CaseIterable, Identifiable {
 @Observable
 final class EditorSession {
     private(set) var workspace = ProjectWorkspace.edit
+    var selectedHeadPositionKeyID: UUID?
+    var lightingSelection: LightingSelection?
+    var lightingHiddenFixtureIDs: Set<UUID> = []
+    var lightingProjectionReferences = false
+    var lightingSidebarWidth = 220.0
+    var lightingInspectorWidth = 300.0
+    var lightingTimelineHeight = 240.0
     var canvasZoom = 1.0
     var canvasCenter = CGPoint(x: 0.5, y: 0.5)
     var timelineScrollX = 0.0
@@ -34,7 +41,7 @@ final class EditorSession {
     func switchWorkspace(to target: ProjectWorkspace, pauseRunningShow: Bool = false,
                          at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard workspace != target else { return }
-        if target == .edit && needsPauseToEdit {
+        if target != .show && needsPauseToEdit {
             guard pauseRunningShow else { return }
             setPlaying(false, at: uptime)
         }
@@ -127,8 +134,8 @@ final class EditorSession {
     private var continuousEditName: String?
     private var continuousEditRecorded = false
     private(set) var historyNotice: String?
-    var canUndo: Bool { workspace == .edit && !undoHistory.isEmpty && !isSavingMedia && !isImportingVideo && !isImportingImage }
-    var canRedo: Bool { workspace == .edit && !redoHistory.isEmpty && !isSavingMedia && !isImportingVideo && !isImportingImage }
+    var canUndo: Bool { workspace != .show && !undoHistory.isEmpty && !isSavingMedia && !isImportingVideo && !isImportingImage }
+    var canRedo: Bool { workspace != .show && !redoHistory.isEmpty && !isSavingMedia && !isImportingVideo && !isImportingImage }
     var undoTitle: String { undoHistory.last.map { "Undo " + $0.name } ?? "Undo" }
     var redoTitle: String { redoHistory.last.map { "Redo " + $0.name } ?? "Redo" }
     private(set) var identifyingSourceID: UUID?
@@ -1211,7 +1218,7 @@ final class EditorSession {
         guard let i = project.objects.firstIndex(where: { $0.id == objectID }), project.objects[i].links.contains(where: { $0.id == linkID }) else { return }
         project.objects[i].links.removeAll { $0.id == linkID }; changed()
     }
-    func startPlaygroundShow(_ setup: ProjectDocument, images: [UUID: Data]) async throws {
+    func startPlaygroundShow(_ setup: ProjectDocument, images: [UUID: Data], startingWorkspace: ProjectWorkspace = .edit) async throws {
         let fresh = try PlaygroundExtraction.extract(setup, name: setup.project.name)
         let bytes = try ProjectCodec.encode(fresh)
         guard let draftDirectory else { throw ProjectFileError.io("Draft storage is unavailable.") }
@@ -1230,7 +1237,7 @@ final class EditorSession {
             throw ProjectFileError.io("The current show changed during creation. Try again.")
         }
         try load(fresh, from: target, loadedMedia: loaded)
-        workspace = .edit
+        workspace = startingWorkspace == .lighting ? .lighting : .edit
         songVolume = 1; songMuted = false; songDeviceID = nil
         collapsedTimelineOwners = []; timelineScrollX = 0; timelineScrollY = 0
         selectedSurfaceID = nil; selectedObjectID = nil
@@ -1826,6 +1833,7 @@ extension EditorSession {
         if old.layers != project.layers || old.regions != project.regions || old.regionShapes != project.regionShapes {
             return "Edit Layers and Regions"
         }
+        if old.lighting.lightingEffectPresets != project.lighting.lightingEffectPresets { return "Edit Lighting Presets" }
         if old.choreographyClips != project.choreographyClips { return "Edit Choreography" }
         if old.showMarkers != project.showMarkers { return "Edit Show Markers" }
         if old.song != project.song { return "Edit Soundtrack" }
@@ -1899,6 +1907,7 @@ extension EditorSession {
         editMessage = nil; timelineMessage = nil; lightingMessage = nil; lastLookReport = nil
         if selectedFixtureLook == nil { selectedFixtureLookID = nil }
         if selectedLightingCue == nil { selectedLightingCueID = nil }
+        reconcileLightingSelection()
         boundHistory(); updateOutputScene(); scheduleRecovery()
     }
     func releaseRuntimeResources() {
@@ -1982,7 +1991,7 @@ extension EditorSession {
                 add("song", .blocker, "Soundtrack unavailable. Replace or remove " + song.name + ".")
             }
             let clipEnd = project.timelineClips.map(\.end).max() ?? 0
-            let cueEnd = project.lighting.cues.filter { !$0.isManual }.map(\.time).max() ?? 0
+            let cueEnd = max(project.lighting.cues.filter { !$0.isManual }.map(\.time).max() ?? 0, project.lighting.positionKeys.map(\.time).max() ?? 0)
             if max(clipEnd, cueEnd) > song.duration {
                 add("song-range", .warning, "Some projection clips or lighting cues extend beyond the soundtrack.")
             }
@@ -2016,6 +2025,7 @@ extension EditorSession {
         lightingMessage = nil
         guard lighting != project.lighting else { return true }
         project.lighting = lighting
+        reconcileLightingSelection()
         if !lighting.looks.contains(where: { $0.id == selectedFixtureLookID }) { selectedFixtureLookID = nil }
         if let nextManualCueID, !lighting.cues.contains(where: { $0.id == nextManualCueID }) { resetManualCues() }
         if !lighting.cues.contains(where: { $0.id == selectedLightingCueID }) { selectedLightingCueID = nil }
@@ -2048,9 +2058,12 @@ extension EditorSession {
             selectedClipID = nil; selectedMouthKeyID = nil
         }
         selectedLightingCueID = id
+        if id != nil { selectedHeadPositionKeyID = nil; lightingSelection = nil; inspectorTab = .edit; isInspectorVisible = true }
     }
 
     private func resetLighting() {
+        selectedHeadPositionKeyID = nil
+        lightingSelection = nil; lightingHiddenFixtureIDs = []
         cancelBeatQueue()
         selectedMarkerID = nil
         markerMessage = nil

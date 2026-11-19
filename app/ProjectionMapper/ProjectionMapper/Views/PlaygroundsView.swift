@@ -8,7 +8,7 @@ struct PlaygroundsView: View {
     let currentImages: [UUID: Data]
     let library: PlaygroundLibrary
     let cancel: () -> Void
-    let beginShow: (ProjectDocument, [UUID: Data], String, Bool) -> Void
+    let beginShow: (ProjectDocument, [UUID: Data], String, Bool, ProjectWorkspace) -> Void
     let saved: (String) -> Void
     @State private var entries: [PlaygroundLibrary.Entry] = []
     @State private var selection: UUID?
@@ -16,6 +16,7 @@ struct PlaygroundsView: View {
     @State private var note = ""
     @State private var showName = "New Show"
     @State private var chooseSong = true
+    @State private var startingWorkspace = ProjectWorkspace.edit
     @State private var error: String?
     @State private var confirmsUpdate = false
     private var selected: PlaygroundLibrary.Entry? { entries.first { $0.id == selection } }
@@ -39,6 +40,10 @@ struct PlaygroundsView: View {
                         if mode == .choose {
                             TextField("Show name", text: $showName)
                             Toggle("Choose a song after opening", isOn: $chooseSong)
+                            Picker("Start in", selection: $startingWorkspace) {
+                                Text("Edit").tag(ProjectWorkspace.edit)
+                                Text("Lighting").tag(ProjectWorkspace.lighting)
+                            }
                             Text("An independent show with empty programming. Your saved playground stays unchanged.")
                                 .font(.caption).foregroundStyle(.secondary)
                         } else {
@@ -79,7 +84,7 @@ struct PlaygroundsView: View {
                     Button("Create Show") { attempt {
                         guard let selected else { return }
                         let data = try library.read(selected.url)
-                        beginShow(data.document, data.images, showName, chooseSong)
+                        beginShow(data.document, data.images, showName, chooseSong, startingWorkspace)
                     } }.keyboardShortcut(.defaultAction).disabled(selected == nil || !validName(showName))
                 }
             }
@@ -137,7 +142,7 @@ struct PlaygroundsView: View {
                 let document = try PlaygroundExtraction.extract(source, name: showName)
                 let images = ImageImportService.loadAssets(document.project, package: url)
                 guard images.problems.isEmpty else { throw ProjectFileError.invalid("The reference photo is missing or damaged.") }
-                beginShow(document, images.files, showName, chooseSong)
+                beginShow(document, images.files, showName, chooseSong, startingWorkspace)
             }
         }
     }

@@ -1,6 +1,6 @@
 # V2 Roadmap — Projection, Lighting and Show Playback
 
-Updated November 17, 2026. Applications now contains the verified **v2.09/build 32** Playgrounds preview; build 31 is preserved. The preview is **v2.09/build 32**, implementing the first part of v2.10, with portable project format 14 and playground schema 1. See [Playgrounds verification](V2.10_PLAYGROUNDS_VERIFICATION.md) and [progress](PROGRESS.md). Physical projector/optical acceptance remains pending; latest published download remains v1.15.1.
+Updated November 17, 2026. Applications now contains verified **v2.09/build 35** with the three Lighting sections, project format 16 and Playground schema 1. Build 32 is preserved. See [Playgrounds verification](V2.10_PLAYGROUNDS_VERIFICATION.md) and [progress](PROGRESS.md). Physical projector/optical acceptance remains pending; latest published download remains v1.15.1.
 
 v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and simulated fixtures. Native moving-head and Arduino control and physical checks are deferred until equipment is available. A local phone editor follows the desktop cue foundation. Projection, fixtures and music share show time, and the existing Test Mode remains available. The v2.03 encoder and adapter discovery are preserved as local development work. Read the [detailed implementation steps](V2_IMPLEMENTATION_PLAN.md), [development requirements](PROJECT_DEVELOPMENT.md) and [GitHub workflow](GITHUB_WORKFLOW.md) before implementing or delivering a milestone.
 
@@ -27,7 +27,7 @@ v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and 
 
 ## New workflow concepts — November 17, 2026
 
-- [Dedicated Lighting workspace](LIGHTING_WORKSPACE_PLAN.md): a lighting-focused scene, inspector and fixture timeline inside the same synchronized project. Interface concept saved; implementation/version assignment pending.
+- [Dedicated Lighting workspace](LIGHTING_WORKSPACE_PLAN.md): all three planned sections are implemented locally through build 35, including fixture authoring, motion keys and reusable lighting effects. User rehearsal remains pending. No dedicated milestone version is assigned.
 - [Playgrounds](REUSABLE_SETUPS_PLAN.md): implemented locally as the first part of v2.10; save placement/configuration and create independent blank shows. User visual/listening rehearsal remains pending. Existing role assignment, programmed templates and recording scope remains planned.
 
 ## Hardware that is still unidentified

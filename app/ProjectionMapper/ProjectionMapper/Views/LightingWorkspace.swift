@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct LightingWorkspace: View {
     @Bindable var session: EditorSession
@@ -267,7 +268,7 @@ private struct LightingControllerEditor: View {
     }
 }
 
-private struct FixturePatchEditor: View {
+struct FixturePatchEditor: View {
     let session: EditorSession
     @State var draft: PatchedFixture
     @Environment(\.dismiss) private var dismiss
@@ -383,9 +384,11 @@ private struct FixtureTestControls: View {
 struct FixturePreview: View {
     let session: EditorSession
     var allowsPlacement = true
+    var usesLightingSelection = false
     @State private var editing = false
     @State private var draft: PlacementEdit?
     @State private var selectedFixtureID: UUID?
+    @State private var showsPositionPath = true
 
     private struct PlacementEdit {
         var id: UUID
@@ -398,16 +401,19 @@ struct FixturePreview: View {
     ]
 
     var body: some View {
-        let fixtures = session.project.lighting.fixtures
+        let fixtures = session.project.lighting.fixtures.filter { !usesLightingSelection || !session.lightingHiddenFixtureIDs.contains($0.id) }
         let reports = session.lightingSimulation.reports
         let outputs = Dictionary(uniqueKeysWithValues: reports.values.flatMap { report in
-            report.fixtures.map { ($0.id, $0.effective) }
+            report.fixtures.map { ($0.id, $0) }
         })
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("Fixture Preview").font(.headline)
                 Text("Simulated output · schematic").font(.caption).foregroundStyle(.secondary)
                 Spacer()
+                if usesLightingSelection, session.positionPathFixture != nil {
+                    Toggle("Path", isOn: $showsPositionPath).toggleStyle(.switch).controlSize(.small)
+                }
                 if allowsPlacement {
                     Toggle("Edit Placement", isOn: $editing).toggleStyle(.switch).controlSize(.small)
                         .disabled(fixtures.isEmpty)
@@ -422,7 +428,7 @@ struct FixturePreview: View {
                         for (index, fixture) in fixtures.enumerated() {
                             let status = reports[fixture.controllerID]?.status
                             let active = status == .sent || status == .ready
-                            let output = outputs[fixture.id] ?? fixture.kind.dark
+                            let output = outputs[fixture.id]?.effective ?? fixture.kind.dark
                             draw(output: active ? output : output.darkened,
                                  placement: placement(for: fixture, index: index), in: context, size: size)
                         }
@@ -430,19 +436,33 @@ struct FixturePreview: View {
 
                     ForEach(Array(fixtures.enumerated()), id: \.element.id) { index, fixture in
                         let location = placement(for: fixture, index: index)
-                        let state = outputs[fixture.id] ?? fixture.kind.dark
+                        let state = outputs[fixture.id]?.effective ?? fixture.kind.dark
                         let status = reports[fixture.controllerID]?.status
                         let active = status == .sent || status == .ready
-                        marker(fixture.name, icon: icon(for: fixture.kind),
-                               detail: active ? state.label : (status?.rawValue ?? "No output"),
-                               fixture: fixture, placement: location, endpoint: false, size: size)
+                        let effect = outputs[fixture.id]?.activeEffect
+                        let detail = active ? [effect, state.label].compactMap { $0 }.joined(separator: " · ") : (status?.rawValue ?? "No output")
+                        marker(fixture.name, icon: icon(for: fixture.kind), detail: detail,
+                               fixture: fixture, placement: location, endpoint: false, size: size,
+                               effectColor: effect == nil ? nil : previewColor(state))
                         if editing, location.stripEnd != nil {
                             marker("Strip end", icon: "circle", detail: fixture.name,
                                    fixture: fixture, placement: location, endpoint: true, size: size)
                         }
                     }
+                    if usesLightingSelection, showsPositionPath, let fixture = session.positionPathFixture {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                HeadPositionPathEditor(session: session, fixture: fixture)
+                                    .frame(width: min(280, max(180, size.width - 24)), height: 184)
+                                    .background(Color(nsColor: .controlBackgroundColor).opacity(0.98), in: RoundedRectangle(cornerRadius: 8))
+                                    .padding(8)
+                            }
+                        }
+                    }
                     if fixtures.isEmpty {
-                        Text("Add fixtures in Setup & Monitor to see them here.")
+                        Text(usesLightingSelection && !session.project.lighting.fixtures.isEmpty ? "Use the eye buttons to show fixtures in this schematic." : "Add fixtures in Setup & Monitor to see them here.")
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
@@ -450,7 +470,7 @@ struct FixturePreview: View {
                 .coordinateSpace(name: "fixturePreview")
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            if allowsPlacement, let selected = fixtures.first(where: { $0.id == selectedFixtureID }) {
+            if allowsPlacement, !usesLightingSelection, let selected = fixtures.first(where: { $0.id == selectedFixtureID }) {
                 GroupBox(selected.name) { FixtureTestControls(session: session, fixture: selected) }
             }
             if editing {
@@ -464,7 +484,7 @@ struct FixturePreview: View {
 
     private func placement(for fixture: PatchedFixture, index: Int) -> FixturePreviewPlacement {
         if let draft, draft.id == fixture.id { return draft.placement }
-        return fixture.previewPlacement ?? .initial(index: index, kind: fixture.kind)
+        return fixture.previewPlacement ?? .initial(index: session.project.lighting.fixtures.firstIndex(where: { $0.id == fixture.id }) ?? index, kind: fixture.kind)
     }
 
     private func point(_ position: FixturePreviewPoint, in size: CGSize) -> CGPoint {
@@ -480,13 +500,18 @@ struct FixturePreview: View {
     }
 
     private func marker(_ label: String, icon: String, detail: String, fixture: PatchedFixture,
-                        placement: FixturePreviewPlacement, endpoint: Bool, size: CGSize) -> some View {
+                        placement: FixturePreviewPlacement, endpoint: Bool, size: CGSize, effectColor: Color? = nil) -> some View {
         let anchor = point(endpoint ? placement.stripEnd ?? placement.origin : placement.origin, in: size)
         return Image(systemName: icon)
             .font(.system(size: 12, weight: .semibold))
             .frame(width: 26, height: 26)
             .foregroundStyle(.white)
             .background(.black.opacity(0.8), in: Circle())
+            .overlay {
+                if let effectColor {
+                    Circle().strokeBorder(effectColor, lineWidth: 3).padding(-4).allowsHitTesting(false)
+                }
+            }
             .overlay { Circle().strokeBorder(selectedFixtureID == fixture.id ? Color.accentColor : .white.opacity(editing ? 0.75 : 0.3), lineWidth: selectedFixtureID == fixture.id ? 2 : 1) }
             .overlay(alignment: .bottom) {
                 if !endpoint {
@@ -495,13 +520,22 @@ struct FixturePreview: View {
                         .offset(y: 12).allowsHitTesting(false).accessibilityHidden(true)
                 }
             }
-            .onTapGesture { if allowsPlacement { selectedFixtureID = fixture.id } }
+            .onTapGesture { if allowsPlacement {
+                if usesLightingSelection { session.selectLighting(.fixture(fixture.id)) }
+                else { selectedFixtureID = fixture.id }
+            } }
+            .overlay {
+                if usesLightingSelection && session.selectedLightingFixtureIDs.contains(fixture.id) {
+                    Circle().stroke(Color.orange, lineWidth: 2).allowsHitTesting(false)
+                }
+            }
             .position(anchor)
             .accessibilityLabel("\(label), \(detail)")
             .help("\(label) · \(detail)")
             .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .named("fixturePreview"))
                 .onChanged { value in
                     guard editing, size.width > 0, size.height > 0 else { return }
+                    if usesLightingSelection { session.selectLighting(.fixture(fixture.id)) }
                     var updated = placement
                     let position = FixturePreviewPoint(
                         x: min(0.96, max(0.04, value.location.x / size.width)),
@@ -519,6 +553,15 @@ struct FixturePreview: View {
                         lighting.fixtures[index].previewPlacement = edit.placement
                     }
                 }, including: editing ? .all : .none)
+    }
+
+    private func previewColor(_ state: FixtureState) -> Color {
+        switch state {
+        case .head(let head): head.dimmer > 0 ? colors[head.color] : .gray
+        case .plug(let isOn): isOn ? .yellow : .gray
+        case .rgb(let color):
+            color == .off ? .gray : Color(red: color.outputs[0] ? 1 : 0, green: color.outputs[1] ? 1 : 0, blue: color.outputs[2] ? 1 : 0)
+        }
     }
 
     private func drawGrid(in context: GraphicsContext, size: CGSize) {
@@ -573,6 +616,331 @@ struct FixturePreview: View {
                            style: StrokeStyle(lineWidth: 15, lineCap: .round))
             context.stroke(strip, with: .color(color == .off ? .gray : tint),
                            style: StrokeStyle(lineWidth: 5, lineCap: .round))
+        }
+    }
+}
+
+
+/// Authoring workspace sharing the same project, renderer clock and simulation as Edit/Show.
+struct DedicatedLightingWorkspace: View {
+    @Bindable var session: EditorSession
+    let refreshDisplays: () -> Void
+    let openOutput: () -> Void
+    @State private var showsSetup = false
+    @State private var patch: PatchedFixture?
+    private var simulation: LightingSimulation { session.lightingSimulation }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView(.horizontal) {
+                HStack(spacing: 12) {
+                    Button("Setup & Monitor", systemImage: "slider.horizontal.3") { showsSetup = true }
+                    Text("SIMULATION").font(.caption.bold()).foregroundStyle(.orange)
+                    Button(simulation.isStopped ? "Resume Fixtures" : "Stop Fixtures") {
+                        if simulation.isStopped { simulation.resume(); session.refreshLighting() }
+                        else { session.stopManualFixtures() }
+                    }
+                    Toggle("Fixture Blackout", isOn: Binding(get: { simulation.blackout }, set: {
+                        simulation.blackout = $0; session.refreshLighting()
+                    })).toggleStyle(.checkbox)
+                    Toggle("Projection References", isOn: $session.lightingProjectionReferences).toggleStyle(.checkbox)
+                    Spacer()
+                }.padding(.horizontal, 12).frame(height: 46)
+            }.scrollIndicators(.hidden)
+            Divider()
+            VSplitView {
+                HSplitView {
+                    sidebar.frame(minWidth: 180, idealWidth: session.lightingSidebarWidth, maxWidth: 340)
+                        .onGeometryChange(for: Double.self) { $0.size.width } action: { if NSEvent.pressedMouseButtons != 0 { session.lightingSidebarWidth = $0 } }
+                    FixturePreview(session: session, usesLightingSelection: true)
+                        .padding(12).frame(minWidth: 260, maxWidth: .infinity, maxHeight: .infinity)
+                        .background(SplitInitialPositionView(vertical: true, leading: session.lightingSidebarWidth, trailing: session.lightingInspectorWidth))
+                    Group {
+                        if session.inspectorTab == .edit {
+                            VStack(spacing: 0) {
+                                Picker("Inspector section", selection: $session.inspectorTab) {
+                                    Text("Selection").tag(InspectorTab.edit)
+                                    Text("Output").tag(InspectorTab.show)
+                                    Text("Project").tag(InspectorTab.project)
+                                }.pickerStyle(.segmented).labelsHidden().padding(12)
+                                Divider()
+                                ScrollView {
+                                    LightingSelectionInspector(session: session, editPatch: { patch = $0 })
+                                        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                                }.id(session.selectedHeadPositionKeyID?.uuidString ?? session.selectedLightingCueID?.uuidString ?? String(describing: session.lightingSelection))
+                            }
+                        } else {
+                            ProjectInspectorView(session: session, refreshDisplays: refreshDisplays, openOutput: openOutput)
+                        }
+                    }.frame(minWidth: 270, idealWidth: session.lightingInspectorWidth, maxWidth: 440)
+                        .background(Color(nsColor: .controlBackgroundColor).opacity(0.45))
+                        .onGeometryChange(for: Double.self) { $0.size.width } action: { if NSEvent.pressedMouseButtons != 0 { session.lightingInspectorWidth = $0 } }
+                }.frame(minHeight: 220)
+                PlaybackTimelineView(session: session, lightingFocus: true)
+                    .frame(minHeight: 184, idealHeight: session.lightingTimelineHeight, maxHeight: 440)
+                    .background(SplitInitialPositionView(vertical: false, leading: nil, trailing: session.lightingTimelineHeight))
+                    .onGeometryChange(for: Double.self) { $0.size.height } action: { if NSEvent.pressedMouseButtons != 0 { session.lightingTimelineHeight = $0 } }
+            }.id(session.layoutRevision)
+        }
+        .sheet(isPresented: $showsSetup) {
+            LightingWorkspace(session: session) { showsSetup = false }.frame(width: 850, height: 550)
+        }
+        .sheet(item: $patch) { fixture in
+            FixturePatchEditor(session: session, draft: fixture)
+                .onDisappear {
+                    if session.project.lighting.fixtures.contains(where: { $0.id == fixture.id }) { session.selectLighting(.fixture(fixture.id)) }
+                }
+        }
+    }
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Lighting").font(.headline)
+                Spacer()
+                Menu {
+                    ForEach(FixtureKind.allCases) { kind in
+                        Button(kind.rawValue) {
+                            if let fixture = session.newLightingFixture(kind: kind) { patch = fixture }
+                            else { session.lightingMessage = "Add a compatible controller with free outputs in Setup & Monitor." }
+                        }
+                    }
+                } label: { Image(systemName: "plus") }.menuIndicator(.hidden).fixedSize().help("Add fixture")
+            }.padding(12)
+            Divider()
+            List {
+                if !session.lightingGroups.isEmpty {
+                    Section("Groups") {
+                        ForEach(session.lightingGroups, id: \.self) { group in
+                            selectionRow(group, icon: "folder", selection: .group(group))
+                        }
+                    }
+                }
+                Section("Fixtures") {
+                    ForEach(session.project.lighting.fixtures) { fixture in
+                        HStack(spacing: 4) {
+                            selectionRow(fixture.name, icon: fixture.kind == .movingHead ? "light.beacon.max" : fixture.kind == .plug ? "powerplug" : "line.diagonal", selection: .fixture(fixture.id))
+                            Button {
+                                if !session.lightingHiddenFixtureIDs.insert(fixture.id).inserted { session.lightingHiddenFixtureIDs.remove(fixture.id) }
+                            } label: { Image(systemName: session.lightingHiddenFixtureIDs.contains(fixture.id) ? "eye.slash" : "eye") }
+                                .buttonStyle(.plain).foregroundStyle(.secondary)
+                                .help("Show or hide in this schematic only; output is unchanged")
+                        }
+                    }
+                    if session.project.lighting.fixtures.isEmpty {
+                        Button("Add controllers and fixtures…") { showsSetup = true }
+                    }
+                }
+                Section("Looks") {
+                    ForEach(session.project.lighting.looks) { look in
+                        selectionRow(look.name, icon: "sparkles", selection: .look(look.id))
+                    }
+                    if session.project.lighting.looks.isEmpty { Text("Capture a look from the selection").font(.caption).foregroundStyle(.secondary) }
+                }
+            }.listStyle(.sidebar)
+        }
+    }
+    private func selectionRow(_ name: String, icon: String, selection: LightingSelection) -> some View {
+        Button { session.selectLighting(selection) } label: {
+            Label(name, systemImage: icon).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 5).padding(.horizontal, 4)
+                .background(session.lightingSelection == selection ? Color.accentColor.opacity(0.22) : .clear, in: RoundedRectangle(cornerRadius: 4))
+        }.buttonStyle(.plain).accessibilityAddTraits(session.lightingSelection == selection ? .isSelected : [])
+    }
+}
+
+private struct LightingSelectionInspector: View {
+    @Bindable var session: EditorSession
+    let editPatch: (PatchedFixture) -> Void
+    @State private var lookName = ""
+    private var fixtures: [PatchedFixture] { session.selectedLightingFixtures }
+    private var head: HeadLook {
+        if let fixture = fixtures.first(where: { $0.kind == .movingHead }), case .head(let value) = session.intendedLightingState(fixture) { return value }
+        return HeadLook()
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let key = session.selectedHeadPositionKey {
+                HeadPositionKeyInspector(session: session, key: key)
+            } else if let cue = session.selectedLightingCue {
+                SelectedCueInspector(session: session, cue: cue)
+            } else if !fixtures.isEmpty {
+                Text(title).font(.headline)
+                if case .fixture = session.lightingSelection, let fixture = fixtures.first {
+                    Text(fixture.kind.rawValue).foregroundStyle(.secondary)
+                    LabeledContent("Patch", value: fixture.slots.map(String.init).joined(separator: ", "))
+                    Text(session.lightingSimulation.reports[fixture.controllerID]?.status.rawValue ?? "Simulation stopped").font(.caption).foregroundStyle(.secondary)
+                    Button("Edit Fixture Patch…") { editPatch(fixture) }
+                } else { Text("\(fixtures.count) fixtures").foregroundStyle(.secondary) }
+                if case .look = session.lightingSelection {
+                    Button("Audition Look") { session.auditionSelectedLightingLook() }.disabled(session.lightingSimulation.isStopped)
+                }
+                if session.lightingSimulation.isStopped { Text("Resume Fixtures to audition controls.").font(.caption).foregroundStyle(.secondary) }
+                VStack(alignment: .leading, spacing: 12) {
+                    if fixtures.contains(where: { $0.kind == .movingHead }) {
+                        Text("Moving Heads").font(.subheadline.bold())
+                        headValue("Pan", \.pan)
+                        headValue("Tilt", \.tilt)
+                        headValue("Dimmer", \.dimmer)
+                        Picker("Color", selection: headBinding(\.color)) {
+                            ForEach(HeadLook.colors.indices, id: \.self) { Text(HeadLook.colors[$0]).tag($0) }
+                        }
+                        Picker("Gobo", selection: headBinding(\.gobo)) {
+                            ForEach(0...7, id: \.self) { Text($0 == 0 ? "Open" : "Gobo \($0)").tag($0) }
+                        }
+                    }
+                    if fixtures.contains(where: { $0.kind == .plug }) {
+                        Toggle("Plugs On", isOn: Binding(get: {
+                            guard let fixture = fixtures.first(where: { $0.kind == .plug }), case .plug(let on) = session.intendedLightingState(fixture) else { return false }
+                            return on
+                        }, set: { value in session.auditionLighting { fixture, state in fixture.kind == .plug ? .plug(value) : state } }))
+                    }
+                    if fixtures.contains(where: { $0.kind == .rgb }) {
+                        Picker("RGB Strips", selection: Binding(get: {
+                            guard let fixture = fixtures.first(where: { $0.kind == .rgb }), case .rgb(let color) = session.intendedLightingState(fixture) else { return RelayColor.off }
+                            return color
+                        }, set: { value in session.auditionLighting { fixture, state in fixture.kind == .rgb ? .rgb(value) : state } })) {
+                            ForEach(RelayColor.allCases) { Text($0.label).tag($0) }
+                        }
+                    }
+                    if fixtures.count > 1 { Text("Controls show the first fixture of each type. Changes apply to selected fixtures of that type.").font(.caption).foregroundStyle(.secondary) }
+                    Button("Clear Manual Overrides") { session.clearSelectedLightingOverrides() }
+                }.disabled(session.lightingSimulation.isStopped)
+                if fixtures.contains(where: { $0.kind == .movingHead }) {
+                    Button("Capture Position at Playhead") {
+                        session.captureHeadPositions(at: session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime))
+                    }
+                }
+                Divider()
+                TextField("New look name", text: $lookName)
+                Button("Capture Look") { _ = session.captureLightingSelection(name: lookName) }
+                    .disabled(lookName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if session.selectedFixtureLook != nil {
+                    Button("Place Selected Look at Playhead") {
+                        session.placeSelectedLightingLook(at: session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime), fixtureIDs: session.selectedLightingFixtureIDs)
+                    }
+                }
+            } else {
+                Text("Select a fixture, group, look or timeline cue.").foregroundStyle(.secondary)
+            }
+            if let message = session.lightingMessage { Text(message).font(.caption).foregroundStyle(.orange) }
+        }.textFieldStyle(.roundedBorder)
+    }
+    private var title: String {
+        switch session.lightingSelection {
+        case .fixture: return fixtures.first?.name ?? "Fixture"
+        case .group(let name): return name
+        case .look(let id): return session.project.lighting.looks.first { $0.id == id }?.name ?? "Look"
+        case nil: return "Selection"
+        }
+    }
+    private func headBinding<T>(_ key: WritableKeyPath<HeadLook, T>) -> Binding<T> {
+        Binding(get: { head[keyPath: key] }, set: { value in
+            session.auditionLighting { _, state in
+                guard case .head(var head) = state else { return state }
+                head[keyPath: key] = value
+                return .head(head)
+            }
+        })
+    }
+    private func headValue(_ label: String, _ key: WritableKeyPath<HeadLook, Double>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent(label) { TextField(label, value: headBinding(key), format: .number.precision(.fractionLength(3))).frame(width: 66) }
+            Slider(value: headBinding(key), in: 0...1).accessibilityLabel(label)
+        }
+    }
+}
+
+
+private struct HeadPositionPathEditor: View {
+    let session: EditorSession
+    let fixture: PatchedFixture
+    @State private var draft: HeadPositionKey?
+    @State private var baseline: MappingProject?
+    private var keys: [HeadPositionKey] {
+        session.headPositionKeys(for: fixture.id).map { key in draft?.id == key.id ? draft! : key }
+    }
+    var body: some View {
+        let intended = session.intendedLightingState(fixture)
+        VStack(spacing: 4) {
+            HStack {
+                Text("\(fixture.name) · Pan/Tilt").font(.caption.bold()).lineLimit(1)
+                Spacer(minLength: 0)
+                Button { session.captureHeadPositions(at: session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)) } label: {
+                    Image(systemName: "plus.diamond")
+                }.buttonStyle(.plain).help("Capture position at the playhead")
+            }.padding(.horizontal, 10).padding(.top, 8)
+            GeometryReader { geometry in
+                let size = geometry.size
+                ZStack(alignment: .topLeading) {
+                    Canvas { context, _ in
+                        let rect = CGRect(x: 16, y: 16, width: max(1, size.width - 32), height: max(1, size.height - 32))
+                        context.stroke(Path(rect), with: .color(.secondary.opacity(0.4)), lineWidth: 1)
+                        for (a, b) in zip(keys, keys.dropFirst()) {
+                            var segment = Path()
+                            segment.move(to: HeadPathGeometry.point(pan: a.pan, tilt: a.tilt, size: size))
+                            segment.addLine(to: HeadPathGeometry.point(pan: b.pan, tilt: b.tilt, size: size))
+                            context.stroke(segment, with: .color(.cyan.opacity(0.8)), style: StrokeStyle(lineWidth: 2, dash: b.curve == .snap ? [3, 3] : []))
+                        }
+                        if case .head(let current) = intended {
+                            let point = HeadPathGeometry.point(pan: current.pan, tilt: current.tilt, size: size)
+                            context.stroke(Path(ellipseIn: CGRect(x: point.x - 7, y: point.y - 7, width: 14, height: 14)), with: .color(.orange), lineWidth: 2)
+                        }
+                    }.allowsHitTesting(false).accessibilityHidden(true)
+                    ForEach(keys) { key in
+                        Image(systemName: session.selectedHeadPositionKeyID == key.id ? "diamond.fill" : "diamond")
+                            .foregroundStyle(.cyan).frame(width: 20, height: 20).contentShape(Rectangle())
+                            .onTapGesture { session.selectHeadPositionKey(key.id) }
+                            .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .named("headPositionPad"))
+                                .onChanged { value in
+                                    guard let position = HeadPathGeometry.position(at: value.location, size: size) else { return }
+                                    if draft == nil { baseline = session.project; session.selectHeadPositionKey(key.id) }
+                                    var next = key; next.pan = position.pan; next.tilt = position.tilt
+                                    draft = next
+                                }.onEnded { _ in
+                                    defer { draft = nil; baseline = nil }
+                                    guard let draft, baseline == session.project else { return }
+                                    session.updateHeadPosition(draft)
+                                })
+                            .position(HeadPathGeometry.point(pan: key.pan, tilt: key.tilt, size: size))
+                            .help("\(TimelinePresentation.timecode(key.time)) · pan \(key.pan.formatted(.number.precision(.fractionLength(3)))) · tilt \(key.tilt.formatted(.number.precision(.fractionLength(3))))")
+                            .accessibilityLabel("Position key at \(TimelinePresentation.timecode(key.time))")
+                    }
+                    if keys.isEmpty { Text("Capture positions at two song times").font(.caption).foregroundStyle(.secondary).frame(width: size.width, height: size.height) }
+                }.coordinateSpace(name: "headPositionPad")
+            }
+            Text("Pan →  ·  Tilt ↑  ·  orange = intended position").font(.system(size: 9)).foregroundStyle(.secondary).padding(.bottom, 6)
+        }.onChange(of: session.project.id) { _, _ in draft = nil; baseline = nil }
+    }
+}
+
+private struct HeadPositionKeyInspector: View {
+    let session: EditorSession
+    let key: HeadPositionKey
+    private func binding<Value>(_ path: WritableKeyPath<HeadPositionKey, Value>) -> Binding<Value> {
+        Binding(get: { key[keyPath: path] }, set: { value in var next = key; next[keyPath: path] = value; session.updateHeadPosition(next) })
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Position Key").font(.headline)
+            Text(session.project.lighting.fixtures.first { $0.id == key.fixtureID }?.name ?? "Moving head").foregroundStyle(.secondary)
+            LabeledContent("Time (s)") { TextField("Time", value: binding(\.time), format: .number.precision(.fractionLength(3))) }
+            LabeledContent("Pan") { TextField("Pan", value: binding(\.pan), format: .number.precision(.fractionLength(3))) }
+            LabeledContent("Tilt") { TextField("Tilt", value: binding(\.tilt), format: .number.precision(.fractionLength(3))) }
+            Picker("Arrive using", selection: binding(\.curve)) {
+                ForEach(CueCurve.allCases) { Text($0.rawValue).tag($0) }
+            }
+            Text("The curve controls travel from the previous key. Snap holds the previous position until this key. Brightness and color use existing cues.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Button("Seek") { session.seekPlayback(to: key.time) }
+                Button("Duplicate") { session.duplicateHeadPosition(at: session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)) }
+                Button("Delete", role: .destructive) { session.deleteHeadPosition(key.id) }
+            }
+            if session.lightingSimulation.overrides[key.fixtureID] != nil {
+                Text("A manual override is active.").font(.caption).foregroundStyle(.orange)
+                Button("Release Manual Override") { session.clearSelectedLightingOverrides() }
+            }
+            Button("Capture Position at Playhead") { session.captureHeadPositions(at: session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)) }
         }
     }
 }

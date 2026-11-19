@@ -623,7 +623,7 @@ private struct SelectedClipInspector: View {
     }
 }
 
-private struct SelectedCueInspector: View {
+struct SelectedCueInspector: View {
     let session: EditorSession
     let cue: LightingCue
     private func binding<Value>(_ path: WritableKeyPath<LightingCue, Value>) -> Binding<Value> {
@@ -638,6 +638,7 @@ private struct SelectedCueInspector: View {
                 var next = cue; next.name = value; session.putLightingCue(next)
             }).id(cue.id)
             LabeledContent("Time (s)") { TextField("Time", value: binding(\.time), format: .number) }
+            if cue.entries.contains(where: { $0.state.kind == .movingHead }) {
             LabeledContent("Move lead (s)") { TextField("Lead", value: binding(\.lead), format: .number) }
             Picker("Movement", selection: Binding(get: { cue.motionCurve ?? .snap }, set: { value in
                 var next = cue; next.motionCurve = value; session.putLightingCue(next)
@@ -646,6 +647,7 @@ private struct SelectedCueInspector: View {
                 TextField("Fade", value: Binding(get: { cue.dimmerFade ?? 0 }, set: { value in
                     var next = cue; next.dimmerFade = value; session.putLightingCue(next)
                 }), format: .number)
+            }
             }
             Toggle("Manual only", isOn: Binding(get: { cue.isManual }, set: { value in
                 var next = cue; next.manualOnly = value; session.putLightingCue(next)

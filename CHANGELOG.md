@@ -1,5 +1,26 @@
 # Changelog
 
+## Local v2.09/build 35 — Reusable lighting effects
+
+- Save chase and wave presets in a project and apply them to fixture groups as independent timeline clips.
+- Highlight active fixtures in the schematic using their simulated output state.
+- Save the preset library in project format 16. Earlier formats migrate on open.
+- Release suite succeeded with 378 tests reported. The signed universal preview is available locally for user rehearsal.
+
+## Local v2.09/build 34 — Lighting movement paths
+
+- Add moving-head position keys with precise time/pan/tilt, incoming movement curves, a schematic path chart and editable Positions timeline lanes. Group capture and completed drags are undoable.
+- Evaluate motion on the shared clock while retaining independent brightness/color cues, manual override priority and existing blackout/Stop handling.
+- Save position programming in project format 15; migrate older projects, validate targets/timing and clear keys when making Playgrounds.
+- Full Release succeeded with 376 tests reported; 56 affected Debug checks passed. Verified local universal app/archive; visual/listening acceptance pending. No installation or Git delivery.
+
+## Local v2.09/build 33 — Lighting workspace first section
+
+- Add Lighting alongside Edit and Show, with fixture/group/look selection, a large schematic, supported contextual controls and separate setup/monitor panel.
+- Reuse look capture, cue editing and the shared song clock/timeline; add per-fixture cue rows and read-only projection timing references. Preserve shared undo, autosave and safe keyboard routing.
+- Allow Playground shows to start directly in Lighting. Keep movement-path/keyframe editing and new reusable lighting effects planned.
+- Full Release succeeded with 368 tests reported; 48 focused Debug checks passed. Verified universal local app/archive; user visual/listening acceptance pending. No installation or Git delivery.
+
 ## Local v2.09/build 32 — Playgrounds preview for v2.10
 
 - Save house mapping and fixture configuration as independent local Playgrounds; start blank shows from the current setup, a library entry or a supported project file, with optional new-song selection.

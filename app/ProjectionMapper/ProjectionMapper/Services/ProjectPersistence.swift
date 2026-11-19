@@ -11,7 +11,7 @@ struct RecoveryMetadata: Codable, Equatable {
     var savedAt: Date = .now
 }
 struct ProjectDocument: Codable, Equatable {
-    static let currentVersion = 14
+    static let currentVersion = 16
     var formatVersion = currentVersion
     var project: MappingProject
     var output = ProjectOutputSettings()
@@ -104,7 +104,7 @@ enum ProjectCodec {
                 project["lighting"] = ["controllers": [], "fixtures": [], "looks": [], "cues": []] as [String: [String]]
                 json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
             }
-            if (10...13).contains(version) { json["formatVersion"] = ProjectDocument.currentVersion }
+            if (10...15).contains(version) { json["formatVersion"] = ProjectDocument.currentVersion }
             let migrated = try JSONSerialization.data(withJSONObject: json)
             let document = try JSONDecoder().decode(ProjectDocument.self, from: migrated)
             try validate(document); return document
