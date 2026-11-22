@@ -18,7 +18,7 @@ struct LightingEditingTests {
         let defaults = UserDefaults(suiteName: "lighting.workspace." + UUID().uuidString)!
         return EditorSession(project: project, output: OutputSelectionState(preferences: OutputPreferences(defaults: defaults)))
     }
-    @Test func switchingPreservesProjectClockAndSharedUndoAndRequiresShowPause() throws {
+    @Test func switchingPreservesProjectClockAndSharedUndoAndRequiresShowPause() async throws {
         let s = session(); defer { s.releaseRuntimeResources() }
         s.renameProject("Shared show"); s.timelineScale = 60
         s.setPlaying(true, at: 100)
@@ -30,7 +30,10 @@ struct LightingEditingTests {
         let selected = s.lightingSelection
         s.switchWorkspace(to: .edit); s.switchWorkspace(to: .lighting)
         #expect(s.lightingSelection == selected && s.timelineScale == 60)
-        s.switchWorkspace(to: .show)
+        s.switchWorkspace(to: .show, at: 102)
+        #expect(s.workspace == .show && !s.playbackRequested && s.transport.position == 2)
+        await s.prepareShow()
+        #expect(s.setPlaying(true, at: 102))
         s.switchWorkspace(to: .lighting, at: 103)
         #expect(s.workspace == .show && s.transport.isPlaying && !s.canUndo)
         s.switchWorkspace(to: .lighting, pauseRunningShow: true, at: 103)

@@ -323,7 +323,8 @@ final class PhoneRemote {
                                                songEnd: project.song?.duration).first
         var state: [String: Any] = [
             "project": project.name, "projectID": project.id.uuidString, "revision": revision.uuidString,
-            "workspace": session.workspace.rawValue, "time": time, "playing": session.transport.isPlaying,
+            "showArmState": session.showArmState.rawValue, "showStatus": session.showStatus ?? "",
+            "workspace": session.workspace.rawValue, "time": time, "playing": session.playbackRequested,
             "song": project.song?.name ?? "", "role": role.rawValue, "output": session.outputStatusText,
             "projectionBlackout": session.showOutput.isBlackout, "fixtureBlackout": session.lightingSimulation.blackout,
             "muted": project.song == nil ? !session.videoAudioEnabled : session.songMuted,
@@ -365,14 +366,16 @@ final class PhoneRemote {
         guard canAcceptCommands?() ?? true, data["projectID"] as? String == session.project.id.uuidString,
               let action = data["action"] as? String, role.canOperate else { throw PhoneError("Command unavailable.") }
         switch action {
-        case "play": session.setPlaying(true)
+        case "play":
+            guard session.setPlaying(true) else { throw PhoneError(session.showStatus ?? session.songMessage ?? "Unable to start playback.") }
         case "pause": session.setPlaying(false)
         case "stop": session.stopPlayback()
         case "seek":
             guard let time = data["time"] as? Double, (0...3600).contains(time) else { throw PhoneError("Invalid time.") }
             session.setPlaying(false)
             session.seekPlayback(to: time)
-        case "go": session.goManualCue()
+        case "go":
+            guard session.goManualCue() else { throw PhoneError("Arm the show and select an available cue.") }
         case "readiness":
             let report = session.playbackReadiness()
             readinessStatus = ([report.summary] + report.issues.prefix(4).map(\.message)).joined(separator: " · ")

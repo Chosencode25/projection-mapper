@@ -103,6 +103,7 @@ struct VideoPlaybackRequest: Equatable {
     @ObservationIgnored private var audio = VideoAudioSettings()
     @ObservationIgnored private var audioEnabled = false
     @ObservationIgnored private var revision = UUID()
+    @ObservationIgnored private var holdPreload = false
     @ObservationIgnored private var preloaded: [UUID:Entry] = [:]
     @ObservationIgnored private var entries: [UUID:Entry] = [:]
     @ObservationIgnored private var timer: Timer?
@@ -161,6 +162,7 @@ struct VideoPlaybackRequest: Equatable {
     }
     func reset() {
         timer?.invalidate(); timer = nil
+        holdPreload = false
         entries.values.forEach { $0.stop() }; entries.removeAll()
         preloaded.values.forEach { $0.stop() }; preloaded.removeAll()
         frames.removeAll(); problems.removeAll(); revision = UUID(); lostDevice = false
@@ -228,8 +230,31 @@ struct VideoPlaybackRequest: Equatable {
         preload(visual: visual,at: uptime)
         changed?()
     }
-    private func preload(visual: Bool,at uptime: TimeInterval) {
-        guard visual, scene.transport.isPlaying else {
+    var showFailure: String? {
+        entries.values.first { $0.player.currentItem?.status == .failed }.map {
+            "Video decoder failed for " + $0.request.asset.name
+        }
+    }
+
+    var hasLateShowFrame: Bool {
+        (visualOverride ?? VideoRenderAvailability.isVisible) &&
+            !scene.calibration.pattern.isActive && scene.effectiveGain(at: ProcessInfo.processInfo.systemUptime) > 0 &&
+            entries.values.contains { $0.request.rate > 0 && frames[$0.request.ownerID] == nil }
+    }
+
+    func prepareUpcoming() {
+        preload(visual: true, at: ProcessInfo.processInfo.systemUptime, preparing: true)
+    }
+
+    func clearShowPreload() {
+        holdPreload = false
+        preloaded.values.forEach { $0.stop() }
+        preloaded.removeAll()
+    }
+
+    private func preload(visual: Bool, at uptime: TimeInterval, preparing: Bool = false) {
+        if preparing { holdPreload = true }
+        guard (visual && scene.transport.isPlaying) || holdPreload else {
             preloaded.values.forEach { $0.stop() }; preloaded.removeAll(); return
         }
         let time = scene.transport.elapsed(at: uptime)

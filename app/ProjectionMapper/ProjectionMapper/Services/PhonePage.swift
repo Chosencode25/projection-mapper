@@ -9,7 +9,7 @@ enum PhonePage {
     <form id="pair"><label>Invitation <input id="code" required autocomplete="off"></label><button>Request Access</button></form>
     <section id="remote" hidden>
       <h2 id="project"></h2><p id="connection"></p>
-      <div class="clock" id="time"></div><p id="next"></p><p id="output"></p>
+      <div class="clock" id="time"></div><p id="next"></p><p id="output"></p><p id="showState"></p>
       <div id="operator" hidden>
         <div class="actions">
           <button data-action="play" class="primary">Play</button><button data-action="pause">Pause</button>
@@ -154,6 +154,8 @@ enum PhonePage {
       el('time').textContent = String(Math.floor(secs/60)).padStart(2,'0') + ':' + (secs%60).toFixed(2).padStart(5,'0');
       el('next').textContent = next.next ? (next.wrap ? 'After loop · ' : 'Next · ') + next.next + ' · ' + next.delay.toFixed(1) + ' s' : 'No upcoming cue';
       el('output').textContent = next.output;
+      const showLocked = next.workspace === 'Show' && next.showArmState !== 'Armed';
+      el('showState').textContent = next.workspace === 'Show' ? [next.showArmState, next.showStatus].filter(Boolean).join(' · ') : '';
       el('operator').hidden = next.role === 'Viewer';
       el('readinessPanel').hidden = next.role === 'Viewer';
       el('readiness').textContent = next.readiness;
@@ -164,7 +166,8 @@ enum PhonePage {
       el('projection').textContent = next.projectionBlackout ? 'Restore Projection' : 'Projection Blackout';
       el('fixtures').textContent = next.fixtureBlackout ? 'Restore Fixtures' : 'Fixture Blackout';
       el('mute').textContent = next.muted ? 'Enable Audio' : 'Mute Audio';
-      document.querySelector('[data-action=play]').disabled = next.playing;
+      document.querySelector('[data-action=play]').disabled = next.playing || showLocked;
+      document.querySelector('[data-action=go]').disabled = showLocked;
       document.querySelector('[data-action=pause]').disabled = !next.playing;
       const rows = next.fixtures.map(item => {
         const row = document.createElement('li');

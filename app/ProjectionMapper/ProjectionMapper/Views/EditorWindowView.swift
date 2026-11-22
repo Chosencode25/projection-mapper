@@ -120,11 +120,18 @@ private struct ShowWorkspace: View {
     @State private var readiness: PlaybackReadinessReport?
     @State private var inspectedProject: MappingProject?
     @State private var showsFixtures = false
+    @State private var showsLog = false
+    @State private var showsOutputControls = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             controls
             statusRow
+            if let message = session.showStatus {
+                Text(message).font(.callout).foregroundStyle(session.showArmState == .interrupted ? .orange : .secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel("Show status: " + message)
+            }
             if let queued = session.queuedBeat {
                 Label("Queued \(queued.name) · \(TimelinePresentation.timecode(queued.time))\(queued.wraps ? " after loop" : "")",
                       systemImage: "metronome").font(.caption).foregroundStyle(.orange)
@@ -163,15 +170,15 @@ private struct ShowWorkspace: View {
         ScrollView(.horizontal) {
             HStack(spacing: 10) {
                 Button {
-                    session.setPlaying(!session.transport.isPlaying)
+                    session.setPlaying(!session.playbackRequested)
                 } label: {
-                    Label(session.transport.isPlaying ? "Pause" : "Play",
-                          systemImage: session.transport.isPlaying ? "pause.fill" : "play.fill")
-                }.buttonStyle(.borderedProminent)
+                    Label(session.playbackRequested ? "Pause" : "Play",
+                          systemImage: session.playbackRequested ? "pause.fill" : "play.fill")
+                }.buttonStyle(.borderedProminent).disabled(!session.canOperateShow)
                 Button { session.stopPlayback() } label: { Label("Stop", systemImage: "stop.fill") }
-                BeatQueueMenu(session: session)
+                BeatQueueMenu(session: session).disabled(!session.canOperateShow)
                 Button("GO") { session.goManualCue() }
-                    .disabled(session.manualCueList.isEmpty || session.songAudioOnly ||
+                    .disabled(!session.canOperateShow || session.manualCueList.isEmpty || session.songAudioOnly ||
                               (session.lastManualCueID != nil && session.nextManualCueID == nil))
                 Divider().frame(height: 20)
                 Button(session.showOutput.isBlackout || session.showOutput.targetGain == 0
@@ -187,9 +194,13 @@ private struct ShowWorkspace: View {
                 }.disabled(session.project.lighting.fixtures.isEmpty)
                 if session.project.song != nil {
                     Button(session.songMuted ? "Unmute Song" : "Mute Song") { session.songMuted.toggle() }
-                } else if session.videoAudioEnabled {
-                    Button("Mute Video Audio") { session.enableVideoAudio(false) }
+                } else if session.project.videoAssets.contains(where: \.hasAudio) {
+                    Button(session.videoAudioEnabled ? "Mute Video Audio" : "Unmute Video Audio") {
+                        session.enableVideoAudio(!session.videoAudioEnabled)
+                    }
                 }
+                Button("Projection Controls") { showsOutputControls.toggle() }
+                    .popover(isPresented: $showsOutputControls) { liveOutputControls }
                 Divider().frame(height: 20)
                 OutputSelectorView(output: session.output, compact: true)
                 Button(session.isOutputOpen ? "Close Output" : "Open Output") {
@@ -197,19 +208,40 @@ private struct ShowWorkspace: View {
                     else { openOutput() }
                 }.disabled(!session.isOutputOpen && !session.canOpenOutput)
 
-            }.padding(.vertical, 3)
+            }.controlSize(.large).padding(.vertical, 3)
         }.scrollIndicators(.automatic)
     }
 
     private var statusRow: some View {
         HStack(spacing: 12) {
+            if session.showArmState == .armed {
+                Button("Disarm") { session.disarmShow() }
+            } else if session.showArmState == .preparing {
+                Button("Cancel Preparation") { session.disarmShow() }
+            } else {
+                Button("Prepare & Arm") { Task { await session.prepareShow() } }.buttonStyle(.borderedProminent)
+            }
+            Text(session.showArmState.rawValue).fontWeight(.semibold)
             readinessButton
+            Button("Show Log") { showsLog.toggle() }
+                .popover(isPresented: $showsLog) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if session.showLog.isEmpty { Text("No show events yet.") }
+                            ForEach(session.showLog.reversed()) { event in
+                                Text(event.date.formatted(date: .omitted, time: .standard) + "  " + event.message)
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading).padding(14)
+                    }.frame(width: 420, height: 280)
+                }
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 12) {
                     Label(session.output.selectedName, systemImage: "display")
                     Label(session.project.lighting.controllers.isEmpty ? "No fixtures" : "Fixture simulation",
                           systemImage: "light.beacon.max")
                     Label(session.project.song == nil ? "Elapsed-time clock" : "Song clock", systemImage: "clock")
+                    Text(session.project.song == nil ? (session.videoAudioEnabled ? "Video audio" : "Audio muted") :
+                         (session.songMuted ? "Song muted" : session.songDevices.first { $0.id == session.songDeviceID }?.name ?? "System audio"))
                 }
                 Text(session.output.selectedName).lineLimit(1)
             }
@@ -228,10 +260,11 @@ private struct ShowWorkspace: View {
         }.popover(isPresented: $showsReadiness) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Rehearsal Readiness").font(.headline)
+                    Text("Show Readiness").font(.headline)
                     Button("Check Again") { checkReadiness() }
-                    if let readiness {
-                        Text(readiness.summary).font(.caption.weight(.semibold))
+                    if let readiness = readiness ?? session.showChecks {
+                        Text("\(readiness.blockerCount) blockers · \(readiness.warningCount) warnings").font(.caption.weight(.semibold))
+                        Text("Videos decoded during preparation: \(session.showPreparedVideoCount)").font(.caption)
                         ForEach(readiness.issues) { issue in
                             Text(issue.severity.rawValue + " · " + issue.message).font(.caption)
                         }
@@ -247,6 +280,33 @@ private struct ShowWorkspace: View {
     private func checkReadiness() {
         readiness = session.playbackReadiness()
         inspectedProject = session.project
+    }
+
+    private var liveOutputControls: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Slider(value: Binding(get: { session.liveProjectionGain }, set: { session.setLiveProjectionGain($0) }), in: 0...1) {
+                Text("Live brightness")
+            }
+            LabeledContent("Fade seconds") {
+                TextField("Fade seconds", value: Binding(get: { session.showConfiguredFade }, set: {
+                    if $0.isFinite && (0...30).contains($0) { session.liveFadeDuration = $0 }
+                }), format: .number)
+            }
+            if session.project.song != nil {
+                Picker("Song output", selection: Binding(get: { session.songDeviceID }, set: { session.selectSongDevice($0) })) {
+                    Text("System Default").tag(String?.none)
+                    ForEach(session.songDevices) { device in Text(device.name).tag(Optional(device.id)) }
+                }.disabled(session.showRunInProgress)
+                Button("Refresh Audio Outputs") { session.refreshSongDevices() }
+            }
+            Menu("Identify Object") {
+                let ids = Set(session.project.renderScene.surfaces.compactMap(\.sourceID))
+                ForEach(session.project.baseTimelineTracks.filter { ids.contains($0.id) }) { track in
+                    Button(track.name) { session.identifyShowTarget(track.id) }
+                }
+            }.disabled(session.showRunInProgress)
+            Button("Finish Identification") { session.finishIdentification() }.disabled(session.identifyingSourceID == nil)
+        }.padding(14).frame(width: 300)
     }
 
     private var cuePanel: some View {

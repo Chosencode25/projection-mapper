@@ -292,6 +292,27 @@ import Darwin
         let resumed = try await waitForFrame(coordinator,owner: rotatedOwner)
         #expect(abs(resumed.sourceTime-3) < 0.04)
     }
+    @Test func showPreparesVideoAndDetectsAMissingAssetWhileArmed() async throws {
+        let folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let imported = try await VideoImportService.read(movie(in: folder))
+        let session = EditorSession(presentOutput: { _ in })
+        defer { session.releaseRuntimeResources() }
+        let owner = try #require(session.project.timelineTracks.first?.id)
+        try session.installVideo(imported, target: .owner(owner))
+        session.switchWorkspace(to: .show)
+        await session.prepareShow()
+        #expect(session.showArmState == .armed && session.showPreparedVideoCount == 1)
+        #expect(!session.playbackRequested && !session.isOutputOpen)
+        let staged = try #require(session.videoFiles[imported.asset.id])
+        try FileManager.default.removeItem(at: staged)
+        #expect(!FileManager.default.fileExists(atPath: staged.path))
+        session.inspectArmedShow()
+        #expect(session.showArmState == .interrupted && session.showOutput.isBlackout)
+        await session.prepareShow()
+        #expect(session.showArmState == .interrupted && (session.showChecks?.blockerCount ?? 0) > 0)
+    }
+
     @Test func videoHistoryRetainsOriginalAcrossOverwriteAndCleanup() async throws {
         let folder = try directory(); defer { try? FileManager.default.removeItem(at: folder) }
         let imported = try await VideoImportService.read(movie(in: folder))

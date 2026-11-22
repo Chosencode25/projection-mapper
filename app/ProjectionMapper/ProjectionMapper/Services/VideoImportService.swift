@@ -12,11 +12,14 @@ enum VideoImportService {
     static let maximumProjectBytes: Int64 = 8*1024*1024*1024
     static var stagingDirectory: URL { FileManager.default.temporaryDirectory.appendingPathComponent("ProjectionMapper-VideoAssets",isDirectory: true) }
     static func safeFile(_ url: URL) throws -> Int64 {
-        let info = try url.resourceValues(forKeys: [.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
-        guard info.isRegularFile == true, info.isSymbolicLink != true, let count = info.fileSize, count > 0, Int64(count) <= maximumFileBytes else {
+        // Live readiness checks need fresh filesystem metadata, including after a file is removed.
+        let info = try FileManager.default.attributesOfItem(atPath: url.path)
+        guard info[.type] as? FileAttributeType == .typeRegular,
+              let size = info[.size] as? NSNumber, size.int64Value > 0,
+              size.int64Value <= maximumFileBytes else {
             throw ProjectFileError.invalid("Choose a regular MP4/MOV video smaller than 2 GiB.")
         }
-        return Int64(count)
+        return size.int64Value
     }
     /// Chunked, cancellable copying also used by portable saves; destination is staging only.
     static func copy(_ source: URL,to destination: URL) throws {

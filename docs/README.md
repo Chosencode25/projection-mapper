@@ -6,6 +6,7 @@
 |---|---|
 | [Winter Lights Encore](V2.09_REHEARSAL.md) | Rehearse v2.09 layers, regions, titles, countdowns, and singing faces |
 | [Edit and Show](EDIT_SHOW_WORKSPACES.md) | Switch between authoring and running a show |
+| [Show Mode rehearsal](SHOW_MODE_GUIDE.md) | Build 36 readiness, arming, operator controls and recovery |
 | [Reusable lighting effects](LIGHTING_EFFECTS_GUIDE.md) | Build 35 presets, fixture groups and schematic playback |
 | [Movement paths](LIGHTING_MOVEMENT_GUIDE.md) | Build 34 position keys, movement curves and song-timed paths |
 | [Lighting workspace](LIGHTING_WORKSPACE_GUIDE.md) | Build 33 fixture/group authoring, schematic and shared timeline |

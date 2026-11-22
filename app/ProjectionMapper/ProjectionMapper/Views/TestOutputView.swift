@@ -13,6 +13,7 @@ class MetalSceneView: NSView {
     var frameSubmitted: ((TimeInterval) -> Void)? {
         didSet { renderer?.frameSubmitted = frameSubmitted }
     }
+    var showRenderDiagnostics: RenderDiagnostics? { renderer?.diagnostics }
     var metalView: MTKView? { surface as? MTKView }
     var outputFrame: CGRect { surface.frame }
     var outputAspectRatio = TestResolution.hd.aspectRatio {
@@ -23,11 +24,11 @@ class MetalSceneView: NSView {
     }
 
     convenience init(frame: NSRect, scene: RenderScene) {
-        self.init(frame: frame, rendererFactory: { try MetalRenderer(scene: scene) })
+        self.init(frame: frame, rendererFactory: { try MetalRenderer(scene: scene, diagnostics: RenderDiagnostics(capacity: 32)) })
     }
 
     override convenience init(frame frameRect: NSRect) {
-        self.init(frame: frameRect, rendererFactory: { try MetalRenderer() })
+        self.init(frame: frameRect, rendererFactory: { try MetalRenderer(diagnostics: RenderDiagnostics(capacity: 32)) })
     }
 
     init(frame frameRect: NSRect, rendererFactory: () throws -> MetalRenderer) {

@@ -201,6 +201,7 @@ struct TimelineViewRequest: Equatable {
 extension EditorSession {
     func canPerformEditorAction(_ action: EditorAction) -> Bool {
         if workspace == .show && !action.isTransport { return false }
+        if action == .playPause && !canOperateShow { return false }
         if workspace == .lighting && !action.isTransport {
             switch action {
             case .duplicate, .delete: if selectedLightingCue == nil && selectedHeadPositionKey == nil { return false }
@@ -238,7 +239,7 @@ extension EditorSession {
             if action == .duplicate { duplicateHeadPosition(at: transport.elapsed(at: uptime)); return }
         }
         switch action {
-        case .playPause: setPlaying(!transport.isPlaying, at: uptime)
+        case .playPause: setPlaying(!playbackRequested, at: uptime)
         case .stop: stopPlayback(at: uptime)
         case .stepBack, .stepForward, .secondBack, .secondForward, .beginning, .sequenceEnd:
             let time = transport.elapsed(at: uptime)

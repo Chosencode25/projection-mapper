@@ -9,6 +9,16 @@ enum ProjectWorkspace: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
+enum ShowArmState: String {
+    case unarmed = "Unarmed", preparing = "Preparing media", armed = "Armed", interrupted = "Interrupted"
+}
+
+struct ShowLogEntry: Identifiable {
+    let id = UUID()
+    let date = Date()
+    let message: String
+}
+
 @MainActor
 @Observable
 final class EditorSession {
@@ -34,6 +44,30 @@ final class EditorSession {
     var timelineSnap = true
     var timelineFollow = true
 
+    private(set) var showArmState = ShowArmState.unarmed
+    private(set) var showStatus: String?
+    private(set) var showLog: [ShowLogEntry] = []
+    private(set) var showChecks: PlaybackReadinessReport?
+    private(set) var showPreparedVideoCount = 0
+    private(set) var liveProjectionGain: Float = 1
+    var liveFadeDuration: Double?
+    @ObservationIgnored private var showWatch: Task<Void, Never>?
+    @ObservationIgnored private var showPreparationID = UUID()
+    @ObservationIgnored private var armedDestination: OutputDestination?
+    @ObservationIgnored private var armedOutputWasOpen = false
+    @ObservationIgnored private var armedProjectID: UUID?
+    @ObservationIgnored private var armedRevision: Date?
+    @ObservationIgnored private var lastShowRenderSkips = 0
+    @ObservationIgnored private var audioWaitingSince: TimeInterval?
+    @ObservationIgnored private var frameWaitingSince: TimeInterval?
+    @ObservationIgnored private var videoWaitingSince: TimeInterval?
+    @ObservationIgnored private var showVideoFilesToWatch: [UUID: URL] = [:]
+
+    var canOperateShow: Bool { workspace != .show || showArmState == .armed }
+    var playbackRequested: Bool { transport.isPlaying || songRequested }
+    var showRunInProgress: Bool { workspace == .show && (transport.isPlaying || songRequested) }
+    var showConfiguredFade: Double { liveFadeDuration ?? project.masterOutput.fadeDuration }
+
     var needsPauseToEdit: Bool {
         workspace == .show && (transport.isPlaying || songRequested)
     }
@@ -45,8 +79,23 @@ final class EditorSession {
             guard pauseRunningShow else { return }
             setPlaying(false, at: uptime)
         }
+        if target == .show {
+            setPlaying(false, at: uptime)
+            lightingSimulation.stop()
+            cancelBeatQueue()
+            resetManualCues()
+            finishIdentification()
+        }
+        if workspace == .show {
+            lightingSimulation.stop()
+            cancelBeatQueue()
+            resetManualCues()
+            identifyingSourceID = nil
+        }
+        resetShowArming()
         endContinuousEdit()
         workspace = target
+        updateOutputScene(at: uptime)
     }
 
     private(set) var songPeaks: [Float] = []
@@ -152,7 +201,7 @@ final class EditorSession {
             var face = face; face.playback = face.sourceID.flatMap { sourcePlayback[$0] } ?? SourcePlayback(); return face
         }
         var result = RenderScene(surfaces: identifyingSourceID.map { id in faces.filter { $0.sourceID == id } } ?? faces, transport: transport)
-        result.masterBrightness = songAudioOnly && project.song != nil ? 0 : project.masterOutput.brightness; result.showOutput = showOutput; result.calibration = calibration
+        result.masterBrightness = songAudioOnly && project.song != nil ? 0 : project.masterOutput.brightness * (workspace == .show ? liveProjectionGain : 1); result.showOutput = showOutput; result.calibration = calibration
         if identifyingSourceID != nil {
             result.calibration.pattern = .white
         }
@@ -233,20 +282,33 @@ final class EditorSession {
             project.timelineClips += originals.map { var clip = $0; clip.id = UUID(); clip.sourceID = copy; return clip }
         } else { timelineMessage = "The copied object uses live content: the project has reached its 2000-clip limit." }
     }
-    func setPlaying(_ playing: Bool, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+    @discardableResult
+    func setPlaying(_ playing: Bool, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) -> Bool {
+        if playing, !canOperateShow {
+            showStatus = "Prepare and arm the show before playing."
+            return false
+        }
+        if playing, workspace == .show {
+            inspectArmedShow(at: uptime)
+            guard canOperateShow else { return false }
+            if identifyingSourceID != nil { finishIdentification() }
+        }
+        if !playing { audioWaitingSince = nil }
         if project.song != nil {
             setSongPlaying(playing)
-            return
+            return !playing || songRequested
         }
         let starts = playing && !transport.isPlaying && uptime.isFinite
         transport.setPlaying(playing, at: uptime)
         if starts { lightingSimulation.resume() }
         updateOutputScene(at: uptime)
+        return transport.isPlaying == playing
     }
     func stopPlayback(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard uptime.isFinite else { return }
         cancelBeatQueue()
         lightingSimulation.stop()
+        if workspace == .show { showOutput.blackout(); identifyingSourceID = nil; recordShowEvent("Stopped and blacked out projection.") }
         setPlaying(false, at: uptime)
         restartPlayback(at: uptime)
     }
@@ -634,6 +696,8 @@ final class EditorSession {
     }
     func load(_ document: ProjectDocument, from url: URL, recovering: Bool = false, store: ProjectPackageStore = ProjectPackageStore(), loadedMedia: (pixels: [UUID:ImagePixels], files: [UUID:Data], problems: [UUID:String])? = nil, loadedVideos: (urls: [UUID:URL],posters: [UUID:ImagePixels],problems: [UUID:String])? = nil) throws {
         try ProjectCodec.validate(document)
+        resetShowArming(clearLog: true)
+        workspace = .edit
         clearSongRuntime()
         closeOutput()
         clearEditHistory(); mediaStamps.removeAll(); savedMediaStamps.removeAll()
@@ -1247,6 +1311,8 @@ final class EditorSession {
     }
 
     func resetProject(now: Date = .now) {
+        resetShowArming(clearLog: true)
+        workspace = .edit
         clearSongRuntime()
         projectorOutput.close()
         clearEditHistory(); mediaStamps.removeAll(); savedMediaStamps.removeAll(); identifyingSourceID = nil
@@ -1431,10 +1497,10 @@ extension EditorSession {
         var candidate = project; candidate.masterOutput.fadeDuration = value; _ = commitShowEdit(candidate)
     }
     func fadeToBlack(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        showOutput.fade(to: 0, duration: project.masterOutput.fadeDuration, at: uptime); updateOutputScene()
+        showOutput.fade(to: 0, duration: workspace == .show ? showConfiguredFade : project.masterOutput.fadeDuration, at: uptime); updateOutputScene()
     }
     func restoreOutput(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        showOutput.restore(duration: project.masterOutput.fadeDuration, at: uptime); updateOutputScene()
+        showOutput.restore(duration: workspace == .show ? showConfiguredFade : project.masterOutput.fadeDuration, at: uptime); updateOutputScene()
     }
     func blackoutOutput() { showOutput.blackout(); updateOutputScene() }
 }
@@ -1911,6 +1977,7 @@ extension EditorSession {
         boundHistory(); updateOutputScene(); scheduleRecovery()
     }
     func releaseRuntimeResources() {
+        resetShowArming()
         clearSongRuntime()
         resetLighting()
         closeOutput()
@@ -1918,6 +1985,7 @@ extension EditorSession {
         videoPlayback.reset(); clearEditHistory(); videoFiles.removeAll(); cleanupManagedVideos()
     }
     func identifySelectedObject() {
+        guard !showRunInProgress else { return }
         identifyingSourceID = selectedSource?.id; updateOutputScene()
     }
     func finishIdentification() { identifyingSourceID = nil; updateOutputScene() }
@@ -1970,6 +2038,9 @@ extension EditorSession {
                 add("image-\(id)",.blocker,"\(name): \(imageProblems[id] ?? "image unavailable"). Relink from Edit / Images or Reference Photo.")
             }
         }
+        if workspace == .show && project.referencedVideoIDs.count > 12 {
+            add("preload-budget", .warning, "Preparation decodes at most 12 videos. Rehearse the remaining clips before showtime.")
+        }
         for id in project.referencedVideoIDs.sorted(by: { $0.uuidString < $1.uuidString }) {
             let asset = project.videoAssets.first { $0.id == id }
             let name = asset?.name ?? id.uuidString
@@ -1987,26 +2058,42 @@ extension EditorSession {
             add("audio-device",.warning,"Chosen audio device is unavailable. Select System default or a connected device, then Enable Audio again.")
         }
         if let song = project.song {
-            if songPlayer == nil && !songBusy {
+            if (songPlayer == nil && !songBusy) || songPlayer?.currentItem?.status == .failed {
                 add("song", .blocker, "Soundtrack unavailable. Replace or remove " + song.name + ".")
             }
-            let clipEnd = project.timelineClips.map(\.end).max() ?? 0
-            let cueEnd = max(project.lighting.cues.filter { !$0.isManual }.map(\.time).max() ?? 0, project.lighting.positionKeys.map(\.time).max() ?? 0)
-            if max(clipEnd, cueEnd) > song.duration {
-                add("song-range", .warning, "Some projection clips or lighting cues extend beyond the soundtrack.")
+            if project.timelineContentEnd > song.duration {
+                add("song-range", .warning, "Some timed programming extends beyond the soundtrack.")
             }
         } else if !videoAudioEnabled { add("audio-muted",.information,"Audio is safely disabled. Enable Audio deliberately after choosing output and volume.") }
+        if songBusy { add("song-loading", .blocker, "The soundtrack is still loading. Prepare again when it is ready.") }
+        if project.song != nil || videoAudioEnabled {
+            let devices = VideoAudioDevices.outputs()
+            let selected = project.song == nil ? project.videoAudio.deviceUID : songDeviceID
+            if !(selected.map { uid in devices.contains { $0.id == uid } } ?? !devices.isEmpty) {
+                add("required-audio", .blocker, "The required audio output is unavailable. Connect it or choose another device.")
+            }
+        }
+        for controller in project.lighting.controllers where project.lighting.fixtures.contains(where: { $0.controllerID == controller.id }) {
+            if lightingSimulation.failures.contains(controller.id) {
+                add("fixture-failure-\(controller.id)", .blocker, "\(controller.name): simulated controller failure. Clear it in Lighting.")
+            } else if controller.profile != .simulation {
+                add("fixture-profile-\(controller.id)", .warning, "\(controller.name): fixture output unavailable. This show supports simulated fixtures.")
+            }
+        }
+        if workspace == .show && canOpenOutput && output.destination != .testWindow && !isOutputOpen {
+            add("projector-closed", .blocker, "Open the selected projector before arming the show.")
+        }
         if !canOpenOutput { add("output",.blocker,"Selected output is unavailable. Refresh Displays and select an independent external display or Test Window.") }
         else if !isOutputOpen { add("output",.information,"Output is closed. Explicitly open the selected output to inspect it.") }
         if let message = projectorOutput.message { add("output-recovery",.warning,message) }
-        if projectorOutput.diagnostic != .normal { add("output-diagnostic",.information,"Full-output calibration is active. Finish Output Calibration to restore content.") }
+        if projectorOutput.diagnostic != .normal { add("output-diagnostic",workspace == .show ? .blocker : .information,"Full-output calibration is active. Finish Output Calibration to restore content.") }
         if let profile = output.calibrationProfile, let display = output.selectedDisplay, !profile.matches(display) {
             add("output-profile",.warning,"Display mode changed since calibration. Remeasure and save a profile for this mode.")
         }
         if project.surfaces.isEmpty { add("empty",.warning,"No surfaces. Add a surface or open the V1 Demo from Help.") }
         if showOutput.isBlackout || project.masterOutput.brightness == 0 { add("dark",.warning,"Output is blacked out or master brightness is zero. Restore Output or increase brightness.") }
-        if calibration.pattern.isActive { add("calibration",.information,"Calibration is active. Choose Normal Content to see timeline content.") }
-        if identifyingSourceID != nil { add("identify",.information,"Object identification is active. Finish Identification to restore all owners.") }
+        if calibration.pattern.isActive { add("calibration",workspace == .show ? .blocker : .information,"Calibration is active. Choose Normal Content to see timeline content.") }
+        if identifyingSourceID != nil { add("identify", workspace == .show ? .blocker : .information,"Object identification is active. Finish Identification to restore all owners.") }
         add("resource-scope",.information,"Inspection checks loaded media, ranges and reported decoder failures without autoplay. Smooth playback and audio timing require the user check; physical projector alignment, reconnect and optical delay require hardware acceptance.")
         return PlaybackReadinessReport(issues: issues,blockerCount: blockers,warningCount: warnings,omittedCount: omitted,checkedAt: .now)
     }
@@ -2277,6 +2364,10 @@ extension EditorSession {
                 guard let self, self.songSeekID == seekID else { return }
                 self.songSeeking = false
                 guard finished else {
+                    if self.workspace == .show && self.showArmState == .armed {
+                        self.interruptShow("Soundtrack seek failed. Prepare again before resuming.")
+                        return
+                    }
                     self.songRequested = false
                     self.songMessage = "Seek failed. Try another timeline position."
                     self.sampleSong(at: self.transport.position, playing: false)
@@ -2310,16 +2401,26 @@ extension EditorSession {
             songDeviceCheck = uptime
             refreshSongDevices()
             if !(songDeviceID.map({ id in songDevices.contains { $0.id == id } }) ?? !songDevices.isEmpty) {
+                if workspace == .show { interruptShow("Audio output lost. Reconnect or select an audio output."); return }
                 setSongPlaying(false)
                 songMessage = "Audio output lost. Select an available device and press Play."
                 return
             }
         }
         if player.currentItem?.status == .failed {
+            if workspace == .show { interruptShow("Soundtrack decoding failed. Check the soundtrack in Edit."); return }
             setSongPlaying(false)
             songMessage = player.currentItem?.error?.localizedDescription ?? "Soundtrack playback failed."
             return
         }
+        let waiting = player.timeControlStatus == .waitingToPlayAtSpecifiedRate || player.currentItem?.status == .unknown
+        if waiting, workspace == .show {
+            if audioWaitingSince == nil { audioWaitingSince = uptime; recordShowEvent("Soundtrack buffering.") }
+            if let start = audioWaitingSince, uptime - start >= 3 {
+                interruptShow("Soundtrack stalled for three seconds.")
+                return
+            }
+        } else { audioWaitingSince = nil }
         let current = player.currentTime().seconds
         guard current.isFinite else { return }
         if let loop = song.loop, current >= loop.end - 0.0001 {
@@ -2331,9 +2432,12 @@ extension EditorSession {
             lightingSimulation.stop()
             cancelBeatQueue()
             resetManualCues()
+            if workspace == .show {
+                showOutput.blackout()
+                recordShowEvent("Song ended. Projection is blacked out and fixtures are stopped.")
+            }
             sampleSong(at: song.duration, playing: false)
         } else {
-            let waiting = player.timeControlStatus == .waitingToPlayAtSpecifiedRate
             if waiting && songMessage == nil { songMessage = "Waiting for audio…" }
             if !waiting && songMessage == "Waiting for audio…" { songMessage = nil }
             sampleSong(at: min(song.duration, max(0, current)), playing: true)
@@ -2354,16 +2458,19 @@ extension EditorSession {
         }.map(\.element)
     }
 
-    func goManualCue(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        guard !songAudioOnly else { return }
+    @discardableResult
+    func goManualCue(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) -> Bool {
+        guard canOperateShow, !songAudioOnly else { return false }
+        if workspace == .show { inspectArmedShow(at: uptime); guard canOperateShow else { return false } }
         let cues = manualCueList
         guard let index = nextManualCueID.flatMap({ id in cues.firstIndex(where: { $0.id == id }) }) ??
-                (lastManualCueID == nil ? cues.indices.first : nil) else { return }
+                (lastManualCueID == nil ? cues.indices.first : nil) else { return false }
         let cue = cues[index]
         lightingSimulation.trigger(cue, at: uptime)
         lastManualCueID = cue.id
         nextManualCueID = cues.indices.contains(index + 1) ? cues[index + 1].id : nil
         refreshLighting(at: uptime)
+        return true
     }
 
     func stopManualFixtures() {
@@ -2446,6 +2553,7 @@ extension EditorSession {
     }
 
     func queueBeat(_ boundary: BeatBoundary, lookID: UUID? = nil, at uptime: Double = ProcessInfo.processInfo.systemUptime) {
+        guard canOperateShow else { beatMessage = "Prepare and arm the show before queuing lighting."; return }
         guard !songAudioOnly else { beatMessage = "Turn off Audio-Only Rehearsal to queue lighting."; return }
         let cue = nextManualCueID.flatMap { id in manualCueList.first { $0.id == id } }
             ?? (lastManualCueID == nil ? manualCueList.first : nil)
@@ -2470,7 +2578,7 @@ extension EditorSession {
     private func fireBeatQueue(at time: Double, uptime: Double) {
         guard let queuedBeat, !queuedBeat.wraps, time >= queuedBeat.time else { return }
         self.queuedBeat = nil
-        guard !songAudioOnly else { return }
+        guard canOperateShow, !songAudioOnly else { return }
         if let id = queuedBeat.cueID, project.lighting.cues.contains(where: { $0.id == id }) {
             nextManualCueID = id
             goManualCue(at: uptime)
@@ -2638,5 +2746,213 @@ extension EditorSession {
             project.faceRegions = project.regions + [region]
             copyPlayback(from: id, to: region.id)
         }
+    }
+}
+
+
+extension EditorSession {
+    func recordShowEvent(_ message: String) {
+        showLog.append(ShowLogEntry(message: message))
+        if showLog.count > 40 { showLog.removeFirst(showLog.count - 40) }
+    }
+
+    func resetShowArming(clearLog: Bool = false) {
+        showWatch?.cancel()
+        showWatch = nil
+        videoPlayback.clearShowPreload()
+        showPreparationID = UUID()
+        showArmState = .unarmed
+        showStatus = nil
+        showChecks = nil
+        showPreparedVideoCount = 0
+        showVideoFilesToWatch = [:]
+        audioWaitingSince = nil
+        frameWaitingSince = nil
+        videoWaitingSince = nil
+        liveProjectionGain = 1
+        liveFadeDuration = nil
+        if clearLog { showLog.removeAll() }
+    }
+
+    func disarmShow() {
+        setPlaying(false)
+        lightingSimulation.stop()
+        resetManualCues()
+        cancelBeatQueue()
+        showOutput.blackout()
+        identifyingSourceID = nil
+        resetShowArming()
+        recordShowEvent("Disarmed. Outputs are dark.")
+        updateOutputScene()
+    }
+
+    func prepareShow() async {
+        guard workspace == .show, showArmState != .preparing, showArmState != .armed else { return }
+        if project.song != nil { refreshSongDevices() }
+        let report = playbackReadiness()
+        showChecks = report
+        guard report.blockerCount == 0 else {
+            showStatus = report.issues.first { $0.severity == .blocker }?.message ?? report.summary
+            recordShowEvent("Preparation blocked by readiness checks.")
+            return
+        }
+        let projectSnapshot = project
+        let destination = output.destination
+        let outputWasOpen = isOutputOpen
+        let files = videoFiles.filter { project.referencedVideoIDs.contains($0.key) }
+        let assets = project.videoAssets.filter { files[$0.id] != nil }
+        let token = UUID()
+        showPreparationID = token
+        showArmState = .preparing
+        showStatus = "Checking decoders and warming video players."
+        showPreparedVideoCount = 0
+        recordShowEvent("Preparing show.")
+        // Current paused players already prime the opening scene. Probe a bounded set of distinct media.
+        let requests = VideoPlaybackRequest.requests(scene: scene, assets: assets, audioEnabled: false,
+                                                     at: ProcessInfo.processInfo.systemUptime)
+        let priority = Set(requests.map { $0.asset.id })
+        let probes = assets.filter { priority.contains($0.id) } + assets.filter { !priority.contains($0.id) }
+        do {
+            for asset in probes.prefix(12) {
+                guard !Task.isCancelled, showPreparationID == token else { return }
+                guard let file = files[asset.id] else { continue }
+                _ = try await VideoImportService.inspect(file, name: asset.name)
+                guard showPreparationID == token else { return }
+                showPreparedVideoCount += 1
+            }
+        } catch {
+            guard showPreparationID == token else { return }
+            showArmState = .unarmed
+            showStatus = "Video preparation failed. Check the video files in Edit. " + error.localizedDescription
+            recordShowEvent(showStatus ?? "Video preparation failed.")
+            return
+        }
+        guard showPreparationID == token else { return }
+        let recheck = playbackReadiness()
+        showChecks = recheck
+        guard !Task.isCancelled, workspace == .show, project == projectSnapshot, destination == output.destination,
+              outputWasOpen == isOutputOpen, files == videoFiles.filter({ project.referencedVideoIDs.contains($0.key) }),
+              recheck.blockerCount == 0 else {
+            showArmState = .unarmed
+            showStatus = "Show conditions changed during preparation. Check readiness and prepare again."
+            recordShowEvent("Preparation invalidated.")
+            return
+        }
+        armedDestination = destination
+        armedOutputWasOpen = outputWasOpen
+        armedProjectID = project.id
+        armedRevision = project.modifiedAt
+        lastShowRenderSkips = 0
+        showVideoFilesToWatch = files
+        showArmState = .armed
+        showStatus = probes.count > 12 ? "Armed. 12 videos decoded during preparation. Other videos use timeline lookahead." : "Armed. Press Play to start."
+        recordShowEvent("Armed. Decoded \(showPreparedVideoCount) video assets.")
+        updateOutputScene()
+        videoPlayback.prepareUpcoming()
+        showWatch = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
+                guard let self else { return }
+                self.inspectArmedShow()
+            }
+        }
+    }
+
+    func inspectArmedShow(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard workspace == .show, showArmState == .armed else { return }
+        if output.destination != armedDestination || !canOpenOutput || (armedOutputWasOpen && !isOutputOpen) {
+            interruptShow("Projection output changed or disconnected. Reopen the output, then prepare again.")
+            return
+        }
+        if isOutputOpen { armedOutputWasOpen = true }
+        if armedProjectID != project.id || armedRevision != project.modifiedAt {
+            interruptShow("The project changed. Prepare it again before continuing.")
+            return
+        }
+        if calibration.pattern.isActive || projectorOutput.diagnostic != .normal {
+            interruptShow("Calibration is active. Finish calibration and prepare again.")
+            return
+        }
+        if project.lighting.fixtures.contains(where: { lightingSimulation.failures.contains($0.controllerID) }) {
+            interruptShow("Fixture simulation reported a controller failure. Clear it in Lighting.")
+            return
+        }
+        if project.song != nil || videoAudioEnabled {
+            let devices = VideoAudioDevices.outputs()
+            let selected = project.song == nil ? project.videoAudio.deviceUID : songDeviceID
+            if !(selected.map { uid in devices.contains { $0.id == uid } } ?? !devices.isEmpty) {
+                interruptShow("Audio output lost. Reconnect or select an audio output.")
+                return
+            }
+        }
+        let missing = project.videoAssets.first { asset in
+            guard let file = showVideoFilesToWatch[asset.id] else { return false }
+            return (try? VideoImportService.safeFile(file)) != asset.byteCount
+        }
+        if let missing {
+            interruptShow("Video became unavailable: " + missing.name)
+            return
+        }
+        if let fault = videoPlayback.showFailure ?? compensatedVideo.showFailure {
+            interruptShow(fault)
+            return
+        }
+        let end = project.timelineContentEnd
+        if project.song == nil, transport.isPlaying, end > 0, transport.elapsed(at: uptime) >= end {
+            setPlaying(false, at: uptime)
+            seekPlayback(to: end, at: uptime)
+            lightingSimulation.stop()
+            showOutput.blackout()
+            recordShowEvent("Timeline ended. Projection is blacked out and fixtures are stopped.")
+            updateOutputScene(at: uptime)
+        }
+        if showRunInProgress && videoPlayback.hasLateShowFrame {
+            if videoWaitingSince == nil { videoWaitingSince = uptime }
+            if let start = videoWaitingSince, uptime - start >= 2 {
+                recordShowEvent("Video frames are late or unavailable. Inspect the preview and media.")
+                videoWaitingSince = uptime
+            }
+        } else { videoWaitingSince = nil }
+        if showRunInProgress, let view = (projectorOutput.window ?? testOutput.window)?.contentView as? MetalSceneView,
+           let snapshot = view.showRenderDiagnostics?.snapshot() {
+            let skips = (snapshot.skips["encoding-unavailable"] ?? 0) + (snapshot.skips["drawable-unavailable"] ?? 0)
+            let delayed = snapshot.samples.suffix(8).contains { !$0.succeeded || $0.completionMilliseconds > 100 }
+            if skips > lastShowRenderSkips || delayed {
+                if frameWaitingSince == nil { recordShowEvent("Output renderer reported skipped, failed or delayed frames.") }
+                frameWaitingSince = uptime
+            } else { frameWaitingSince = nil }
+            lastShowRenderSkips = skips
+        }
+    }
+
+    func interruptShow(_ reason: String) {
+        guard workspace == .show, showArmState == .armed || showArmState == .preparing else { return }
+        setPlaying(false)
+        lightingSimulation.stop()
+        cancelBeatQueue()
+        resetManualCues()
+        showOutput.blackout()
+        lightingSimulation.blackout = true
+        identifyingSourceID = nil
+        showWatch?.cancel()
+        showWatch = nil
+        showPreparationID = UUID()
+        videoPlayback.clearShowPreload()
+        showArmState = .interrupted
+        showStatus = reason
+        recordShowEvent(reason)
+        updateOutputScene()
+    }
+
+    func setLiveProjectionGain(_ value: Float) {
+        guard workspace == .show, value.isFinite, (0...1).contains(value) else { return }
+        liveProjectionGain = value
+        updateOutputScene()
+    }
+
+    func identifyShowTarget(_ id: UUID) {
+        guard workspace == .show, !showRunInProgress, project.renderScene.surfaces.contains(where: { $0.sourceID == id }) else { return }
+        identifyingSourceID = id
+        updateOutputScene()
     }
 }

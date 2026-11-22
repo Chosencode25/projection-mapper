@@ -595,7 +595,7 @@ struct WorkspaceTests {
         #expect(ShowCuePreview.upcoming(cues, at: 6, loop: nil, songEnd: 6.5).isEmpty)
     }
 
-    @Test func showKeepsTransportAndProjectAndBlocksEditingShortcuts() {
+    @Test func showKeepsTransportAndProjectAndBlocksEditingShortcuts() async {
         let session = ProjectPersistenceTests().session()
         defer { session.releaseRuntimeResources() }
         session.renameProject("Rehearsal")
@@ -611,7 +611,9 @@ struct WorkspaceTests {
         session.performEditorAction(.addSurface, at: 10)
         session.undoProjectEdit()
         #expect(session.project == project)
-        #expect(session.canPerformEditorAction(.playPause))
+        #expect(!session.canPerformEditorAction(.playPause))
+        await session.prepareShow()
+        #expect(session.showArmState == .armed && session.canPerformEditorAction(.playPause))
         session.performEditorAction(.playPause, at: 10)
         #expect(session.transport.elapsed(at: 11) == 5.5)
         #expect(session.needsPauseToEdit)
@@ -623,6 +625,74 @@ struct WorkspaceTests {
         #expect(session.canUndo && session.timelineScale == 60 && !session.timelineSnap)
         #expect(session.project == project)
     }
+    @Test func showStopsAtTimelineEndWithProjectionBlackout() async throws {
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let owner = try #require(session.project.timelineTracks.first?.id)
+        _ = try #require(session.addTimelineClip(sourceID: owner, at: 0, duration: 2))
+        session.switchWorkspace(to: .show, at: 100)
+        await session.prepareShow()
+        #expect(session.setPlaying(true, at: 100))
+        session.inspectArmedShow(at: 103)
+        #expect(!session.playbackRequested && session.transport.position == 2)
+        #expect(session.showOutput.isBlackout && session.lightingSimulation.isStopped)
+    }
+
+    @Test func showPreparationAndRecoveryShareThePhoneGateAndPreserveTheDocument() async throws {
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let controller = LightingController(name: "Rehearsal relay", kind: .arduino)
+        let fixture = PatchedFixture(name: "Plug", kind: .plug, controllerID: controller.id)
+        #expect(session.editLighting {
+            $0.controllers = [controller]
+            $0.fixtures = [fixture]
+            $0.cues = [LightingCue(name: "On", time: 1, entries: [.init(id: fixture.id, state: .plug(true))])]
+        })
+        #expect(session.editLighting { $0.cues[0].manualOnly = true })
+        let saved = session.project
+        session.switchWorkspace(to: .show)
+        let remote = PhoneRemote(session: session)
+        remote.role = .editor
+        let play: [String: Any] = ["action": "play", "projectID": saved.id.uuidString]
+        #expect(throws: PhoneError.self) { try remote.perform(play) }
+        #expect(!session.goManualCue())
+        session.lightingSimulation.setFailure(true, for: controller.id)
+        await session.prepareShow()
+        #expect(session.showArmState == .unarmed && (session.showChecks?.blockerCount ?? 0) > 0)
+        session.lightingSimulation.setFailure(false, for: controller.id)
+        await session.prepareShow()
+        #expect(session.showArmState == .armed && !session.playbackRequested && !session.isOutputOpen)
+        session.setLiveProjectionGain(0.5)
+        session.liveFadeDuration = 0
+        #expect(session.scene.masterBrightness == 0.5)
+        if let target = session.project.renderScene.surfaces.first?.sourceID {
+            let count = session.scene.surfaces.count
+            session.identifyShowTarget(target)
+            #expect(session.identifyingSourceID == target)
+            session.finishIdentification()
+            #expect(session.identifyingSourceID == nil && session.scene.surfaces.count == count)
+        }
+        try remote.perform(play)
+        #expect(session.playbackRequested)
+        session.lightingSimulation.setFailure(true, for: controller.id)
+        session.inspectArmedShow()
+        let time = session.transport.position
+        #expect(session.showArmState == .interrupted && !session.playbackRequested)
+        #expect(session.showOutput.isBlackout && session.lightingSimulation.blackout)
+        #expect(throws: PhoneError.self) { try remote.perform(play) }
+        session.lightingSimulation.setFailure(false, for: controller.id)
+        await session.prepareShow()
+        #expect(session.showArmState == .armed && session.transport.position == time && !session.playbackRequested)
+        #expect(session.showOutput.isBlackout && session.lightingSimulation.blackout)
+        session.stopPlayback()
+        #expect(session.transport.position == 0 && session.showOutput.isBlackout)
+        session.disarmShow()
+        #expect(session.showArmState == .unarmed)
+        for n in 0..<60 { session.recordShowEvent("Event \(n)") }
+        #expect(session.showLog.count == 40 && session.showLog.last?.message == "Event 59")
+        #expect(session.project == saved)
+    }
+
 }
 
 @MainActor

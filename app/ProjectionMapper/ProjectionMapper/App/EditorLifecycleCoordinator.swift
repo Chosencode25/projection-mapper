@@ -27,6 +27,8 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(systemWillSleep),
+            name: NSWorkspace.willSleepNotification, object: nil)
         session.configureRecovery(recovery)
         let drafts = ProjectRecoveryStore.defaultDirectory.deletingLastPathComponent().appendingPathComponent("Drafts", isDirectory: true)
         session.configureAutosave(directory: drafts)
@@ -114,9 +116,14 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         session.openOutput()
     }
 
+    @objc private func systemWillSleep(_ notification: Notification) {
+        session.interruptShow("The Mac went to sleep. Check devices and prepare the show again.")
+    }
+
     func windowWillClose(_ notification: Notification) {
         if let closing = notification.object as? NSWindow, closing === editorWindow {
             phoneRemote.stop()
+            if session.workspace == .show { session.disarmShow() }
             session.closeOutput()
             closing.contentView = nil
             closing.delegate = nil
@@ -125,6 +132,8 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+        if session.workspace == .show { session.disarmShow() }
         phoneRemote.stop()
         session.releaseRuntimeResources()
         session.closeOutput()
@@ -201,8 +210,30 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         }
     }
 
+    private func confirmStoppingShow(for action: String, in window: NSWindow, completion: @escaping @MainActor (Bool) -> Void) {
+        let alert = NSAlert()
+        alert.messageText = "Stop the running show?"
+        alert.informativeText = "Projection and fixtures will go dark before you " + action + "."
+        alert.addButton(withTitle: "Stop Show")
+        alert.addButton(withTitle: "Keep Running")
+        isPrompting = true
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }
+            self.isPrompting = false
+            let stop = response == .alertFirstButtonReturn
+            if stop { self.session.disarmShow() }
+            completion(stop)
+        }
+    }
+
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !isPrompting else { return false }
+        if session.showRunInProgress {
+            confirmStoppingShow(for: "close the editor", in: sender) { stop in
+                if stop { DispatchQueue.main.async { sender.performClose(nil) } }
+            }
+            return false
+        }
         guard session.hasUserChanges || session.isAutosaving else { return true }
         confirmSaveChanges(action: "close this project") { [weak self] shouldDiscard in
             guard let self, shouldDiscard else { return }
@@ -216,6 +247,15 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !isPrompting else { return .terminateCancel }
+        if session.showRunInProgress, let window = editorWindow {
+            confirmStoppingShow(for: "quit Projection Mapper", in: window) { [weak self] stop in
+                guard let self, stop else { sender.reply(toApplicationShouldTerminate: false); return }
+                self.confirmSaveChanges(action: "quit Projection Mapper") { saved in
+                    sender.reply(toApplicationShouldTerminate: saved)
+                }
+            }
+            return .terminateLater
+        }
         guard session.hasUserChanges || session.isAutosaving else { return .terminateNow }
         guard !isTerminationPending else { return .terminateCancel }
         isTerminationPending = true

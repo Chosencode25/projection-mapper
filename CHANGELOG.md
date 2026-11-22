@@ -1,5 +1,12 @@
 # Changelog
 
+## Local v2.11/build 36 — Show Mode
+
+- Prepare and arm a show with readiness checks, bounded video preparation and a shared Mac and phone playback gate.
+- Adjust live projection brightness and fade, identify an object, and review recent operator and diagnostic events.
+- Pause and darken outputs on a detected device or media fault. Rearm and resume explicitly after recovery.
+- Final Release reported 381 tests with zero failures. User and hardware rehearsal remain pending.
+
 ## Local v2.09/build 35 — Reusable lighting effects
 
 - Save chase and wave presets in a project and apply them to fixture groups as independent timeline clips.

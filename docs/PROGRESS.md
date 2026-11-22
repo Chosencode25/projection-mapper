@@ -1,8 +1,10 @@
 # Project Progress
 
-Last updated: November 19, 2026.
+Last updated: November 22, 2026.
 
 ## Current state
+
+**November 22 Show Mode, local v2.11/build 36:** Implemented the Show Mode milestone on `codex/v2.11-show-mode`. Prepare & Arm blocks critical readiness faults, samples up to 12 videos and warms nearby clips. The Mac, phone and keyboard share the playback gate. Show adds live brightness and fade controls, object identification and a bounded event log. Output, audio, simulated fixture and media faults hold the playhead, darken outputs and require rearming. Stop resets playback; natural ends hold the endpoint. Open and recovery start disarmed in Edit. The final Release run with Xcode 27A5237l reported 381 tests in 40 suites with zero failures, four optional performance skips and two established visible-window exclusions. Verified the signed universal app and archive under `builds/show-mode/`. User visual and listening checks, live device recovery and multi-show rehearsal remain pending. Build 36 is installed in Applications and matches all 11 verified Release files. Build 35 is preserved at `builds/show-mode/Previous-Applications.app`. The requested source backup uses `codex/v2.11-show-mode`. See [rehearsal](SHOW_MODE_GUIDE.md) and [verification](V2.11_PLAN.md).
 
 **November 19 build 35 installation and GitHub backup:** Installed v2.09/build 35 in Applications at the user's request. Its 11 files match the verified universal Release product and its strict signature check passed. Preserved build 32 at `builds/lighting-effects/Previous-Applications.app`. The requested GitHub source backup uses `codex/lighting-workspace` and covers all three Lighting sections. Visual and listening rehearsal remain pending.
 

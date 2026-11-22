@@ -1,6 +1,6 @@
 # V2 Roadmap — Projection, Lighting and Show Playback
 
-Updated November 17, 2026. Applications now contains verified **v2.09/build 35** with the three Lighting sections, project format 16 and Playground schema 1. Build 32 is preserved. See [Playgrounds verification](V2.10_PLAYGROUNDS_VERIFICATION.md) and [progress](PROGRESS.md). Physical projector/optical acceptance remains pending; latest published download remains v1.15.1.
+Updated November 17, 2026. Applications now contains verified **v2.11/build 36** with Show Mode and the three Lighting sections, project format 16 and Playground schema 1. Build 35 is preserved. See [Playgrounds verification](V2.10_PLAYGROUNDS_VERIFICATION.md) and [progress](PROGRESS.md). Physical projector/optical acceptance remains pending; latest published download remains v1.15.1.
 
 v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and simulated fixtures. Native moving-head and Arduino control and physical checks are deferred until equipment is available. A local phone editor follows the desktop cue foundation. Projection, fixtures and music share show time, and the existing Test Mode remains available. The v2.03 encoder and adapter discovery are preserved as local development work. Read the [detailed implementation steps](V2_IMPLEMENTATION_PLAN.md), [development requirements](PROJECT_DEVELOPMENT.md) and [GitHub workflow](GITHUB_WORKFLOW.md) before implementing or delivering a milestone.
 
@@ -18,7 +18,7 @@ v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and 
 | v2.08 · Holiday Choreography | Add holiday effects, chases, waves, crossfades, beat-aligned triggers and optional live audio reaction. See the [v2.08 verification record](V2.08_VERIFICATION.md). |
 | v2.09 · Layers, Regions and Text | Add layered visuals, target regions, text, countdowns and authored singing-face animation. See the [v2.09 verification record](V2.09_VERIFICATION.md). |
 | v2.10 · Reusable Shows and Layouts | Playgrounds implemented locally; user rehearsal pending. Layout roles, programmed templates/packs and cue-performance recording remain planned. |
-| v2.11 · Show Mode and Readiness | Preload and validate media and fixtures, lock edits, and add operator controls, separate blackouts and failure recovery. |
+| v2.11 · Show Mode and Readiness | Implemented, automatically verified and installed in build 36. User and hardware rehearsal pending. |
 | v2.12 · External Synchronization and Lighting Integration | Verify a specific xLights/FPP workflow and MIDI/OSC controls. Measure trigger/follow behavior and timing offsets. |
 | v2.13 · Playlists and Scheduling | Build playlists, idle scenes, schedule rules, graceful endings and restart handling. |
 | v2.14 · Phone Timeline and Preview | Move and trim clips, edit cue timing and view a lightweight Mac-generated preview. |
