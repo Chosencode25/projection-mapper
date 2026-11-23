@@ -35,6 +35,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.graphics-design</string>
+	<key>ProjectionMapperUpdatePublicKey</key>
+	<string>WlUkQatu+FZmH3WmQCdX2yiofkokxZNiaRZTja9jmk0=</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHighResolutionCapable</key>

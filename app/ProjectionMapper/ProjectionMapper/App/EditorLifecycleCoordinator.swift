@@ -28,6 +28,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
     private var isPrompting = false
     private var isTerminationPending = false
+    private var updateRestartRequested = false
+    private var updateHelperStarted = false
+
     private let recovery = ProjectRecoveryStore(directory: ProjectRecoveryStore.defaultDirectory)
     var recentProjects: [URL] { session.recentProjectURLs }
 
@@ -40,6 +43,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         session.configureAutosave(directory: drafts, startWithDraft: false)
         configureShowLibrary()
         showHome()
+        releaseUpdates.loadLastInstallFailure()
         checkForUpdates(manual: false)
     }
 
@@ -56,7 +60,31 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         return Group {
             if commandFocus.activeWindowNumber == position && session.canPresentReleaseUpdate &&
                 !showLibrary.running && !isTerminationPending {
-                ReleaseUpdateNotice(checker: releaseUpdates, installedVersion: AppVersion.version)
+                ReleaseUpdateNotice(checker: releaseUpdates, installedVersion: AppVersion.version,
+                                    install: { [weak self] in self?.prepareUpdate($0) },
+                                    restart: { [weak self] in self?.restartForUpdate() })
+            }
+        }
+    }
+
+    private var canInstallUpdate: Bool {
+        session.canPresentReleaseUpdate && !showLibrary.running && !isPrompting && !isTerminationPending &&
+            NSApp.modalWindow == nil && NSApp.keyWindow?.attachedSheet == nil
+    }
+
+    private func prepareUpdate(_ update: ReleaseUpdate) {
+        guard canInstallUpdate else { return }
+        Task { await releaseUpdates.prepareInstall(update, for: Bundle.main.bundleURL) }
+    }
+
+    private func restartForUpdate() {
+        guard canInstallUpdate, releaseUpdates.readyToInstall != nil else { return }
+        confirmSaveChanges(action: "install the update") { [weak self] approved in
+            guard let self, approved else { return }
+            DispatchQueue.main.async {
+                guard self.canInstallUpdate else { return }
+                self.updateRestartRequested = true
+                NSApp.terminate(nil)
             }
         }
     }
@@ -276,6 +304,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        if !updateHelperStarted { releaseUpdates.readyToInstall?.discard() }
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         showLibrary.stopNow()
         showLibrary.disarmAfterFault()
@@ -394,6 +423,21 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if updateRestartRequested {
+            updateRestartRequested = false
+            guard canInstallUpdate, !session.hasUserChanges, !session.isAutosaving,
+                  let update = releaseUpdates.readyToInstall, let executable = Bundle.main.executableURL else {
+                return .terminateCancel
+            }
+            do {
+                try ReleaseUpdateInstaller.startHelper(for: update, executable: executable)
+                updateHelperStarted = true
+                return .terminateNow
+            } catch {
+                releaseUpdates.reportInstallError(error)
+                return .terminateCancel
+            }
+        }
         guard !isPrompting, !session.hasProjectSheet else { return .terminateCancel }
         if session.showRunInProgress, let window = editorWindow {
             confirmStoppingShow(for: "quit Projection Mapper", in: window) { [weak self] stop in

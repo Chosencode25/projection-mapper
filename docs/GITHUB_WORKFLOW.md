@@ -192,3 +192,7 @@ Published the [build 44 prerelease](https://github.com/Chosencode25/projection-m
 ## v2.16 full release — November 23, 2026
 
 Published [v2.16 build 44](https://github.com/Chosencode25/projection-mapper/releases/tag/v2.16) as the latest full release at 2026-11-23T21:43:30Z. Main fast-forwarded from `a0fa5e7` to `ffe7766a8258e3925b1effd9c055a1bc41fb85fd`, the commit referenced by the annotated `v2.16` tag. The six uploaded assets and extracted universal app matched the verified local copies, and strict signature verification passed. ZIP SHA-256 is `044dabf60d6d2b11a69d7c1ab115c2194c657f225f66379b93735a3d1369c848`. The previously published preview and the historical archives remain available. Verification receipts are under `builds/whole-show-layouts/github-delivery/`.
+
+## Build 45 updater prerelease — November 23, 2026
+
+The user requested installation and delivery of [build 45](https://github.com/Chosencode25/projection-mapper/releases/tag/v2.16-build45). The annotated `v2.16-build45` tag points to `53081dad29b6cf64931ee035400be7586311b707` on `codex/update-notifications`. All four uploaded assets and all extracted app files matched by download. Applications contains verified build 45. The full v2.16 tag and release remain on build 44. See the receipts in `builds/update-notifications/`.

@@ -1,5 +1,7 @@
 # Get Projection Mapper update notifications
 
+Build 46 adds [in-app installation](IN_APP_UPDATES_GUIDE.md) for signed releases. The steps below describe the build 45 notifier.
+
 Install the first updater-enabled build manually. On launch or when Projection Mapper becomes active, it checks GitHub at most once in 24 hours. **Projection Mapper → Check for Updates…** runs an immediate check.
 
 When a newer full release is available, a card in the editor or Project Home shows the installed and available versions. **Download Update** opens the GitHub release page with the notes and Mac ZIP. **Later** defers that release for at least 24 hours, until an eligible automatic check. A manual check can show it sooner.

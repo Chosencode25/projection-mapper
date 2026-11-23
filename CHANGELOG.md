@@ -1,5 +1,9 @@
 # Changelog
 
+## Local build 46 — In-app updates
+
+- Download and verify signed full releases inside the app, then restart to install.
+
 ## Local build 45 — Update notifications
 
 - Check the latest full Projection Mapper GitHub release automatically or from the app menu.

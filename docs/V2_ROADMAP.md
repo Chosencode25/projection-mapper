@@ -31,7 +31,7 @@ v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and 
 - [Dedicated Lighting workspace](LIGHTING_WORKSPACE_PLAN.md): all three planned sections are implemented locally through build 35, including fixture authoring, motion keys and reusable lighting effects. User rehearsal remains pending. No dedicated milestone version is assigned.
 - [Playgrounds](REUSABLE_SETUPS_PLAN.md): implemented locally as the first part of v2.10; save placement/configuration and create independent blank shows. User visual/listening rehearsal remains pending. Existing role assignment, programmed templates and recording scope remains planned.
 
-- [GitHub update notifications](UPDATE_NOTIFICATIONS_GUIDE.md): implemented in local build 45. The first updater-enabled build installs manually.
+- [GitHub update notifications](UPDATE_NOTIFICATIONS_GUIDE.md): implemented in build 45 and installed in Applications. The first updater-enabled build is available as a [GitHub prerelease](https://github.com/Chosencode25/projection-mapper/releases/tag/v2.16-build45) for manual installation.
 
 ## Hardware that is still unidentified
 

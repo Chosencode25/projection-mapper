@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 
@@ -94,6 +95,82 @@ struct ReleaseUpdateTests {
         #expect(!session.canPresentReleaseUpdate)
         session.deliveryRunning = false
         #expect(session.canPresentReleaseUpdate)
+    }
+
+    @Test func signedReleasePairsOnlyTheExpectedZIPAndSignature() throws {
+        let name = "ProjectionMapper-v2.17-macOS-universal.zip"
+        let result = try JSONSerialization.data(withJSONObject: [
+            "tag_name": "v2.17", "draft": false, "prerelease": false,
+            "assets": [
+                ["name": name, "state": "uploaded", "size": 100],
+                ["name": name + ".sig", "state": "uploaded", "size": 64],
+                ["name": "ProjectionMapper-wrong-macOS-universal.zip.sig", "state": "uploaded", "size": 64]
+            ]
+        ])
+        let update = try #require(try GitHubReleaseUpdates.update(from: result, installed: "2.16"))
+        let archive = try #require(update.archive)
+        #expect(archive.zip.absoluteString == "https://github.com/Chosencode25/projection-mapper/releases/download/v2.17/" + name)
+        #expect(archive.signature.absoluteString == archive.zip.absoluteString + ".sig")
+        #expect(try GitHubReleaseUpdates.update(from: payload("v2.17"), installed: "2.16")?.archive == nil)
+    }
+
+    @Test func wrongSignaturesAndChangedArchiveBytesAreRejected() throws {
+        let key = Curve25519.Signing.PrivateKey()
+        let other = Curve25519.Signing.PrivateKey()
+        let archive = Data("Test archive".utf8)
+        let signature = try key.signature(for: archive)
+        try ReleaseUpdateInstaller.verify(archive: archive, signature: signature, key: key.publicKey.rawRepresentation)
+        #expect(throws: ReleaseUpdateInstaller.InstallError.authenticity) {
+            try ReleaseUpdateInstaller.verify(archive: archive + Data([1]), signature: signature, key: key.publicKey.rawRepresentation)
+        }
+        #expect(throws: ReleaseUpdateInstaller.InstallError.authenticity) {
+            try ReleaseUpdateInstaller.verify(archive: archive, signature: signature, key: other.publicKey.rawRepresentation)
+        }
+    }
+
+    @Test func bundleValidationAndFailedLaunchLeaveTheOriginalInPlace() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let installed = try fixture(in: directory, name: "Installed.app", version: "2.16", build: "46")
+        let candidate = try fixture(in: directory, name: "Candidate.app", version: "2.17", build: "47")
+        let older = try fixture(in: directory, name: "Older.app", version: "2.17", build: "45")
+        try ReleaseUpdateInstaller.validateCandidate(candidate, replacing: installed, tag: "v2.17")
+        #expect(throws: ReleaseUpdateInstaller.InstallError.bundle) {
+            try ReleaseUpdateInstaller.validateCandidate(older, replacing: installed, tag: "v2.17")
+        }
+        #expect(throws: ReleaseUpdateInstaller.InstallError.bundle) {
+            try ReleaseUpdateInstaller.validateCandidate(candidate, replacing: installed, tag: "v2.18")
+        }
+        #expect(throws: ReleaseUpdateInstaller.InstallError.relaunch) {
+            try ReleaseUpdateInstaller.replace(installed, with: candidate) { false }
+        }
+        #expect(Bundle(url: installed)?.object(forInfoDictionaryKey: "CFBundleVersion") as? String == "46")
+        try ReleaseUpdateInstaller.replace(installed, with: candidate) { true }
+        let bytes = try Data(contentsOf: installed.appendingPathComponent("Contents/Info.plist"))
+        let next = try PropertyListSerialization.propertyList(from: bytes, format: nil) as? [String: String]
+        #expect(next?["CFBundleVersion"] == "47")
+    }
+
+    private func fixture(in directory: URL, name: String, version: String, build: String) throws -> URL {
+        let app = directory.appendingPathComponent(name)
+        let contents = app.appendingPathComponent("Contents")
+        let binaries = contents.appendingPathComponent("MacOS")
+        try FileManager.default.createDirectory(at: binaries, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: URL(fileURLWithPath: "/bin/echo"),
+                                         to: binaries.appendingPathComponent("ProjectionMapper"))
+        let info = ["CFBundleVersion": build, "CFBundleShortVersionString": version,
+                    "CFBundleIdentifier": "local.keith.ProjectionMapper", "CFBundleExecutable": "ProjectionMapper",
+                    "CFBundlePackageType": "APPL", "LSMinimumSystemVersion": "15.0"]
+        try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+            .write(to: contents.appendingPathComponent("Info.plist"))
+        let codesign = Process()
+        codesign.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        codesign.arguments = ["--force", "--sign", "-", app.path]
+        try codesign.run()
+        codesign.waitUntilExit()
+        try #require(codesign.terminationStatus == 0)
+        return app
     }
 
     private actor Response {

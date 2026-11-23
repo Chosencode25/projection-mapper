@@ -26,14 +26,22 @@ struct ReleaseVersion: Comparable, Sendable {
 }
 
 struct ReleaseUpdate: Equatable, Sendable {
+    struct Archive: Equatable, Sendable {
+        let zip: URL
+        let signature: URL
+        let size: Int
+    }
+
     let version: ReleaseVersion
     let tag: String
     let page: URL
+    var archive: Archive?
 }
 
 enum GitHubReleaseUpdates {
     static let endpoint = URL(string: "https://api.github.com/repos/Chosencode25/projection-mapper/releases/latest")!
     private static let releases = URL(string: "https://github.com/Chosencode25/projection-mapper/releases/tag")!
+    private static let downloads = URL(string: "https://github.com/Chosencode25/projection-mapper/releases/download")!
     private static let session = URLSession(configuration: .ephemeral)
 
     private enum ReleaseError: Error { case unavailable, invalidRelease }
@@ -73,14 +81,23 @@ enum GitHubReleaseUpdates {
             throw ReleaseError.invalidRelease
         }
         guard version > current else { return nil }
-        let hasMacArchive = release.assets.contains { asset in
+        let appZIPs = release.assets.filter { asset in
             let name = asset.name.lowercased()
-            return asset.state == "uploaded" && asset.size > 0 &&
-                name.hasPrefix("projectionmapper-") && name.hasSuffix("-macos-universal.zip")
+            return asset.state == "uploaded" && (1...ReleaseUpdateInstaller.maximumZIPSize).contains(asset.size) &&
+                name.hasPrefix("projectionmapper-") && name.hasSuffix("-macos-universal.zip") &&
+                name.utf8.allSatisfy { (48...57).contains($0) || (97...122).contains($0) || [45, 46, 95].contains($0) }
         }
-        guard hasMacArchive else { throw ReleaseError.invalidRelease }
-        // The page is derived from the official repository and numeric tag.
-        return ReleaseUpdate(version: version, tag: release.tag_name, page: releases.appendingPathComponent(release.tag_name))
+        guard !appZIPs.isEmpty else { throw ReleaseError.invalidRelease }
+        let signed = appZIPs.first { asset in
+            release.assets.contains { $0.name == asset.name + ".sig" && $0.size == 64 && $0.state == "uploaded" }
+        }
+        let folder = downloads.appendingPathComponent(release.tag_name)
+        let archive = signed.map {
+            ReleaseUpdate.Archive(zip: folder.appendingPathComponent($0.name),
+                                  signature: folder.appendingPathComponent($0.name + ".sig"), size: $0.size)
+        }
+        // Construct links from the repository, validated numeric tag, and bounded asset names.
+        return ReleaseUpdate(version: version, tag: release.tag_name, page: releases.appendingPathComponent(release.tag_name), archive: archive)
     }
 }
 
@@ -91,10 +108,14 @@ final class ReleaseUpdateChecker {
         case available(ReleaseUpdate)
         case upToDate
         case failed
+        case installationFailed(String)
     }
 
     private(set) var notice: Notice?
     private(set) var isChecking = false
+    private(set) var isPreparingInstall = false
+    private(set) var readyToInstall: PreparedReleaseUpdate?
+    private(set) var installError: String?
     private let defaults: UserDefaults
     private let request: @Sendable () async throws -> ReleaseUpdate?
     private var manualFeedback = false
@@ -108,12 +129,14 @@ final class ReleaseUpdateChecker {
     }
 
     func check(manual: Bool = false, now: Date = .now) async {
+        guard !isPreparingInstall, readyToInstall == nil else { return }
+        if case .installationFailed = notice, !manual { return }
         if manual { manualFeedback = true }
         guard !isChecking else { return }
         guard manual || !isRecent(defaults.object(forKey: Self.checkedKey) as? Date, at: now) else { return }
         defaults.set(now, forKey: Self.checkedKey)
         isChecking = true
-        if manual { notice = nil }
+        if manual { notice = nil; installError = nil }
         defer {
             isChecking = false
             manualFeedback = false
@@ -131,7 +154,34 @@ final class ReleaseUpdateChecker {
         }
     }
 
+    func loadLastInstallFailure() {
+        if let error = defaults.string(forKey: ReleaseUpdateInstaller.failureKey) {
+            defaults.removeObject(forKey: ReleaseUpdateInstaller.failureKey)
+            notice = .installationFailed(error)
+        }
+    }
+
+    func prepareInstall(_ update: ReleaseUpdate, for target: URL) async {
+        guard notice == .available(update), !isChecking, !isPreparingInstall, readyToInstall == nil else { return }
+        isPreparingInstall = true
+        installError = nil
+        defer { isPreparingInstall = false }
+        do {
+            readyToInstall = try await ReleaseUpdateInstaller.prepare(update, target: target)
+        } catch {
+            installError = error.localizedDescription
+        }
+    }
+
+    func reportInstallError(_ error: Error) {
+        installError = error.localizedDescription
+    }
+
     func dismiss(now: Date = .now) {
+        guard !isPreparingInstall else { return }
+        readyToInstall?.discard()
+        readyToInstall = nil
+        installError = nil
         if case .available(let update) = notice {
             defaults.set(now, forKey: Self.laterKey + update.version.preferenceKey)
         }

@@ -4,6 +4,8 @@ import SwiftUI
 struct ReleaseUpdateNotice: View {
     let checker: ReleaseUpdateChecker
     let installedVersion: String
+    let install: (ReleaseUpdate) -> Void
+    let restart: () -> Void
 
     var body: some View {
         if let notice = checker.notice {
@@ -15,16 +17,36 @@ struct ReleaseUpdateNotice: View {
                         .accessibilityAddTraits(.isHeader)
                     Text("Installed \(installedVersion) · Available \(update.tag.dropFirst())")
                         .foregroundStyle(.secondary)
-                    HStack {
-                        Spacer()
-                        Button("Later") { checker.dismiss() }
-                        Button("Download Update") {
-                            if NSWorkspace.shared.open(update.page) { checker.dismiss() }
-                        }.buttonStyle(.borderedProminent)
+                    if checker.isPreparingInstall {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text("Downloading and verifying update…").foregroundStyle(.secondary)
+                        }
+                    } else {
+                        if let error = checker.installError {
+                            Text(error).foregroundStyle(.orange).font(.callout)
+                        }
+                        HStack {
+                            Spacer()
+                            Button("Later") { checker.dismiss() }
+                            if checker.readyToInstall != nil {
+                                Button("Restart to Install", action: restart).buttonStyle(.borderedProminent)
+                            } else if update.archive != nil {
+                                Button("Install Update") { install(update) }.buttonStyle(.borderedProminent)
+                            } else {
+                                Button("Download Update") {
+                                    if NSWorkspace.shared.open(update.page) { checker.dismiss() }
+                                }.buttonStyle(.borderedProminent)
+                            }
+                        }
                     }
-                case .upToDate, .failed:
+                case .upToDate, .failed, .installationFailed:
                     HStack(alignment: .top, spacing: 12) {
-                        Text(notice == .upToDate ? "Projection Mapper is up to date." : "Couldn’t check for updates. Try again later.")
+                        switch notice {
+                        case .upToDate: Text("Projection Mapper is up to date.")
+                        case .installationFailed(let message): Text(message)
+                        default: Text("Couldn’t check for updates. Try again later.")
+                        }
                         Spacer(minLength: 0)
                         Button("Dismiss", systemImage: "xmark") { checker.dismiss() }
                             .labelStyle(.iconOnly).buttonStyle(.borderless)
