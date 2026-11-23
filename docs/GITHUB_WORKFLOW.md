@@ -178,3 +178,9 @@ The user invoked the saved **Install** and **Backup** commands. This explicitly 
 The installed app matches the 11 verified Release files and passes strict/deep signature verification with arm64/x86_64 executable slices. Build 31 is preserved under `builds/v2.10/playgrounds/Previous-Applications.app`. The existing 362-test Release result, Debug phone-failure qualification and isolated five-phone-test pass remain the evidence; no source edits or rebuild occurred for this delivery. Publication and user/hardware acceptance remain separate.
 
 Confirmed source backup: **c6a7ce2** successfully pushed as the new `origin/codex/v2.10-playgrounds` branch. This push is the remote confirmation; no extra fetch or GitHub polling was performed. Main, previous history/tags/releases and release assets are preserved. This documentation-only confirmation follows the backed-up source.
+
+## v2.14 public release — November 22, 2026
+
+The user confirmed publication to the existing public repository. GitHub published [v2.14/build 38](https://github.com/Chosencode25/projection-mapper/releases/tag/v2.14) as its latest full release at 2026-11-23 02:50:52 UTC (November 22 Central Time). Main fast-forwarded from `ed2e3dd` to tested source commit `80350c5892c38dff32b7400c766ee2213079dc2b`, also the target of annotated tag `v2.14`. Earlier release tags and assets are preserved.
+
+The five assets are the universal ZIP, SHA256SUMS.txt, Build-identity.json, PHONE_TIMELINE_GUIDE.md and SHOW_PLAYLIST_GUIDE.md. All five downloaded assets matched local bytes. The extracted app matched all 11 tested files and passed strict signature, bundle version and arm64/x86_64 checks. ZIP SHA-256 is `d433b7d03148c74066da8f9bbe6da5f0028a29cec303907267f01bfeafa53328`. The exact toolchain was rechecked and 104 tested source hashes matched the tagged commit. See [release verification](V2.14_PLAN.md).
