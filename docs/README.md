@@ -4,6 +4,7 @@
 
 | Read this | For |
 |---|---|
+| [Update Notifications](UPDATE_NOTIFICATIONS_GUIDE.md) | Check GitHub for the next full release |
 | [Winter Lights Encore](V2.09_REHEARSAL.md) | Rehearse v2.09 layers, regions, titles, countdowns, and singing faces |
 | [Edit and Show](EDIT_SHOW_WORKSPACES.md) | Switch between authoring and running a show |
 | [Reusable Show Sections](SHOW_SECTIONS_GUIDE.md) | Save and insert timed programming across layouts |

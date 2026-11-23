@@ -68,6 +68,11 @@ final class EditorSession {
 
     var canOperateShow: Bool { workspace != .show || showArmState == .armed }
     var playbackRequested: Bool { transport.isPlaying || songRequested }
+
+    var canPresentReleaseUpdate: Bool {
+        !playbackRequested && !isRecordingCues && !deliveryRunning && !isSavingMedia &&
+            !hasProjectSheet && showArmState != .preparing && showArmState != .armed
+    }
     var showRunInProgress: Bool { workspace == .show && (transport.isPlaying || songRequested) }
     var showConfiguredFade: Double { liveFadeDuration ?? project.masterOutput.fadeDuration }
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## Local build 45 — Update notifications
+
+- Check the latest full Projection Mapper GitHub release automatically or from the app menu.
+- Show a dismissible download notice in the editor or Project Home during idle use.
+
+## v2.16 — Build 44
+
+- Published [v2.16](https://github.com/Chosencode25/projection-mapper/releases/tag/v2.16) for Apple Silicon and Intel Macs on macOS 15 or later.
+- Includes video export, portable show packages, reusable sections and presets, live lighting cue recording, and whole-show layout remapping.
+
 ## Local build 44 — Reusable Layout Roles
 
 - Save ordered layout roles for surfaces, shared objects, object faces, and fixture groups. Roles travel with Playgrounds.

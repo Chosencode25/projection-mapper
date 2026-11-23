@@ -22,7 +22,7 @@ v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and 
 | v2.13 · Playlists and Scheduling | Implemented and verified locally in build 37 with Project Home. Live rehearsal pending. |
 | v2.14 · Phone Timeline and Preview | Implemented and verified locally in build 38. Physical phone rehearsal pending. |
 | v2.15 · Export and Portable Delivery | Implemented and verified locally in build 39. Export mapped or unmapped MP4 and collect an editable show package. |
-| v2.16 · Acceptance, Packaging and Release | Build 44 is installed for free local use. Automated rehearsal passed. User visual, listening and hardware acceptance remain pending. Developer ID distribution is optional. |
+| v2.16 · Acceptance, Packaging and Release | Build 44 is installed for free local use and available as the [full v2.16 GitHub release](https://github.com/Chosencode25/projection-mapper/releases/tag/v2.16). Automated rehearsal passed. User visual, listening and hardware acceptance remain pending. Developer ID distribution is optional. |
 
 **Retired milestone:** v2.12 external synchronization was dropped on November 23, 2026.
 
@@ -30,6 +30,8 @@ v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and 
 
 - [Dedicated Lighting workspace](LIGHTING_WORKSPACE_PLAN.md): all three planned sections are implemented locally through build 35, including fixture authoring, motion keys and reusable lighting effects. User rehearsal remains pending. No dedicated milestone version is assigned.
 - [Playgrounds](REUSABLE_SETUPS_PLAN.md): implemented locally as the first part of v2.10; save placement/configuration and create independent blank shows. User visual/listening rehearsal remains pending. Existing role assignment, programmed templates and recording scope remains planned.
+
+- [GitHub update notifications](UPDATE_NOTIFICATIONS_GUIDE.md): implemented in local build 45. The first updater-enabled build installs manually.
 
 ## Hardware that is still unidentified
 

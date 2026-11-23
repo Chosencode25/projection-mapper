@@ -65,6 +65,7 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .appSettings) { }
         CommandGroup(replacing: .appInfo) {
             Button("About Projection Mapper") { coordinator.showAbout() }
+            Button("Check for Updates…") { coordinator.checkForUpdates() }
         }
         CommandMenu("Show") {
             shortcutButton(.playPause)

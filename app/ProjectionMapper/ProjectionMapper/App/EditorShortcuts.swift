@@ -5,6 +5,7 @@ import Observation
 @MainActor @Observable
 final class EditorCommandFocus {
     var signature = ""
+    var activeWindowNumber: Int?
 }
 
 /// Shared by menus, native window routing and the keyboard reference.

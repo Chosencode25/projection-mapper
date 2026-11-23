@@ -23,6 +23,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     private var playlistRoute: (id: UUID, destination: OutputDestination, resolution: TestResolution, wasOpen: Bool, muted: Bool)?
     private var shortcutsWindow: NSWindow?
     private let commandFocus = EditorCommandFocus()
+    private let releaseUpdates = ReleaseUpdateChecker {
+        try await GitHubReleaseUpdates.check(installed: AppVersion.version)
+    }
     private var isPrompting = false
     private var isTerminationPending = false
     private let recovery = ProjectRecoveryStore(directory: ProjectRecoveryStore.defaultDirectory)
@@ -37,6 +40,25 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         session.configureAutosave(directory: drafts, startWithDraft: false)
         configureShowLibrary()
         showHome()
+        checkForUpdates(manual: false)
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        checkForUpdates(manual: false)
+    }
+
+    func checkForUpdates(manual: Bool = true) {
+        Task { await releaseUpdates.check(manual: manual) }
+    }
+
+    private func updateNoticeOverlay(for window: NSWindow) -> some View {
+        let position = window.windowNumber
+        return Group {
+            if commandFocus.activeWindowNumber == position && session.canPresentReleaseUpdate &&
+                !showLibrary.running && !isTerminationPending {
+                ReleaseUpdateNotice(checker: releaseUpdates, installedVersion: AppVersion.version)
+            }
+        }
     }
 
     func showHome() {
@@ -60,7 +82,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                 playground: { [weak self] in self?.showPlaygrounds(.choose) },
                 demo: { [weak self] in self?.openDemo() },
                 recover: { [weak self] in self?.showEditor(); self?.recoverProject() }
-            ))
+            ).overlay(alignment: .topTrailing) { [weak self, weak window] in
+                if let self, let window { self.updateNoticeOverlay(for: window) }
+            })
         }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -199,7 +223,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                 saveCopy: { [weak self] in self?.saveProject(asNew: true) },
                 projectHome: { [weak self] in self?.showHome() },
                 openRemappedShow: { [weak self] in self?.openProject($0) }
-            ))
+            ).overlay(alignment: .topTrailing) { [weak self, weak window] in
+                if let self, let window { self.updateNoticeOverlay(for: window) }
+            })
             window.center()
             editorWindow = window
         }
@@ -213,6 +239,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
 
     func applicationDidUpdate(_ notification: Notification) {
         let window = NSApp.keyWindow
+        let foreground = NSApp.isActive && NSApp.modalWindow == nil && window?.attachedSheet == nil
+        let number = foreground ? window?.windowNumber : nil
+        if commandFocus.activeWindowNumber != number { commandFocus.activeWindowNumber = number }
         let accepts = EditorKeyRouting.accepts(firstResponder: window?.firstResponder,
             hasSheet: window?.attachedSheet != nil || editorWindow?.attachedSheet != nil, hasModal: NSApp.modalWindow != nil)
         let signature = "\(window?.windowNumber ?? -1):\(accepts):\(isPrompting)"
