@@ -7,6 +7,7 @@ struct EditorWindowView: View {
     @State private var showsPhone = false
     @State private var showsFixtures = false
     @State private var confirmsPauseToEdit = false
+    @State private var remappedShowURL: URL?
     @State private var pendingWorkspace = ProjectWorkspace.edit
     let newProject: () -> Void
     let projectChanged: () -> Void
@@ -21,6 +22,7 @@ struct EditorWindowView: View {
     var managePlaygrounds: () -> Void = {}
     var saveCopy: () -> Void = {}
     var projectHome: () -> Void = {}
+    var openRemappedShow: (URL) -> Void = { _ in }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -61,6 +63,23 @@ struct EditorWindowView: View {
             }
             Divider()
             EditorStatusView(session: session)
+        }
+        .sheet(item: $session.deliveryAction) { action in
+            ShowDeliveryView(session: session, action: action)
+        }
+        .sheet(item: $session.showLayoutAction, onDismiss: {
+            if let url = remappedShowURL { remappedShowURL = nil; openRemappedShow(url) }
+        }) { action in
+            switch action {
+            case .roles: LayoutRolesView(session: session)
+            case .apply: ApplyShowLayoutView(session: session) { remappedShowURL = $0 }
+            }
+        }
+        .sheet(item: $session.sectionAction) { action in
+            ShowSectionView(session: session, action: action)
+        }
+        .sheet(item: $session.effectPackAction) { action in
+            EffectPackView(session: session, action: action)
         }
         .confirmationDialog("Pause the show to edit?", isPresented: $confirmsPauseToEdit, titleVisibility: .visible) {
             Button(pendingWorkspace == .lighting ? "Pause and Open Lighting" : "Pause and Edit") { session.switchWorkspace(to: pendingWorkspace, pauseRunningShow: true) }

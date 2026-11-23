@@ -12,7 +12,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         }
         remote.canAcceptCommands = { [weak self] in
             guard let self else { return false }
-            return !self.isPrompting && self.editorWindow?.attachedSheet == nil && NSApp.modalWindow == nil
+            return !self.isPrompting && !self.session.hasProjectSheet && self.editorWindow?.attachedSheet == nil && NSApp.modalWindow == nil
         }
         return remote
     }()
@@ -82,7 +82,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     private func configureShowLibrary() {
         showLibrary.canStart = { [weak self] in
             guard let self else { return false }
-            return !self.isPrompting && !self.session.playbackRequested &&
+            return !self.isPrompting && !self.session.hasProjectSheet && !self.session.playbackRequested &&
                 self.session.showArmState != .armed && self.session.showArmState != .preparing &&
                 !self.session.isImportingImage && !self.session.isImportingVideo
         }
@@ -197,7 +197,8 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                 choosePlayground: { [weak self] in self?.showPlaygrounds(.choose) },
                 managePlaygrounds: { [weak self] in self?.showPlaygrounds(.manage) },
                 saveCopy: { [weak self] in self?.saveProject(asNew: true) },
-                projectHome: { [weak self] in self?.showHome() }
+                projectHome: { [weak self] in self?.showHome() },
+                openRemappedShow: { [weak self] in self?.openProject($0) }
             ))
             window.center()
             editorWindow = window
@@ -318,7 +319,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func newProject() {
-        guard !showLibrary.running else { return }
+        guard !showLibrary.running, !session.hasProjectSheet else { return }
         guard !isPrompting else { return }
         showEditor()
         confirmSaveChanges(action: "start a new project") { [weak self] shouldDiscard in
@@ -345,7 +346,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !isPrompting else { return false }
+        guard !isPrompting, !session.hasProjectSheet else { return false }
         if session.showRunInProgress {
             confirmStoppingShow(for: "close the editor", in: sender) { stop in
                 if stop { DispatchQueue.main.async { sender.performClose(nil) } }
@@ -364,7 +365,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard !isPrompting else { return .terminateCancel }
+        guard !isPrompting, !session.hasProjectSheet else { return .terminateCancel }
         if session.showRunInProgress, let window = editorWindow {
             confirmStoppingShow(for: "quit Projection Mapper", in: window) { [weak self] stop in
                 guard let self, stop else { sender.reply(toApplicationShouldTerminate: false); return }
@@ -474,8 +475,50 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         editorWindow?.representedURL = session.documentURL
     }
 
+    var canShowEffectPack: Bool {
+        !isPrompting && !showLibrary.running && session.canEditEffectPack && !session.hasProjectSheet &&
+            editorWindow?.attachedSheet == nil
+    }
+
+    func showEffectPack(_ action: EffectPackAction) {
+        guard canShowEffectPack else { return }
+        showEditor()
+        session.effectPackAction = action
+    }
+
+    var canShowLayout: Bool {
+        !isPrompting && !showLibrary.running && session.canEditEffectPack && !session.hasProjectSheet && editorWindow?.attachedSheet == nil
+    }
+
+    func showLayout(_ action: ShowLayoutAction) {
+        guard canShowLayout else { return }
+        showEditor()
+        session.showLayoutAction = action
+    }
+
+    var canShowSection: Bool {
+        !isPrompting && !showLibrary.running && session.canEditShowSection && !session.hasProjectSheet && editorWindow?.attachedSheet == nil
+    }
+
+    func showSection(_ action: ShowSectionAction) {
+        guard canShowSection else { return }
+        showEditor()
+        session.sectionAction = action
+    }
+
+    var canShowDelivery: Bool {
+        !isPrompting && !showLibrary.running && !session.showRunInProgress &&
+            !session.deliveryRunning && !session.hasProjectSheet && editorWindow?.attachedSheet == nil
+    }
+
+    func showDelivery(_ action: ShowDeliveryAction) {
+        guard canShowDelivery else { return }
+        showEditor()
+        session.deliveryAction = action
+    }
+
     func saveProject(asNew: Bool = false, completion: @escaping @MainActor (Bool) -> Void = { _ in }) {
-        guard !isPrompting else { completion(false); return }
+        guard !isPrompting, !session.hasProjectSheet else { completion(false); return }
         showEditor()
         if !asNew, !session.isManagedDraft, let url = session.documentURL { writeProject(to: url, completion: completion); return }
         guard let window = editorWindow else { completion(false); return }
@@ -506,7 +549,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         UserDefaults.standard.set(Array(paths.prefix(10)), forKey: "recentProjects")
     }
     func openProject(_ url: URL? = nil) {
-        guard !showLibrary.running else { return }
+        guard !showLibrary.running, !session.hasProjectSheet else { return }
         guard !isPrompting else { return }
         showEditor()
         if let url { readProject(url); return }

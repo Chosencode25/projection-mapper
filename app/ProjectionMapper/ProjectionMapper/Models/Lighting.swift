@@ -162,6 +162,8 @@ struct LightingCue: Codable, Equatable, Identifiable {
 }
 
 struct ProjectLighting: Codable, Equatable {
+    static let maximumCues = 2000
+
     var controllers: [LightingController] = []
     var fixtures: [PatchedFixture] = []
     var looks: [FixtureLook] = []
@@ -181,7 +183,7 @@ struct ProjectLighting: Codable, Equatable {
     }
 
     func validationIssue() -> String? {
-        guard controllers.count <= 32, fixtures.count <= 256, looks.count <= 256, cues.count <= 2000 else {
+        guard controllers.count <= 32, fixtures.count <= 256, looks.count <= 256, cues.count <= Self.maximumCues else {
             return "The project has reached its lighting limits."
         }
         guard Set(controllers.map(\.id)).count == controllers.count,

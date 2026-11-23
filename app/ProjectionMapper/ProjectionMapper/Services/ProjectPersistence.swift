@@ -11,7 +11,7 @@ struct RecoveryMetadata: Codable, Equatable {
     var savedAt: Date = .now
 }
 struct ProjectDocument: Codable, Equatable {
-    static let currentVersion = 16
+    static let currentVersion = 17
     var formatVersion = currentVersion
     var project: MappingProject
     var output = ProjectOutputSettings()
@@ -104,7 +104,7 @@ enum ProjectCodec {
                 project["lighting"] = ["controllers": [], "fixtures": [], "looks": [], "cues": []] as [String: [String]]
                 json["project"] = project; json["formatVersion"] = ProjectDocument.currentVersion
             }
-            if (10...15).contains(version) { json["formatVersion"] = ProjectDocument.currentVersion }
+            if (10...16).contains(version) { json["formatVersion"] = ProjectDocument.currentVersion }
             let migrated = try JSONSerialization.data(withJSONObject: json)
             let document = try JSONDecoder().decode(ProjectDocument.self, from: migrated)
             try validate(document); return document
@@ -116,6 +116,7 @@ enum ProjectCodec {
         let p = document.project
         try check(document.formatVersion == ProjectDocument.currentVersion, "unsupported write version")
         try check(ChoreographyClip.validSequence(document.project.choreographyClips), "invalid or overlapping choreography")
+        if let issue = p.layoutRoleIssue { throw ProjectFileError.invalid(issue) }
         let markers = document.project.showMarkers
         try check(markers.count <= 2048 && Set(markers.map(\.id)).count == markers.count && markers.allSatisfy(\.isValid), "invalid show markers")
         try check(document.project.song?.isValid != false, "invalid soundtrack")
@@ -216,14 +217,15 @@ final class ProjectPackageStore {
         guard info.isRegularFile == true, info.isSymbolicLink != true, (info.fileSize ?? Int.max) <= 16*1024*1024 else { throw ProjectFileError.invalid("manifest is unavailable or unsafe") }
         return try ProjectCodec.decode(Data(contentsOf: manifest))
     }
-    func write(_ document: ProjectDocument, to destination: URL, assetsFrom source: URL? = nil, imageFiles: [UUID:Data] = [:], videoFiles: [UUID:URL] = [:], songBytes: Data? = nil) throws {
+    func write(_ document: ProjectDocument, to destination: URL, assetsFrom source: URL? = nil, imageFiles: [UUID:Data] = [:], videoFiles: [UUID:URL] = [:], songBytes: Data? = nil, replaceExisting: Bool = true) throws {
+        if !replaceExisting { try DeliveryFile.requireVacant(destination) }
         let data = try ProjectCodec.encode(document)
         let parent = destination.deletingLastPathComponent()
         let stage = parent.appendingPathComponent(".\(destination.lastPathComponent).\(UUID().uuidString).staging",isDirectory: true)
         try files.createDirectory(at: stage,withIntermediateDirectories: false)
         defer { try? files.removeItem(at: stage) }
         let assets = stage.appendingPathComponent("assets",isDirectory: true)
-        let oldAssets = (source ?? (files.fileExists(atPath: destination.path) ? destination : nil))?.appendingPathComponent("assets",isDirectory: true)
+        let oldAssets = (source ?? (replaceExisting && files.fileExists(atPath: destination.path) ? destination : nil))?.appendingPathComponent("assets",isDirectory: true)
         if let oldAssets, files.fileExists(atPath: oldAssets.path) {
             let info = try oldAssets.resourceValues(forKeys: [.isDirectoryKey,.isSymbolicLinkKey])
             guard info.isDirectory == true, info.isSymbolicLink != true else { throw ProjectFileError.invalid("unsafe asset directory") }
@@ -247,14 +249,14 @@ final class ProjectPackageStore {
             }
         } else { try files.createDirectory(at: assets,withIntermediateDirectories: false) }
         // UUID-derived paths cannot escape the package. Remove only known orphaned assets.
-        if let source = source ?? (files.fileExists(atPath: destination.path) ? destination : nil), let old = try? read(source) {
+        if let source = source ?? (replaceExisting && files.fileExists(atPath: destination.path) ? destination : nil), let old = try? read(source) {
             let live = Set(document.project.imageAssets.map(\.id))
             for asset in old.project.imageAssets where !live.contains(asset.id) {
                 let item = assets.appendingPathComponent(asset.fileName)
                 if files.fileExists(atPath: item.path) { try files.removeItem(at: item) }
             }
         }
-        if let source = source ?? (files.fileExists(atPath: destination.path) ? destination : nil), let old = try? read(source) {
+        if let source = source ?? (replaceExisting && files.fileExists(atPath: destination.path) ? destination : nil), let old = try? read(source) {
             let live = Set(document.project.videoAssets.map(\.id))
             for asset in old.project.videoAssets where !live.contains(asset.id) {
                 let item = assets.appendingPathComponent(asset.fileName)
@@ -270,6 +272,7 @@ final class ProjectPackageStore {
             guard try VideoImportService.safeFile(target) == asset.byteCount else { throw ProjectFileError.invalid("video size changed; relink it") }
         }
         for asset in document.project.imageAssets {
+            try Task.checkCancellation()
             let target = assets.appendingPathComponent(asset.fileName)
             if let bytes = imageFiles[asset.id] {
                 guard bytes.count <= ImageImportService.maximumFileBytes else { throw ProjectFileError.invalid("image file size") }
@@ -279,6 +282,7 @@ final class ProjectPackageStore {
             guard decoded.pixels.width == asset.width, decoded.pixels.height == asset.height else { throw ProjectFileError.invalid("image dimensions") }
         }
         if let song = document.project.song {
+            try Task.checkCancellation()
             let target = assets.appendingPathComponent(song.fileName)
             if let songBytes {
                 guard songBytes.count == song.byteCount else { throw ProjectFileError.invalid("Soundtrack size changed.") }
@@ -294,7 +298,9 @@ final class ProjectPackageStore {
         _ = try read(stage)
         try Task.checkCancellation()
         try beforeCommit?(stage)
-        if files.fileExists(atPath: destination.path) {
+        if !replaceExisting {
+            try DeliveryFile.publish(stage, to: destination)
+        } else if files.fileExists(atPath: destination.path) {
             _ = try read(destination) // Never replace an unrelated folder or malformed project.
             let result = stage.path.withCString { from in destination.path.withCString { to in
                 renameatx_np(AT_FDCWD,from,AT_FDCWD,to,UInt32(RENAME_SWAP))

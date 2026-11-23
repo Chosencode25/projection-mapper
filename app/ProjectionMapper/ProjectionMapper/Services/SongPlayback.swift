@@ -36,6 +36,11 @@ struct SongLoop: Codable, Equatable, Sendable {
     func isValid(for duration: Double) -> Bool {
         start.isFinite && end.isFinite && start >= 0 && end <= duration && end - start >= 0.1
     }
+
+    /// A paused AVPlayer can land a sampling interval before its forward playback boundary.
+    func shouldWrap(at position: Double, stopped: Bool) -> Bool {
+        position >= end - (stopped ? 0.035 : 0.005)
+    }
 }
 
 struct PreparedSong: Sendable {

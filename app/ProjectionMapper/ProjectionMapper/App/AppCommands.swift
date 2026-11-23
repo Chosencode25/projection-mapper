@@ -11,6 +11,16 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .saveItem) {
             Button("Save Project") { coordinator.saveProject() }.keyboardShortcut("s", modifiers: .command)
             Button("Save Project As…") { coordinator.saveProject(asNew: true) }.keyboardShortcut("s", modifiers: [.command,.shift])
+            Divider()
+            Button("Export Video…") { coordinator.showDelivery(.video) }
+                .disabled(!coordinator.canShowDelivery)
+            Button("Collect Show Assets…") { coordinator.showDelivery(.collect) }
+                .disabled(!coordinator.canShowDelivery)
+            Divider()
+            Button("Export Effect & Palette Pack…") { coordinator.showEffectPack(.export) }
+                .disabled(!coordinator.canShowEffectPack || coordinator.session.project.effectPackItems.isEmpty)
+            Button("Import Effect & Palette Pack…") { coordinator.showEffectPack(.importPack) }
+                .disabled(!coordinator.canShowEffectPack)
         }
         CommandGroup(after: .newItem) {
             Button("Open Project…") { coordinator.openProject() }.keyboardShortcut("o", modifiers: .command)
@@ -19,6 +29,9 @@ struct AppCommands: Commands {
                     Button(url.deletingPathExtension().lastPathComponent) { coordinator.openProject(url) }
                 }
             }
+            Divider()
+            Button("Layout Roles…") { coordinator.showLayout(.roles) }.disabled(!coordinator.canShowLayout)
+            Button("Apply Show to This Layout…") { coordinator.showLayout(.apply) }.disabled(!coordinator.canShowLayout)
             Divider()
             Button("Save Playground…") { coordinator.showPlaygrounds(.save) }
             Button("New Show from This Playground…") { coordinator.newShowFromCurrentPlayground() }
@@ -80,6 +93,9 @@ struct AppCommands: Commands {
         }
         CommandMenu("Timeline") {
             ForEach(EditorAction.timeline) { action in shortcutButton(action) }
+            Divider()
+            Button("Save Show Section…") { coordinator.showSection(.save) }.disabled(!coordinator.canShowSection)
+            Button("Insert Show Section…") { coordinator.showSection(.insert) }.disabled(!coordinator.canShowSection)
         }
         CommandGroup(after: .windowArrangement) {
             Button("Project Home") { coordinator.showHome() }.keyboardShortcut("h", modifiers: [.command, .shift])

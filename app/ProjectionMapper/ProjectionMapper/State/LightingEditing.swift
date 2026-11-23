@@ -54,6 +54,7 @@ extension EditorSession {
     func auditionSelectedLightingLook() {
         guard workspace == .lighting, case .look(let id) = lightingSelection,
               let look = project.lighting.looks.first(where: { $0.id == id }), !lightingSimulation.isStopped else { return }
+        if isRecordingCues { triggerRecordedLook(look.id); return }
         for entry in look.entries {
             guard let fixture = project.lighting.fixtures.first(where: { $0.id == entry.id }) else { continue }
             lightingSimulation.override(entry.state, for: fixture)

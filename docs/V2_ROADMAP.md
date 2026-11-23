@@ -17,13 +17,14 @@ v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and 
 | v2.07 · Phone Browser Editor and Remote | Local HTTPS remote and editor implemented. Browser pairing with a supplied trusted identity passed automated loopback checks. Phone rehearsal is pending. See the [verification record](V2.07_VERIFICATION.md). |
 | v2.08 · Holiday Choreography | Add holiday effects, chases, waves, crossfades, beat-aligned triggers and optional live audio reaction. See the [v2.08 verification record](V2.08_VERIFICATION.md). |
 | v2.09 · Layers, Regions and Text | Add layered visuals, target regions, text, countdowns and authored singing-face animation. See the [v2.09 verification record](V2.09_VERIFICATION.md). |
-| v2.10 · Reusable Shows and Layouts | Playgrounds implemented locally; user rehearsal pending. Layout roles, programmed templates/packs and cue-performance recording remain planned. |
+| v2.10 · Reusable Shows and Layouts | Playgrounds, portable sections with role matching, and [effect and palette packs](EFFECT_PACKS_GUIDE.md) are implemented. [Lighting cue recording](CUE_RECORDING_GUIDE.md) is implemented locally. [Saved layout roles and whole-show remapping](SHOW_LAYOUT_GUIDE.md) are implemented locally. |
 | v2.11 · Show Mode and Readiness | Implemented, automatically verified and installed in build 36. User and hardware rehearsal pending. |
-| v2.12 · External Synchronization and Lighting Integration | Verify a specific xLights/FPP workflow and MIDI/OSC controls. Measure trigger/follow behavior and timing offsets. |
 | v2.13 · Playlists and Scheduling | Implemented and verified locally in build 37 with Project Home. Live rehearsal pending. |
 | v2.14 · Phone Timeline and Preview | Implemented and verified locally in build 38. Physical phone rehearsal pending. |
-| v2.15 · Export and Portable Delivery | Collect portable show assets and export mapped output or unmapped content with explicit audio and timing. |
-| v2.16 · Acceptance, Packaging and Release | Rehearse the full show, measure timing, record compatibility, and prepare a release for separately authorized publication. |
+| v2.15 · Export and Portable Delivery | Implemented and verified locally in build 39. Export mapped or unmapped MP4 and collect an editable show package. |
+| v2.16 · Acceptance, Packaging and Release | Build 44 is installed for free local use. Automated rehearsal passed. User visual, listening and hardware acceptance remain pending. Developer ID distribution is optional. |
+
+**Retired milestone:** v2.12 external synchronization was dropped on November 23, 2026.
 
 ## New workflow concepts — November 17, 2026
 
@@ -34,7 +35,7 @@ v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and 
 
 Start in **Simulation** for each unknown controller. Fixture controls, saved patches and cues, playback and output monitoring work against simulated devices. Distinguish simulated sends, actual writes and any device acknowledgment. Show that a protocol is unknown or unsupported and leave physical output disarmed. Let the user select a port and choose among implemented DMX profiles or configure documented serial settings and a supported command format. Bring up a verified transport when the adapter or firmware is identified. Confirm each supported combination on real hardware before claiming compatibility. See the [moving-head reference](NATIVE_DMX_FIXTURE_REFERENCE.md).
 
-Direct fixture output works independently of Lightkey or xLights/FPP once a supported transport is available. The separate external-sync milestone tests interoperability. Published tags and prior milestone records retain their original meaning.
+Direct fixture output depends on a supported native transport. Published tags and prior milestone records retain their original meaning.
 
 ## Optional follow-ons
 

@@ -9,6 +9,7 @@ enum PlaygroundExtraction {
         var p = MappingProject(name: name.trimmingCharacters(in: .whitespacesAndNewlines), now: now)
         p.surfaces = original.surfaces
         p.objects = original.objects
+        p.layoutRoles = original.layoutRoles
         p.referencePhoto = original.referencePhoto
         p.imageAssets = original.imageAssets.filter { $0.id == original.referencePhoto?.assetID }
         p.visualLayers = original.visualLayers

@@ -40,7 +40,7 @@ import Darwin
         #expect(writer.status == .completed)
         return url
     }
-    private func audioMovie(_ movie: URL,in folder: URL) async throws -> URL {
+    private func audioMovie(_ movie: URL,in folder: URL,toneBegins: Double = 0) async throws -> URL {
         let wav = folder.appendingPathComponent("tone.wav")
         var bytes = Data()
         func str(_ text: String) { bytes.append(contentsOf: text.utf8) }
@@ -48,7 +48,7 @@ import Darwin
         func u16(_ value: UInt16) { var le = value.littleEndian; withUnsafeBytes(of: &le) { bytes.append(contentsOf: $0) } }
         let count = 48000*4
         str("RIFF"); u32(UInt32(36+count*2)); str("WAVEfmt "); u32(16); u16(1); u16(1); u32(48000); u32(96000); u16(2); u16(16); str("data"); u32(UInt32(count*2))
-        for i in 0..<count { u16(UInt16(bitPattern: Int16(sin(Double(i)*2*Double.pi*440/48000)*3000))) }
+        for i in 0..<count { u16(UInt16(bitPattern: Double(i)/48000 < toneBegins ? 0 : Int16(sin(Double(i)*2*Double.pi*440/48000)*3000))) }
         try bytes.write(to: wav)
         let composition = AVMutableComposition()
         let videoAsset = AVURLAsset(url: movie), audioAsset = AVURLAsset(url: wav)
@@ -94,6 +94,186 @@ import Darwin
         return max(0,(command.gpuEndTime-command.gpuStartTime)*1000)
     }
     private func rgb(_ bytes: Data,_ x: Int,_ y: Int,width: Int = 128) -> [Int] { let i = (y*width+x)*4; return [Int(bytes[i+2]),Int(bytes[i+1]),Int(bytes[i])] }
+
+    @Test func exportMasksAndContentCanvasAtExactCadence() async throws {
+        let folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var project = MappingProject()
+        project.surfaces[0].source.content = .solid
+        project.surfaces[0].source.color = SIMD4(1, 0, 0, 1)
+        project.surfaces[0].mask = FaceMask(holes: [MaskPolygon(points: [
+            SIMD2(0.35, 0.35), SIMD2(0.65, 0.35), SIMD2(0.65, 0.65), SIMD2(0.35, 0.65)
+        ])])
+        let snapshot = DeliverySnapshot(document: try ProjectCodec.encode(ProjectDocument(project: project)),
+                                        imageFiles: [:], imagePixels: [:], videoFiles: [:], songBytes: nil)
+        var options = VideoExportOptions(width: 128, height: 64, framesPerSecond: 24, start: 1.25, end: 1.6)
+        #expect(options.frameCount == 9)
+        #expect(abs(options.showTime(8) - (1.25 + 8.0/24)) < 0.00001)
+        let mapped = folder.appendingPathComponent("mapped.mp4")
+        try await ShowVideoExport.write(snapshot: snapshot, options: options, to: mapped) { _, _ in }
+        options.mode = .canvas
+        options.owner = project.surfaces[0].source.id
+        let canvas = folder.appendingPathComponent("canvas.mp4")
+        try await ShowVideoExport.write(snapshot: snapshot, options: options, to: canvas) { _, _ in }
+
+        for (url, isMapped) in [(mapped, true), (canvas, false)] {
+            let asset = AVURLAsset(url: url)
+            let track = try #require(try await asset.loadTracks(withMediaType: .video).first)
+            #expect(try await track.load(.naturalSize) == CGSize(width: 128, height: 64))
+            #expect(try await asset.loadTracks(withMediaType: .audio).isEmpty)
+            #expect(abs((try await asset.load(.duration)).seconds - 9.0/24) < 0.001)
+            let reader = try AVAssetReader(asset: asset)
+            let frames = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
+            reader.add(frames)
+            #expect(reader.startReading())
+            var times: [Double] = []
+            while let frame = frames.copyNextSampleBuffer() {
+                if frame.numSamples > 0 { times.append(frame.presentationTimeStamp.seconds) }
+            }
+            #expect(times.count == 9)
+            #expect(times.enumerated().allSatisfy { abs($0.element - Double($0.offset)/24) < 0.0001 })
+            let generator = AVAssetImageGenerator(asset: asset)
+            let image = try await generator.image(at: .zero).image
+            let buffer = try VideoImportService.pixelBuffer(image)
+            CVPixelBufferLockBaseAddress(buffer, .readOnly)
+            defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+            let address = try #require(CVPixelBufferGetBaseAddress(buffer)).assumingMemoryBound(to: UInt8.self)
+            let stride = CVPixelBufferGetBytesPerRow(buffer)
+            #expect(address[32*stride + 42*4 + 2] > 165)
+            #expect((address[32*stride + 64*4 + 2] < 50) == isMapped)
+            #expect((address[32*stride + 6*4 + 2] < 50) == isMapped)
+        }
+        let prior = try Data(contentsOf: mapped)
+        await #expect(throws: DeliveryError.self) {
+            try await ShowVideoExport.write(snapshot: snapshot, options: options, to: mapped) { _, _ in }
+        }
+        #expect(try Data(contentsOf: mapped) == prior)
+    }
+
+    @Test func exportUsesClipSourceRangeAndTrimmedSoundtrack() async throws {
+        let folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let original = try await movie(in: folder)
+        _ = try await audioMovie(original, in: folder, toneBegins: 0.2)
+        let wav = folder.appendingPathComponent("tone.wav")
+        let song = try PreparedSong.read(wav)
+        let media = try await VideoImportService.inspect(original).0
+        var project = MappingProject()
+        project.song = song.song
+        project.videoAssets = [media]
+        var videoSource = project.surfaces[0].source
+        videoSource.content = .video
+        videoSource.video = VideoContent(assetID: media.id, inPoint: 1.85, outPoint: 2.15, loops: true, canvasAspect: 2)
+        project.timelineClips = [EffectClip(sourceID: videoSource.id, start: 0.25, duration: 3, source: SourceLook(source: videoSource))]
+        let snapshot = DeliverySnapshot(document: try ProjectCodec.encode(ProjectDocument(project: project)),
+                                        imageFiles: [:], imagePixels: [:], videoFiles: [media.id: original], songBytes: song.bytes)
+        let clipRange = VideoExportOptions(mode: .canvas, owner: videoSource.id, width: 128, height: 64,
+                                           framesPerSecond: 24, start: 0.25, end: 0.59, includeSong: true)
+        let output = folder.appendingPathComponent("video-with-song.mp4")
+        try await ShowVideoExport.write(snapshot: snapshot, options: clipRange, to: output) { _, _ in }
+        let exported = AVURLAsset(url: output)
+        let audio = try #require(try await exported.loadTracks(withMediaType: .audio).first)
+        let range = try await audio.load(.timeRange)
+        #expect(abs(range.start.seconds) < 0.005)
+        #expect(abs(range.duration.seconds - 0.34) < 0.005)
+        #expect(abs((try await exported.load(.duration)).seconds - 9.0/24) < 0.001)
+        let reader = try AVAssetReader(asset: exported)
+        let pcm = AVAssetReaderTrackOutput(track: audio, outputSettings: [
+            AVFormatIDKey: kAudioFormatLinearPCM, AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false
+        ])
+        reader.add(pcm)
+        #expect(reader.startReading())
+        var initialAudio = [Int16]()
+        while initialAudio.count < 1_200, let sample = pcm.copyNextSampleBuffer() {
+            guard sample.numSamples > 0, let bytes = sample.dataBuffer else { continue }
+            let offset = initialAudio.count
+            let count = min(1_200 - offset, CMBlockBufferGetDataLength(bytes) / 2)
+            initialAudio += Array(repeating: 0, count: count)
+            let status = initialAudio.withUnsafeMutableBytes {
+                CMBlockBufferCopyDataBytes(bytes, atOffset: 0, dataLength: count * 2, destination: $0.baseAddress!.advanced(by: offset * 2))
+            }
+            #expect(status == noErr)
+        }
+        reader.cancelReading()
+        #expect(initialAudio.count == 1_200)
+        #expect((initialAudio.map { abs(Int($0)) }.max() ?? 0) > 1000)
+
+        let generator = AVAssetImageGenerator(asset: exported)
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = .zero
+        for (index, expectedGreen) in [(0, false), (5, true), (8, false)] {
+            let image = try await generator.image(at: CMTime(value: Int64(index), timescale: 24)).image
+            let frame = try VideoImportService.pixelBuffer(image)
+            CVPixelBufferLockBaseAddress(frame, .readOnly)
+            defer { CVPixelBufferUnlockBaseAddress(frame, .readOnly) }
+            let pixels = try #require(CVPixelBufferGetBaseAddress(frame)).assumingMemoryBound(to: UInt8.self)
+            let p = 32 * CVPixelBufferGetBytesPerRow(frame) + 25 * 4
+            #expect(pixels[p + (expectedGreen ? 1 : 2)] > 160)
+            #expect(pixels[p + (expectedGreen ? 2 : 1)] < 85)
+        }
+    }
+
+    @Test func collectReopensAfterMovingAcrossFolders() async throws {
+        let folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let video = try await movie(in: folder)
+        _ = try await audioMovie(video, in: folder)
+        let song = try PreparedSong.read(folder.appendingPathComponent("tone.wav"))
+        let metadata = try await VideoImportService.inspect(video).0
+        var project = MappingProject()
+        project.song = song.song
+        project.videoAssets = [metadata]
+        project.surfaces[0].source.content = .video
+        project.surfaces[0].source.video = VideoContent(assetID: metadata.id, outPoint: metadata.duration)
+        let image = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
+            bitsPerSample: 8, samplesPerPixel: 3, hasAlpha: false, isPlanar: false, colorSpaceName: .deviceRGB,
+            bytesPerRow: 0, bitsPerPixel: 0))
+        for y in 0..<4 { for x in 0..<4 { image.setColor(.red, atX: x, y: y) } }
+        let photo = try ImageImportService.decode(try #require(image.representation(using: .png, properties: [:])), name: "House.png")
+        project.imageAssets = [photo.asset]
+        project.referencePhoto = ReferencePhoto(assetID: photo.asset.id)
+        let document = ProjectDocument(project: project)
+        let snapshot = DeliverySnapshot(document: try ProjectCodec.encode(document), imageFiles: [photo.asset.id: photo.png],
+                                        imagePixels: [photo.asset.id: photo.pixels],
+                                        videoFiles: [metadata.id: video], songBytes: song.bytes)
+        let original = folder.appendingPathComponent("Collected.projectionmap")
+        try await snapshot.collect(to: original) { _, _ in }
+        let other = folder.appendingPathComponent("Another folder")
+        try FileManager.default.createDirectory(at: other, withIntermediateDirectories: false)
+        let staged = other.appendingPathComponent(original.lastPathComponent)
+        try FileManager.default.moveItem(at: original, to: staged)
+        let assets = staged.appendingPathComponent("assets")
+        #expect(try Data(contentsOf: assets.appendingPathComponent(metadata.fileName)) == Data(contentsOf: video))
+        #expect(try Data(contentsOf: assets.appendingPathComponent(song.song.fileName)) == song.bytes)
+        let reopened = try ProjectPackageStore().read(staged)
+        #expect(reopened.project == project)
+        let images = ImageImportService.loadAssets(reopened.project, package: staged)
+        #expect(images.problems.isEmpty && images.pixels[photo.asset.id] == photo.pixels)
+        await #expect(throws: DeliveryError.self) { try await snapshot.collect(to: staged) { _, _ in } }
+
+        let conflict = folder.appendingPathComponent("Conflict.projectionmap")
+        let store = ProjectPackageStore()
+        store.beforeCommit = { _ in try Data([0x42]).write(to: conflict) }
+        #expect(throws: DeliveryError.self) {
+            try store.write(ProjectDocument(project: MappingProject()), to: conflict, replaceExisting: false)
+        }
+        #expect(try Data(contentsOf: conflict) == Data([0x42]))
+    }
+
+    @Test func cancellingVideoExportDoesNotLeaveFiles() async throws {
+        let folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let snapshot = DeliverySnapshot(document: try ProjectCodec.encode(ProjectDocument(project: MappingProject())),
+                                        imageFiles: [:], imagePixels: [:], videoFiles: [:], songBytes: nil)
+        let destination = folder.appendingPathComponent("Cancelled.mp4")
+        let job = Task { @MainActor in
+            try await ShowVideoExport.write(snapshot: snapshot, options: VideoExportOptions(width: 128, height: 64), to: destination) { _, _ in
+                withUnsafeCurrentTask { $0?.cancel() }
+            }
+        }
+        await #expect(throws: CancellationError.self) { try await job.value }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: folder.path).isEmpty)
+    }
 
     @Test func importInspectionOrientationCodecsAndInvalidFiles() async throws {
         let folder = try directory(); defer { try? FileManager.default.removeItem(at: folder) }

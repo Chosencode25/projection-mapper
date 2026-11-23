@@ -78,6 +78,7 @@ final class EditorSession {
     func switchWorkspace(to target: ProjectWorkspace, pauseRunningShow: Bool = false,
                          at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard workspace != target else { return }
+        if isRecordingCues { setPlaying(false, at: uptime) }
         if target != .show && needsPauseToEdit {
             guard pauseRunningShow else { return }
             setPlaying(false, at: uptime)
@@ -110,6 +111,7 @@ final class EditorSession {
     var songMuted = false { didSet { songPlayer?.isMuted = songMuted } }
     var songAudioOnly = false {
         didSet {
+            if songAudioOnly && isRecordingCues { setPlaying(false) }
             if oldValue && !songAudioOnly && songRequested { lightingSimulation.resume() }
             if oldValue != songAudioOnly { updateOutputScene() }
         }
@@ -135,6 +137,10 @@ final class EditorSession {
     private(set) var beatMessage: String?
     var selectedMarkerID: UUID?
     var markerMessage: String?
+    private(set) var isRecordingCues = false
+    private(set) var recordedCues: [LightingCue] = []
+    private(set) var cueRecordingMessage: String?
+
     var nextManualCueID: UUID?
     private(set) var lastManualCueID: UUID?
 
@@ -564,6 +570,116 @@ final class EditorSession {
         var current = project; current.modifiedAt = savedBaseline.modifiedAt
         return isRecovered || current != savedBaseline || mediaStamps != savedMediaStamps
     }
+    var effectPackAction: EffectPackAction?
+    var showLayoutAction: ShowLayoutAction?
+    var hasProjectSheet: Bool { effectPackAction != nil || sectionAction != nil || deliveryAction != nil || showLayoutAction != nil }
+
+    func saveLayoutRoles(_ roles: [LayoutRole], basedOn targets: [LayoutTarget]) throws {
+        guard canEditEffectPack, project.layoutTargets == targets else {
+            throw DeliveryError.invalid("The layout changed while its roles were open. Open the role editor again.")
+        }
+        var candidate = project
+        candidate.layoutRoles = roles.isEmpty ? nil : roles
+        if let issue = candidate.layoutRoleIssue { throw DeliveryError.invalid(issue) }
+        guard project != candidate else { return }
+        endContinuousEdit()
+        project = candidate
+        changed()
+    }
+    var canEditEffectPack: Bool {
+        workspace != .show && !playbackRequested && !deliveryRunning && !isSavingMedia &&
+            !isImportingImage && !isImportingVideo && !songBusy
+    }
+
+    func importEffectPack(_ pack: EffectPack, choices: [EffectPackItem.ID: EffectPack.ImportChoice]) throws {
+        guard canEditEffectPack else { throw DeliveryError.invalid("Pause playback and switch to Edit or Lighting to import a pack.") }
+        let merged = try pack.merge(into: project.effectPackItems, choices: choices)
+        var candidate = project
+        if !merged.removedSlots.values.allSatisfy(\.isEmpty) {
+            materializePaletteBindings(in: &candidate) { merged.removedSlots[$0.paletteID]?.contains($0.slotID) == true }
+        }
+        candidate.setEffectPackItems(merged.items)
+        try ProjectCodec.validate(ProjectDocument(project: candidate, output: document.output))
+        guard candidate != project else { return }
+        endContinuousEdit()
+        beginContinuousEdit("Import Effect & Palette Pack")
+        defer { endContinuousEdit() }
+        project = candidate
+        changed()
+    }
+
+    var sectionAction: ShowSectionAction?
+    var canEditShowSection: Bool {
+        workspace == .edit && !playbackRequested && !deliveryRunning && !isSavingMedia &&
+            !isImportingImage && !isImportingVideo && !songBusy
+    }
+
+    func insertShowSection(_ section: ShowSection, from url: URL, matching targets: [UUID: UUID], at time: Double) async throws {
+        guard canEditShowSection else { throw DeliveryError.invalid("Pause playback and switch to Edit before inserting a section.") }
+        let original = project
+        let generation = mediaGeneration
+        let insertion = try section.insertion(into: original, matching: targets, at: time)
+        deliveryRunning = true
+        defer { deliveryRunning = false }
+        let assets = section.images
+        let images = await Task.detached { ImageImportService.loadAssets(assets, package: url) }.value
+        guard images.problems.isEmpty, images.files.count == assets.count else {
+            throw DeliveryError.invalid("An image in the saved section is missing or damaged.")
+        }
+        let videos = await VideoImportService.loadAssets(section.videos, package: url)
+        var adopted = false
+        defer {
+            if !adopted {
+                for file in videos.urls.values { try? FileManager.default.removeItem(at: file) }
+            }
+        }
+        try Task.checkCancellation()
+        guard videos.problems.isEmpty, videos.urls.count == section.videos.count else {
+            throw DeliveryError.invalid("A video in the saved section is missing or damaged.")
+        }
+        guard project == original, generation == mediaGeneration, workspace == .edit, !playbackRequested,
+              !isSavingMedia, !isImportingImage, !isImportingVideo, !songBusy else {
+            throw DeliveryError.invalid("The open project changed while preparing the section. Review the destinations and try again.")
+        }
+        let decodedBytes = (Array(imagePixels.values) + Array(images.pixels.values)).reduce(0) { $0 + $1.bytes.count }
+        let encodedBytes = (Array(imageFiles.values) + Array(images.files.values)).reduce(0) { $0 + $1.count }
+        guard decodedBytes <= ImageImportService.maximumDecodedBytes, encodedBytes <= ImageImportService.maximumEncodedBytes else {
+            throw DeliveryError.invalid("The section exceeds this project’s image memory limit.")
+        }
+        endContinuousEdit()
+        beginContinuousEdit("Insert Show Section")
+        defer { endContinuousEdit() }
+        project = insertion.project
+        for (old, new) in insertion.images {
+            imageFiles[new] = images.files[old]
+            imagePixels[new] = images.pixels[old]
+        }
+        for (old, new) in insertion.videos {
+            videoFiles[new] = videos.urls[old]
+            videoPosters[new] = videos.posters[old]
+        }
+        managedVideoURLs.formUnion(videos.urls.values)
+        adopted = true
+        changed()
+    }
+
+    var deliveryAction: ShowDeliveryAction?
+    var deliveryRunning = false
+
+    func withDeliverySnapshot(_ deliver: (DeliverySnapshot) async throws -> Void) async throws {
+        guard !deliveryRunning else { throw DeliveryError.invalid("Show delivery is already running.") }
+        let snapshot = DeliverySnapshot(document: try ProjectCodec.encode(document), imageFiles: imageFiles,
+                                        imagePixels: imagePixels, videoFiles: videoFiles, songBytes: songBytes)
+        deliveryRunning = true
+        videoFileLeases += 1
+        defer {
+            deliveryRunning = false
+            videoFileLeases -= 1
+            cleanupManagedVideos()
+        }
+        try await deliver(snapshot)
+    }
+
     var playgroundImageFiles: [UUID: Data] { imageFiles.filter { $0.key == project.referencePhoto?.assetID } }
     var document: ProjectDocument {
         ProjectDocument(project: project,output: ProjectOutputSettings(destination: output.savedPreference,resolution: output.testResolution))
@@ -779,6 +895,7 @@ final class EditorSession {
     }
     private func changed(now: Date = .now) {
         project.removeOrphanedVisuals()
+        project.removeMissingLayoutTargets()
         let active = Set(project.surfaces.map { project.source(for: $0).id } + project.visualTracks.map(\.id))
         sourcePlayback = sourcePlayback.filter { active.contains($0.key) }
         project.timelineClips.removeAll { !active.contains($0.sourceID) }
@@ -1390,7 +1507,10 @@ extension EditorSession {
             project.looks.flatMap(\.entries).compactMap(\.source).reduce(0) { $0 + count($1.primaryBinding,$1.secondaryBinding) }
     }
     private func materializePalette(_ id: UUID, slotID: UUID?, in candidate: inout MappingProject) {
-        func removed(_ binding: ColorBinding?) -> Bool { binding?.paletteID == id && (slotID == nil || binding?.slotID == slotID) }
+        materializePaletteBindings(in: &candidate) { $0.paletteID == id && (slotID == nil || $0.slotID == slotID) }
+    }
+    private func materializePaletteBindings(in candidate: inout MappingProject, matching: (ColorBinding) -> Bool) {
+        func removed(_ binding: ColorBinding?) -> Bool { binding.map(matching) ?? false }
         func materialize(_ source: inout SurfaceSource) {
             let resolved = project.resolvedSource(source)
             if removed(source.primaryBinding) { source.color = resolved.color; source.primaryBinding = nil }
@@ -1399,6 +1519,14 @@ extension EditorSession {
         // Include dormant face sources retained under objects and all stored look entries.
         for i in candidate.surfaces.indices { materialize(&candidate.surfaces[i].source) }
         for i in candidate.objects.indices { materialize(&candidate.objects[i].source) }
+        if var layers = candidate.visualLayers {
+            for i in layers.indices { materialize(&layers[i].track.source) }
+            candidate.visualLayers = layers
+        }
+        if var regions = candidate.faceRegions {
+            for i in regions.indices { materialize(&regions[i].track.source) }
+            candidate.faceRegions = regions
+        }
         for i in candidate.looks.indices {
             for j in candidate.looks[i].entries.indices {
                 guard let lookSource = candidate.looks[i].entries[j].source else { continue }
@@ -1900,6 +2028,7 @@ extension EditorSession {
     }
     private func editName(from old: MappingProject) -> String {
         if old.name != project.name { return "Rename Project" }
+        if old.layoutRoles != project.layoutRoles { return "Edit Layout Roles" }
         if old.objects != project.objects { return "Edit Object" }
         if old.layers != project.layers || old.regions != project.regions || old.regionShapes != project.regionShapes {
             return "Edit Layers and Regions"
@@ -1955,6 +2084,7 @@ extension EditorSession {
         restoreHistory(entry.snapshot)
     }
     private func restoreHistory(_ snapshot: EditSnapshot) {
+        if isRecordingCues { setPlaying(false) }
         mediaGeneration = UUID(); videoPlayback.reset()
         if project.song?.id != snapshot.project.song?.id {
             clearSongRuntime()
@@ -2249,6 +2379,7 @@ extension EditorSession {
             return
         }
         guard song.loop != loop else { return }
+        if isRecordingCues { setPlaying(false) }
         cancelBeatQueue()
         song.loop = loop
         project.song = song
@@ -2289,6 +2420,8 @@ extension EditorSession {
     }
 
     private func stopSongPlayer() {
+        finishCueRecording()
+        discardRecordedCues()
         songTicker?.cancel()
         songTicker = nil
         songSeekID = UUID()
@@ -2341,6 +2474,7 @@ extension EditorSession {
             sampleSong(at: transport.position, playing: true)
             startSongTicker()
         } else {
+            finishCueRecording()
             songRequested = false
             player.pause()
             player.currentItem?.forwardPlaybackEndTime = .invalid
@@ -2353,13 +2487,15 @@ extension EditorSession {
 
     private func seekSong(to time: Double, resume: Bool, wrapping: Bool = false) {
         guard let player = songPlayer else { return }
+        let shouldResume = resume && !isRecordingCues
+        finishCueRecording()
         if wrapping { queuedBeat?.wraps = false }
         else { cancelBeatQueue() }
         resetManualCues()
         songSeekID = UUID()
         let seekID = songSeekID
         songSeeking = true
-        songRequested = resume
+        songRequested = shouldResume
         player.pause()
         player.currentItem?.forwardPlaybackEndTime = .invalid
         transport.sampleSong(transport.position, playing: false)
@@ -2374,6 +2510,7 @@ extension EditorSession {
                         self.interruptShow("Soundtrack seek failed. Prepare again before resuming.")
                         return
                     }
+                    self.finishCueRecording()
                     self.songRequested = false
                     self.songMessage = "Seek failed. Try another timeline position."
                     self.sampleSong(at: self.transport.position, playing: false)
@@ -2429,11 +2566,15 @@ extension EditorSession {
         } else { audioWaitingSince = nil }
         let current = player.currentTime().seconds
         guard current.isFinite else { return }
-        if playlistItemEnd == nil, let loop = song.loop, current >= loop.end - 0.0001 {
-            fireBeatQueue(at: loop.end, uptime: uptime)
-            seekSong(to: loop.start, resume: true, wrapping: true)
-        } else if current >= (playlistItemEnd ?? song.duration) - 0.005 ||
-                  (player.rate == 0 && current > 0 && abs((player.currentItem?.duration.seconds ?? 0) - current) < 0.02) {
+        let stopped = player.rate == 0
+        let sourceEnded = stopped && current > 0 && abs((player.currentItem?.duration.seconds ?? 0) - current) < 0.02
+        if playlistItemEnd == nil, let loop = song.loop {
+            if loop.shouldWrap(at: current, stopped: stopped) || sourceEnded {
+                fireBeatQueue(at: loop.end, uptime: uptime)
+                seekSong(to: loop.start, resume: true, wrapping: true)
+                return
+            }
+        } else if current >= (playlistItemEnd ?? song.duration) - 0.005 || sourceEnded {
             setSongPlaying(false)
             lightingSimulation.stop()
             cancelBeatQueue()
@@ -2444,11 +2585,11 @@ extension EditorSession {
             }
             if playlistItemEnd != nil { playlistItemCompleted = true }
             sampleSong(at: playlistItemEnd ?? song.duration, playing: false)
-        } else {
-            if waiting && songMessage == nil { songMessage = "Waiting for audio…" }
-            if !waiting && songMessage == "Waiting for audio…" { songMessage = nil }
-            sampleSong(at: min(song.duration, max(0, current)), playing: true)
+            return
         }
+        if waiting && songMessage == nil { songMessage = "Waiting for audio…" }
+        if !waiting && songMessage == "Waiting for audio…" { songMessage = nil }
+        sampleSong(at: min(song.duration, max(0, current)), playing: true)
     }
 
     private func sampleSong(at position: Double, playing: Bool) {
@@ -2465,15 +2606,116 @@ extension EditorSession {
         }.map(\.element)
     }
 
+    var canStartCueRecording: Bool {
+        workspace == .lighting && songPlayer != nil && !songBusy && !songAudioOnly &&
+            recordedCues.isEmpty && project.lighting.cues.count < ProjectLighting.maximumCues &&
+            (!project.lighting.cues.isEmpty || !project.lighting.looks.isEmpty)
+    }
+
+    @discardableResult
+    func startCueRecording() -> Bool {
+        guard canStartCueRecording, !isRecordingCues else { return false }
+        cancelBeatQueue()
+        resetManualCues()
+        guard setPlaying(true) else {
+            cueRecordingMessage = songMessage ?? "The song could not play."
+            return false
+        }
+        cueRecordingMessage = nil
+        isRecordingCues = true
+        return true
+    }
+
+    private func finishCueRecording() {
+        guard isRecordingCues else { return }
+        isRecordingCues = false
+        cueRecordingMessage = recordedCues.isEmpty ? "No cues were recorded." : nil
+        resetManualCues()
+    }
+
+    func discardRecordedCues() {
+        if isRecordingCues { return }
+        recordedCues.removeAll()
+        cueRecordingMessage = nil
+    }
+
+    private func recordAndTrigger(_ source: LightingCue, at uptime: Double) -> Bool {
+        guard isRecordingCues, let song = project.song, songRequested, !songSeeking,
+              let player = songPlayer, player.timeControlStatus == .playing else {
+            cueRecordingMessage = "Wait for the song to play before triggering a cue."
+            return false
+        }
+        let time = player.currentTime().seconds
+        guard (0..<song.duration).contains(time), song.loop.map({ ($0.start..<$0.end).contains(time) }) ?? true else {
+            return false
+        }
+        let remaining = ProjectLighting.maximumCues - project.lighting.cues.count
+        guard recordedCues.count < remaining else {
+            setPlaying(false)
+            cueRecordingMessage = "The timeline has reached its cue limit. Review the take to choose what to keep."
+            return false
+        }
+        let cue = LightingCue(name: source.name, time: time, entries: source.entries)
+        lightingSimulation.trigger(cue, at: uptime)
+        recordedCues.append(cue)
+        cueRecordingMessage = nil
+        return true
+    }
+
+    func triggerRecordedLook(_ id: UUID, at uptime: Double = ProcessInfo.processInfo.systemUptime) {
+        guard isRecordingCues, let look = project.lighting.looks.first(where: { $0.id == id }),
+              recordAndTrigger(LightingCue(name: look.name, time: 0, entries: look.entries), at: uptime) else { return }
+        refreshLighting(at: uptime)
+    }
+
+    @discardableResult
+    func addRecordedCues(times: [UUID: Double]) -> Bool {
+        guard workspace == .lighting, !isRecordingCues, !playbackRequested, let song = project.song,
+              !times.isEmpty else { return false }
+        var cues: [LightingCue] = []
+        for var cue in recordedCues {
+            guard let time = times[cue.id] else { continue }
+            guard (0...song.duration).contains(time) else {
+                cueRecordingMessage = "Enter cue times within the song."
+                return false
+            }
+            cue.time = time
+            cues.append(cue)
+        }
+        guard cues.count == times.count else {
+            cueRecordingMessage = "The take changed. Reopen it to review the remaining cues."
+            return false
+        }
+        endContinuousEdit()
+        beginContinuousEdit("Add Recorded Cues")
+        defer { endContinuousEdit() }
+        guard editLighting({ $0.cues.append(contentsOf: cues) }) else {
+            cueRecordingMessage = lightingMessage
+            return false
+        }
+        discardRecordedCues()
+        selectLightingCue(cues.first?.id)
+        return true
+    }
+
     @discardableResult
     func goManualCue(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) -> Bool {
+        goManualCue(at: uptime, record: true)
+    }
+
+    @discardableResult
+    private func goManualCue(at uptime: TimeInterval, record: Bool) -> Bool {
         guard canOperateShow, !songAudioOnly else { return false }
         if workspace == .show { inspectArmedShow(at: uptime); guard canOperateShow else { return false } }
         let cues = manualCueList
         guard let index = nextManualCueID.flatMap({ id in cues.firstIndex(where: { $0.id == id }) }) ??
                 (lastManualCueID == nil ? cues.indices.first : nil) else { return false }
         let cue = cues[index]
-        lightingSimulation.trigger(cue, at: uptime)
+        if record && isRecordingCues {
+            guard recordAndTrigger(cue, at: uptime) else { return false }
+        } else {
+            lightingSimulation.trigger(cue, at: uptime)
+        }
         lastManualCueID = cue.id
         nextManualCueID = cues.indices.contains(index + 1) ? cues[index + 1].id : nil
         refreshLighting(at: uptime)
@@ -2481,6 +2723,7 @@ extension EditorSession {
     }
 
     func stopManualFixtures() {
+        if isRecordingCues { setPlaying(false) }
         lightingSimulation.stop()
         resetManualCues()
         refreshLighting()
@@ -2560,6 +2803,7 @@ extension EditorSession {
     }
 
     func queueBeat(_ boundary: BeatBoundary, lookID: UUID? = nil, at uptime: Double = ProcessInfo.processInfo.systemUptime) {
+        guard !isRecordingCues else { beatMessage = "Finish recording to queue a cue on a beat."; return }
         guard canOperateShow else { beatMessage = "Prepare and arm the show before queuing lighting."; return }
         guard !songAudioOnly else { beatMessage = "Turn off Audio-Only Rehearsal to queue lighting."; return }
         let cue = nextManualCueID.flatMap { id in manualCueList.first { $0.id == id } }
@@ -2588,7 +2832,7 @@ extension EditorSession {
         guard canOperateShow, !songAudioOnly else { return }
         if let id = queuedBeat.cueID, project.lighting.cues.contains(where: { $0.id == id }) {
             nextManualCueID = id
-            goManualCue(at: uptime)
+            goManualCue(at: uptime, record: false)
         } else if let look = project.lighting.looks.first(where: { $0.id == queuedBeat.lookID }) {
             lightingSimulation.trigger(LightingCue(name: look.name, time: time, entries: look.entries), at: uptime)
         } else {

@@ -420,6 +420,68 @@ struct SongTransportTests {
         #expect(reopened.songPeaks == prepared.peaks)
     }
 
+    @Test func recordsManualCuesAgainstSongAndCommitsOnlyReviewedChanges() async throws {
+        let directory = try ProjectPersistenceTests().temporary()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("Take.wav")
+        try writeReferenceSong(to: source)
+
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let controller = LightingController(name: "Relays", kind: .arduino)
+        let fixture = PatchedFixture(name: "Plug", kind: .plug, controllerID: controller.id)
+        let on = FixtureLookEntry(id: fixture.id, state: .plug(true))
+        let off = FixtureLookEntry(id: fixture.id, state: .plug(false))
+        let cue = LightingCue(name: "On", time: 0, manualOnly: true, entries: [on])
+        let existing = LightingCue(name: "Timed Off", time: 2, entries: [off])
+        let look = FixtureLook(name: "Off Look", entries: [off])
+        session.editLighting {
+            $0.controllers = [controller]; $0.fixtures = [fixture]
+            $0.cues = [cue, existing]; $0.looks = [look]
+        }
+        session.songMuted = true
+        session.prepareSong(at: source)
+        for _ in 0..<200 where session.songBusy { try await Task.sleep(for: .milliseconds(10)) }
+        try #require(session.project.song != nil)
+        #expect(!session.startCueRecording())
+        session.switchWorkspace(to: .lighting)
+        session.songAudioOnly = true
+        #expect(!session.startCueRecording())
+        session.songAudioOnly = false
+
+        let before = session.project
+        try #require(session.startCueRecording())
+        for _ in 0..<150 where session.transport.position < 0.15 { try await Task.sleep(for: .milliseconds(10)) }
+        let sampled = session.transport.position
+        try #require(session.goManualCue())
+        #expect(session.intendedLightingState(fixture) == on.state)
+        for _ in 0..<150 where session.transport.position < sampled + 0.08 { try await Task.sleep(for: .milliseconds(10)) }
+        session.triggerRecordedLook(look.id)
+        try #require(session.recordedCues.count == 2)
+        let first = session.recordedCues[0]
+        let second = session.recordedCues[1]
+        #expect(first.time >= sampled && first.time < sampled + 0.1)
+        #expect(second.time > first.time && !first.isManual && first.id != cue.id)
+        #expect(second.entries == [off] && session.project == before)
+
+        session.seekPlayback(to: 1.5)
+        #expect(!session.isRecordingCues && !session.playbackRequested)
+        #expect(!session.startCueRecording())
+        #expect(!session.addRecordedCues(times: [first.id: existing.time]))
+        #expect(session.recordedCues.count == 2 && session.project == before)
+        try #require(session.addRecordedCues(times: [first.id: first.time]))
+        #expect(session.recordedCues.isEmpty && session.project.lighting.cues == [cue, existing, first])
+        session.undoProjectEdit()
+        #expect(session.project == before)
+        session.redoProjectEdit()
+        #expect(session.project.lighting.cues == [cue, existing, first])
+
+        let package = directory.appendingPathComponent("Take.projectionmap")
+        try session.save(to: package)
+        let reopened = try ProjectPackageStore().read(package).project
+        #expect(reopened.lighting.cues == [cue, existing, first])
+    }
+
     @Test func mutedSongDrivesFixtureAndProjectionThroughLoopAndStop() async throws {
         let directory = try ProjectPersistenceTests().temporary()
         defer { try? FileManager.default.removeItem(at: directory) }

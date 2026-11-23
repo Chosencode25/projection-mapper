@@ -6,6 +6,12 @@
 |---|---|
 | [Winter Lights Encore](V2.09_REHEARSAL.md) | Rehearse v2.09 layers, regions, titles, countdowns, and singing faces |
 | [Edit and Show](EDIT_SHOW_WORKSPACES.md) | Switch between authoring and running a show |
+| [Reusable Show Sections](SHOW_SECTIONS_GUIDE.md) | Save and insert timed programming across layouts |
+| [Export and Collect a Show](SHOW_EXPORT_GUIDE.md) | Render an MP4 or save an editable portable package |
+| [Effect and Palette Packs](EFFECT_PACKS_GUIDE.md) | Move saved palettes and presets between shows |
+| [Record Lighting Cues](CUE_RECORDING_GUIDE.md) | Capture and review a live take against the soundtrack |
+| [Apply a Show to Another Layout](SHOW_LAYOUT_GUIDE.md) | Save layout roles and review whole-show remapping |
+| [v2.16 Rehearsal](V2.16_REHEARSAL.md) | Winter Lights Encore walkthrough and automated run settings |
 | [Phone Timeline and Preview](PHONE_TIMELINE_GUIDE.md) | Edit timing and view a Mac-generated snapshot |
 | [Project Home and Playlists](SHOW_PLAYLIST_GUIDE.md) | Browse projects, build playlists, and arm schedules |
 | [Show Mode rehearsal](SHOW_MODE_GUIDE.md) | Build 36 readiness, arming, operator controls and recovery |

@@ -1,5 +1,38 @@
 # Changelog
 
+## Local build 44 — Reusable Layout Roles
+
+- Save ordered layout roles for surfaces, shared objects, object faces, and fixture groups. Roles travel with Playgrounds.
+- Review suggested assignments for a saved show and save a separate remapped copy, including the soundtrack and referenced artwork.
+
+## Local build 43 — Live Lighting Cue Recording
+
+- Record manual lighting cues and saved looks against the soundtrack while it plays.
+- Review, retime, and optionally snap selected cues to beat markers before adding them to the timeline in one undoable edit.
+
+## Local build 42 — Effect and Palette Packs
+
+- Export selected palettes, projection effects, and lighting presets as a portable pack and import selected items into another show.
+- Keep both items when names match or explicitly replace the existing item. Undo the entire import in one step.
+
+## Local build 41 — Reusable Show Sections
+
+- Save a time range of projection clips and timed fixture cues with their referenced media.
+- Review role matches and insert the section into another show as one undoable edit.
+
+## Local v2.16/build 40 — Encore rehearsal candidate
+
+- Keep a requested soundtrack loop running when the player stops close to its endpoint.
+- Sample a replacement video frame from the current song clock when a running decoder has no frame available.
+- Add the automated Winter Lights Encore workflow and the timed 1080p rehearsal, plus the compatibility and manual walkthrough guides.
+
+## Local v2.15/build 39 — Export and Portable Delivery
+
+- Export mapped projector pixels or a selected face or object's unmapped canvas as H.264 MP4.
+- Choose resolution, frame rate, an explicit timeline range, and whether to include the project song.
+- Collect the open show and its media into an independent editable project package. Delivery operations support cancellation and protect existing destinations.
+- The pinned Xcode Release run reported 394 tests and zero failures. User visual and listening checks remain pending.
+
 ## v2.14/build 38 — Phone timeline and preview
 
 - Move or trim clips, edit video source ranges, and select or retime lighting cues from the paired phone editor.

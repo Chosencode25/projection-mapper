@@ -115,6 +115,9 @@ struct VideoPlaybackRequest: Equatable {
         let player: AVPlayer
         let output: AVPlayerItemVideoOutput
         let generator: AVAssetImageGenerator
+        private var recoveryGenerator: AVAssetImageGenerator?
+        var recoveryTask: Task<Void, Never>?
+        var recoveryAfter: TimeInterval = 0
         let assetID: UUID
         let clipID: UUID?
         var revision: UUID?
@@ -143,7 +146,33 @@ struct VideoPlaybackRequest: Equatable {
                 }
             }
         }
-        func stop() { token = UUID(); task?.cancel(); task = nil; player.pause(); player.currentItem?.cancelPendingSeeks(); generator.cancelAllCGImageGeneration(); player.replaceCurrentItem(with: nil) }
+        func recoveryImage(at time: CMTime) async throws -> (image: CGImage, actualTime: CMTime) {
+            let decoder: AVAssetImageGenerator
+            if let recoveryGenerator { decoder = recoveryGenerator }
+            else {
+                decoder = AVAssetImageGenerator(asset: generator.asset)
+                decoder.appliesPreferredTrackTransform = false
+                decoder.requestedTimeToleranceBefore = generator.requestedTimeToleranceBefore
+                decoder.requestedTimeToleranceAfter = .zero
+                recoveryGenerator = decoder
+            }
+            return try await withCheckedThrowingContinuation { reply in
+                decoder.generateCGImagesAsynchronously(forTimes: [NSValue(time: time)]) { _, image, actual, result, error in
+                    if result == .succeeded, let image { reply.resume(returning: (image, actual)) }
+                    else { reply.resume(throwing: error ?? ProjectFileError.io("Timed frame unavailable.")) }
+                }
+            }
+        }
+
+        func stop() {
+            token = UUID()
+            task?.cancel(); task = nil
+            recoveryTask?.cancel()
+            recoveryGenerator?.cancelAllCGImageGeneration()
+            player.pause(); player.currentItem?.cancelPendingSeeks()
+            generator.cancelAllCGImageGeneration()
+            player.replaceCurrentItem(with: nil)
+        }
     }
     func configure(scene: RenderScene,assets: [VideoAsset],urls: [UUID:URL],audio: VideoAudioSettings,enabled: Bool) {
         let oldTransport = self.scene.transport
@@ -206,6 +235,11 @@ struct VideoPlaybackRequest: Equatable {
                 entries[id] = entry
             } else { entry = Entry(url: url,request: request); entries[id] = entry }
             entry.request = request
+            defer {
+                if visual, scene.transport.followsSong, request.rate > 0, frames[id] == nil {
+                    recoverFrame(entry, for: request, at: uptime)
+                }
+            }
             let maximumFrameAge = max(0.12,1/request.asset.frameRate+0.005)
             if request.rate > 0, let previous = frames[id], abs(previous.sourceTime-request.sourceTime) > maximumFrameAge {
                 frames.removeValue(forKey: id)
@@ -242,6 +276,37 @@ struct VideoPlaybackRequest: Equatable {
         preload(visual: visual,at: uptime)
         changed?()
     }
+    /// A loop or seek can empty the realtime player output. Bridge that gap with a frame
+    /// sampled against the same song clock, while limiting extra decoders and rejecting stale images.
+    private func recoverFrame(_ entry: Entry, for request: VideoPlaybackRequest, at uptime: TimeInterval) {
+        guard entry.recoveryTask == nil, uptime >= entry.recoveryAfter,
+              entries.values.lazy.filter({ $0.recoveryTask != nil }).prefix(2).count < 2 else { return }
+        entry.recoveryAfter = uptime + 0.075
+        let owner = request.ownerID
+        let maximumFrameAge = max(0.12, 1 / request.asset.frameRate + 0.005)
+        let requestRevision = revision
+        entry.recoveryTask = Task { @MainActor [weak self, weak entry] in
+            guard let self, let entry else { return }
+            defer { entry.recoveryTask = nil }
+            let time = CMTime(seconds: request.sourceTime, preferredTimescale: 1_000_000)
+            guard let result = try? await entry.recoveryImage(at: time),
+                  !Task.isCancelled, self.revision == requestRevision, self.entries[owner] === entry,
+                  self.frames[owner] == nil else { return }
+            let now = ProcessInfo.processInfo.systemUptime
+            guard self.wantsVideoFrames(at: now), !self.scene.calibration.pattern.isActive, self.scene.effectiveGain(at: now) > 0,
+                  let latest = VideoPlaybackRequest.requests(scene: self.scene, assets: self.assets, audioEnabled: false, at: now)
+                    .first(where: { $0.ownerID == owner }),
+                  latest.rate > 0, latest.asset.id == request.asset.id, latest.clipID == request.clipID,
+                  result.actualTime.isNumeric, abs(result.actualTime.seconds - latest.sourceTime) <= maximumFrameAge else { return }
+            guard let buffer = try? VideoImportService.pixelBuffer(result.image) else { return }
+            let frame = VideoFrame(buffer: buffer, asset: request.asset, clipID: request.clipID, sourceTime: result.actualTime.seconds)
+            let retained = self.frames.values.reduce(0) { $0 + $1.byteCount }
+            guard retained + frame.byteCount <= Self.maximumFrameBytes else { return }
+            self.frames[owner] = frame
+            self.changed?()
+        }
+    }
+
     var showFailure: String? {
         entries.values.first { $0.player.currentItem?.status == .failed }.map {
             "Video decoder failed for " + $0.request.asset.name

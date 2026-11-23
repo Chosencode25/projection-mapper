@@ -52,3 +52,19 @@ Example: finish Halloween Show → Save Playground as My House → New Show from
 ## Relationship to v2.10
 
 Build reusable local playgrounds first. Retain the existing later v2.10 work for layout roles, applying programmed show templates to different layouts, reusable effect/palette packs and recording cue performances. Those reuse programming; this playground workflow intentionally starts a new show with empty programming. Do not renumber milestones or claim implementation from this planning update.
+
+## Reusable sections preview
+
+A portable section file carries projection clips, timed fixture cues, and referenced images and videos. Its editable role labels are matched to existing compatible tracks and fixtures before insertion into another show. Match review, one-step undo and overlap checks are included. See [the guide](SHOW_SECTIONS_GUIDE.md). Save reusable target assignments with [layout roles](SHOW_LAYOUT_GUIDE.md).
+
+## Effect and palette packs
+
+Local build 42 adds portable packs with selective import for saved palettes, projection effect presets, and lighting effect presets. Matching names default to Keep Both, with an explicit Replace option. See [the guide](EFFECT_PACKS_GUIDE.md).
+
+## Cue recording
+
+Local build 43 captures manual lighting cues and saved looks against the soundtrack clock. Review can adjust or snap selected times to beat markers before inserting ordinary timed cues as one undoable edit. See [the guide](CUE_RECORDING_GUIDE.md).
+
+## Whole-show layout reuse
+
+Local build 44 adds persistent ordered roles and a destination review for applying an existing show to another layout. The workflow saves a new show package with the receiving mapping and fixture patch and the source programming. See [the guide](SHOW_LAYOUT_GUIDE.md).

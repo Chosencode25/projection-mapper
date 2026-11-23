@@ -628,6 +628,7 @@ struct DedicatedLightingWorkspace: View {
     let openOutput: () -> Void
     @State private var showsSetup = false
     @State private var patch: PatchedFixture?
+    @State private var showsCueReview = false
     private var simulation: LightingSimulation { session.lightingSimulation }
 
     var body: some View {
@@ -636,6 +637,16 @@ struct DedicatedLightingWorkspace: View {
                 HStack(spacing: 12) {
                     Button("Setup & Monitor", systemImage: "slider.horizontal.3") { showsSetup = true }
                     Text("SIMULATION").font(.caption.bold()).foregroundStyle(.orange)
+                    if session.isRecordingCues {
+                        Button("Stop Recording", systemImage: "stop.circle") { session.setPlaying(false) }
+                            .buttonStyle(.borderedProminent).tint(.red)
+                    } else if !session.recordedCues.isEmpty {
+                        Button("Review Take", systemImage: "list.bullet.rectangle") { showsCueReview = true }
+                    } else {
+                        Button("Record Cues", systemImage: "record.circle") { session.startCueRecording() }
+                            .disabled(!session.canStartCueRecording)
+                            .help("Play the soundtrack and record saved cues and looks. Add a soundtrack and at least one cue or look to get started.")
+                    }
                     Button(simulation.isStopped ? "Resume Fixtures" : "Stop Fixtures") {
                         if simulation.isStopped { simulation.resume(); session.refreshLighting() }
                         else { session.stopManualFixtures() }
@@ -647,6 +658,14 @@ struct DedicatedLightingWorkspace: View {
                     Spacer()
                 }.padding(.horizontal, 12).frame(height: 46)
             }.scrollIndicators(.hidden)
+            if session.isRecordingCues {
+                Divider()
+                CueRecordingControls(session: session)
+            }
+            if let message = session.cueRecordingMessage, !showsCueReview {
+                Text(message).font(.caption).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).padding(.bottom, 6)
+            }
             Divider()
             VSplitView {
                 HSplitView {
@@ -681,6 +700,14 @@ struct DedicatedLightingWorkspace: View {
                     .background(SplitInitialPositionView(vertical: false, leading: nil, trailing: session.lightingTimelineHeight))
                     .onGeometryChange(for: Double.self) { $0.size.height } action: { if NSEvent.pressedMouseButtons != 0 { session.lightingTimelineHeight = $0 } }
             }.id(session.layoutRevision)
+        }
+        .onChange(of: session.isRecordingCues) { wasRecording, recording in
+            if wasRecording, !recording, !session.recordedCues.isEmpty, !showsSetup, patch == nil {
+                showsCueReview = true
+            }
+        }
+        .sheet(isPresented: $showsCueReview) {
+            CueTakeReview(session: session)
         }
         .sheet(isPresented: $showsSetup) {
             LightingWorkspace(session: session) { showsSetup = false }.frame(width: 850, height: 550)
@@ -745,6 +772,104 @@ struct DedicatedLightingWorkspace: View {
                 .padding(.vertical, 5).padding(.horizontal, 4)
                 .background(session.lightingSelection == selection ? Color.accentColor.opacity(0.22) : .clear, in: RoundedRectangle(cornerRadius: 4))
         }.buttonStyle(.plain).accessibilityAddTraits(session.lightingSelection == selection ? .isSelected : [])
+    }
+}
+
+private struct CueRecordingControls: View {
+    @Bindable var session: EditorSession
+    @State private var lookID: UUID?
+
+    var body: some View {
+        let cues = session.manualCueList
+        let looks = session.project.lighting.looks
+        ScrollView(.horizontal) {
+            HStack(spacing: 10) {
+                Label("\(session.recordedCues.count) recorded", systemImage: "record.circle.fill")
+                    .foregroundStyle(.red).monospacedDigit()
+                if !cues.isEmpty {
+                    Picker("Next cue", selection: $session.nextManualCueID) {
+                        Text(session.lastManualCueID == nil ? "First Cue" : "End of List").tag(UUID?.none)
+                        ForEach(cues) { Text($0.name).tag(Optional($0.id)) }
+                    }.frame(width: 230)
+                    Button("GO") { session.goManualCue() }
+                        .disabled(session.nextManualCueID == nil && session.lastManualCueID != nil)
+                }
+                if !looks.isEmpty {
+                    Picker("Look", selection: $lookID) {
+                        Text("Select a look").tag(UUID?.none)
+                        ForEach(looks) { Text($0.name).tag(Optional($0.id)) }
+                    }.frame(width: 180)
+                    Button("Trigger Look") {
+                        if let lookID { session.triggerRecordedLook(lookID) }
+                    }.disabled(!looks.contains { $0.id == lookID })
+                }
+            }.padding(.horizontal, 12).padding(.vertical, 8)
+        }.scrollIndicators(.hidden)
+    }
+}
+
+private struct CueTakeReview: View {
+    let session: EditorSession
+    @Environment(\.dismiss) private var dismiss
+    @State private var times: [UUID: Double] = [:]
+    @State private var included: Set<UUID> = []
+
+    private var beatTimes: [Double] {
+        let duration = session.project.song?.duration ?? 0
+        return session.project.showMarkers.filter { $0.kind == .beat && $0.time <= duration }.map(\.time).sorted()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Review Cue Take").font(.title2.bold())
+            Text("Choose which cues to add. Adjust their song times in seconds, or snap the selected cues to the nearest beat marker.")
+                .foregroundStyle(.secondary)
+            List(session.recordedCues) { cue in
+                HStack {
+                    Toggle(isOn: Binding(get: { included.contains(cue.id) }, set: { include in
+                        if include { included.insert(cue.id) } else { included.remove(cue.id) }
+                    })) {
+                        Text(cue.name).lineLimit(1)
+                    }.toggleStyle(.checkbox)
+                    Spacer()
+                    TextField("Song time for \(cue.name)", value: Binding(
+                        get: { times[cue.id] ?? cue.time }, set: { times[cue.id] = $0 }
+                    ), format: .number.precision(.fractionLength(3...6)))
+                        .labelsHidden().multilineTextAlignment(.trailing).frame(width: 100)
+                        .disabled(!included.contains(cue.id))
+                    Text("s").foregroundStyle(.secondary)
+                }
+            }.frame(minHeight: 220)
+            HStack {
+                Button("Snap Selected to Beats") {
+                    let beats = beatTimes
+                    for cue in session.recordedCues where included.contains(cue.id) {
+                        let time = times[cue.id] ?? cue.time
+                        times[cue.id] = beats.min { abs($0 - time) < abs($1 - time) }
+                    }
+                }.disabled(beatTimes.isEmpty || included.isEmpty)
+                Button("Restore Recorded Times") { times.removeAll() }.disabled(times.isEmpty)
+            }
+            if let message = session.cueRecordingMessage {
+                Text(message).foregroundStyle(.orange)
+            }
+            HStack {
+                Button("Discard Take", role: .destructive) {
+                    session.discardRecordedCues()
+                    dismiss()
+                }
+                Spacer()
+                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Add Selected to Timeline") {
+                    let chosen = session.recordedCues.filter { included.contains($0.id) }
+                    let selectedTimes = Dictionary(uniqueKeysWithValues: chosen.map { ($0.id, times[$0.id] ?? $0.time) })
+                    if session.addRecordedCues(times: selectedTimes) { dismiss() }
+                }.keyboardShortcut(.defaultAction)
+                    .disabled(included.isEmpty || session.playbackRequested)
+            }
+        }.padding(18).frame(width: 560)
+            .onAppear { included = Set(session.recordedCues.map(\.id)) }
+            .onChange(of: session.recordedCues.isEmpty) { _, empty in if empty { dismiss() } }
     }
 }
 
