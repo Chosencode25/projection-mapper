@@ -19,6 +19,44 @@ enum PhonePage {
         <div class="actions"><button id="projection"></button><button id="fixtures"></button><button id="mute"></button></div>
       </div>
       <div id="readinessPanel" hidden><button data-action="readiness">Check Readiness</button><p id="readiness"></p></div>
+      <details id="previewPanel"><summary>Mac Preview</summary>
+        <div class="actions"><button id="previewToggle">Start Preview</button></div>
+        <img id="macPreview" alt="Projection preview captured on the Mac" hidden>
+        <p id="previewInfo" class="small">Snapshots reflect the Mac’s show clock.</p>
+      </details>
+      <details id="timelinePanel"><summary>Timeline &amp; Lighting Cues</summary>
+        <div class="actions">
+          <button id="timelineBack" aria-label="Previous time range">− Time</button>
+          <button id="timelineNow">Playhead</button>
+          <button id="timelineNext" aria-label="Next time range">+ Time</button>
+          <label>View <select id="timelineSpan"><option value="10">10 s</option><option value="30" selected>30 s</option><option value="60">60 s</option><option value="120">120 s</option></select></label>
+        </div>
+        <div class="actions"><button id="trackBack">Previous Tracks</button><button id="trackNext">Next Tracks</button>
+          <span id="trackPage" class="small"></span><label><input id="timelineSnap" type="checkbox" checked> Snap to 0.5 s</label>
+        </div>
+        <p id="timelineInfo" class="small"></p>
+        <canvas id="phoneTimeline" width="680" height="120" aria-label="Timeline. Use the clip and cue controls below for accessible editing."></canvas>
+        <fieldset id="timelineEdit">
+          <label>Clip <select id="clipChoice"></select></label>
+          <div id="clipFields" hidden>
+            <div class="timeFields">
+              <label>Start <input id="clipStart" type="number" min="0" max="3600" step="any"></label>
+              <label>End <input id="clipEnd" type="number" min="0" max="3600" step="any"></label>
+            </div>
+            <div class="actions"><button id="clipMove">Move to Start</button><button id="clipTrim">Apply Trim</button></div>
+            <div id="sourceFields" hidden>
+              <div class="timeFields"><label>Source in <input id="sourceIn" type="number" min="0" max="86400" step="any"></label>
+                <label>Source out <input id="sourceOut" type="number" min="0" max="86400" step="any"></label></div>
+              <button id="sourceApply">Apply Source Range</button>
+            </div>
+          </div>
+          <label>Lighting cue <select id="cueChoice"></select></label>
+          <div id="cueFields" hidden>
+            <label>Cue time <input id="cueTime" type="number" min="0" max="3600" step="any"></label>
+            <div class="actions"><button id="cueSelect">Select on Mac</button><button id="cueApply">Apply Cue Time</button></div>
+          </div>
+        </fieldset>
+      </details>
       <details><summary>Fixture status</summary><ul id="fixtureList"></ul></details>
       <section id="editor" hidden>
         <h2>Mapping</h2><p id="lock"></p>
@@ -67,6 +105,15 @@ enum PhonePage {
     .clock { font:2rem ui-monospace,monospace; color:#c2afff }
     fieldset { border:1px solid #3d3b49; padding:.7rem; border-radius:.7rem; min-width:0 }
     canvas { display:block; width:100%; touch-action:none; background:#191924; border-radius:.4rem }
+    #macPreview { display:block; width:100%; max-width:480px; height:auto; border-radius:.4rem; background:#181823 }
+    #phoneTimeline { touch-action:none; margin-bottom:.65rem }
+    #timelineEdit { margin-top:.45rem }
+    #timelineSnap { min-width:unset }
+    .timeFields { display:flex; flex-wrap:wrap; gap:.6rem }
+    .timeFields input { width:7rem }
+    .small { font-size:.86rem; color:#c2bdcf }
+    details { margin:.6rem 0 }
+    summary { min-height:30px; cursor:pointer }
     #status { min-height:1.3em } [hidden] { display:none !important }
     """
 
@@ -89,7 +136,7 @@ enum PhonePage {
       const result = await response.json();
       if (!response.ok) {
         if (response.status === 401) {
-          token = ''; drag = null; state = null; el('remote').hidden = true; el('pair').hidden = false;
+          token = ''; drag = null; clearTimeline(); stopPreview(); state = null; el('remote').hidden = true; el('pair').hidden = false;
         }
         if (result.state) render(result.state);
         throw Error(result.error || 'Request failed.');
@@ -108,7 +155,7 @@ enum PhonePage {
       finally { busy = false; }
     }
     async function refresh() {
-      if (!token || updating || busy) return;
+      if (!token || updating || busy || document.hidden) return;
       updating = true;
       const epoch = stateEpoch;
       try {
@@ -120,6 +167,8 @@ enum PhonePage {
         el('status').dataset.disconnected = '1';
         el('remote').hidden = true;
         drag = null;
+        clearTimeline();
+        clearPreviewFrame();
         message(error.message);
       } finally { updating = false; }
     }
@@ -145,7 +194,12 @@ enum PhonePage {
     function render(next) {
       const first = !state;
       if (drag && (drag.base.projectID !== next.projectID || next.workspace !== 'Edit' || next.role !== 'Editor')) drag = null;
+      const previous = state;
       state = next;
+      updatePhoneTimeline(previous, next);
+      if (previous?.projectID !== next.projectID) clearPreviewFrame();
+      if (!next.previewAvailable && (previewActive || previous?.previewAvailable !== next.previewAvailable)) stopPreview();
+      el('previewToggle').disabled = !next.previewAvailable;
       if (first) message('Connected');
       el('remote').hidden = false;
       el('project').textContent = next.project;
@@ -313,6 +367,270 @@ enum PhonePage {
     el('palette').onchange = () => {
       if (el('palette').value !== '') command('palette',state.palettes[Number(el('palette').value)]);
     };
+
+    const phoneTimeline = el('phoneTimeline'), tl = phoneTimeline.getContext('2d');
+    let timeline = null, timelineStart = 0, timelinePage = 0, timelineEpoch = 0;
+    let timelineLoading = false, timelineDrag = null, timelineHits = [];
+    const editTimelineAllowed = () => state?.role === 'Editor' && state.workspace === 'Edit';
+    const timelineSpan = () => Number(el('timelineSpan').value);
+    const clipValue = () => timeline?.clips.find(item => item.id === el('clipChoice').value);
+    const cueValue = () => timeline?.cues.find(item => item.id === el('cueChoice').value);
+    const numberField = id => el(id).value === '' ? NaN : Number(el(id).value);
+    const validTime = value => Number.isFinite(value) && value >= 0 && value <= 3600;
+    const cleanTime = value => Math.round(value * 1000) / 1000;
+    const snapTime = value => cleanTime(el('timelineSnap').checked ? Math.round(value * 2) / 2 : value);
+    function clearTimeline() {
+      timeline = null; timelineDrag = null; timelineEpoch += 1;
+      timelineHits = [];
+      tl.clearRect(0, 0, phoneTimeline.width, phoneTimeline.height);
+      el('timelineEdit').disabled = true;
+    }
+    function updatePhoneTimeline(previous, next) {
+      if (previous?.projectID !== next.projectID) {
+        clearTimeline(); timelinePage = 0; timelineStart = 0;
+      } else if (timelineDrag && (!editTimelineAllowed() || next.revision !== timelineDrag.base.revision)) {
+        timelineDrag = null;
+      }
+      el('timelineEdit').disabled = !editTimelineAllowed() || !timeline || timeline.revision !== next.revision;
+      if (!el('timelinePanel').open) return;
+      if (!timeline || timeline.revision !== next.revision) fetchTimeline();
+      else drawPhoneTimeline();
+    }
+    async function fetchTimeline() {
+      if (!state || !token || document.hidden || timelineLoading || !el('timelinePanel').open) return;
+      timelineLoading = true;
+      const epoch = timelineEpoch;
+      const projectID = state.projectID;
+      try {
+        const value = await api('/timeline',{projectID, start:timelineStart, span:timelineSpan(), page:timelinePage});
+        if (epoch !== timelineEpoch || !el('timelinePanel').open ||
+            projectID !== state?.projectID || value.revision !== state.revision) return;
+        timeline = value;
+        timelinePage = value.page;
+        options(el('clipChoice'), [{id:'',name:'Select a clip'}, ...value.clips.map(item => ({
+          id:item.id,name:(value.tracks.find(track => track.id === item.owner)?.name || '') +
+            ' · ' + item.name + ' · ' + cleanTime(item.start) + ' s'
+        }))]);
+        options(el('cueChoice'), [{id:'',name:'Select a cue'}, ...value.cues.map(item => ({
+          id:item.id,name:item.name + ' · ' + cleanTime(item.time) + ' s'
+        }))]);
+        el('trackPage').textContent = 'Tracks ' + (value.page + 1) + ' / ' + value.pages;
+        el('trackBack').disabled = value.page === 0;
+        el('trackNext').disabled = value.page + 1 >= value.pages;
+        el('timelineEdit').disabled = !editTimelineAllowed();
+        el('timelineInfo').textContent = value.limited ? 'Dense range. Zoom in to see more clips or cues.' :
+          (editTimelineAllowed() ? 'Drag a clip or cue. Select a clip’s edges to trim.' : 'Read-only timeline');
+        syncTimelineFields();
+        drawPhoneTimeline();
+      } catch (error) {
+        if (epoch === timelineEpoch) el('timelineInfo').textContent = error.message;
+      } finally {
+        timelineLoading = false;
+        if (epoch !== timelineEpoch && state && el('timelinePanel').open && !document.hidden) fetchTimeline();
+      }
+    }
+    function syncTimelineFields() {
+      const clip = clipValue(), cue = cueValue();
+      el('clipFields').hidden = !clip;
+      el('cueFields').hidden = !cue;
+      if (clip) {
+        el('clipStart').value = cleanTime(clip.start);
+        el('clipEnd').value = cleanTime(clip.end);
+        el('sourceFields').hidden = clip.in === undefined;
+        if (clip.in !== undefined) {
+          el('sourceIn').value = cleanTime(clip.in); el('sourceOut').value = cleanTime(clip.out);
+        }
+      }
+      if (cue) el('cueTime').value = cleanTime(cue.time);
+    }
+    function drawPhoneTimeline() {
+      if (!timeline) return;
+      const width = phoneTimeline.width, label = 138, rowHeight = 36, ruler = 28;
+      const end = timeline.start + timeline.span;
+      const plot = width - label;
+      const x = time => label + (time - timeline.start) / timeline.span * plot;
+      const clipped = value => Math.max(label, Math.min(width, value));
+      const height = ruler + (timeline.tracks.length + 1) * rowHeight;
+      if (phoneTimeline.height !== height) phoneTimeline.height = height;
+      tl.fillStyle = '#191924'; tl.fillRect(0,0,width,height);
+      tl.font = '14px system-ui';
+      for (let i=0;i<=6;i++) {
+        const time=timeline.start + timeline.span * i / 6, pos=x(time);
+        tl.fillStyle='#373643'; tl.fillRect(pos,ruler,1,height-ruler);
+        if (i<6) { tl.fillStyle='#d6d1e1'; tl.fillText(cleanTime(time)+' s',pos+4,19); }
+      }
+      timelineHits = [];
+      timeline.tracks.forEach((track,index) => {
+        const y = ruler + index * rowHeight;
+        tl.fillStyle='#211f30'; tl.fillRect(0,y,label,rowHeight-1);
+        tl.fillStyle='#ddd7ef'; tl.fillText(track.name,6,y+23,label-12);
+        for (const clip of timeline.clips.filter(item => item.owner === track.id)) {
+          const edit = timelineDrag?.item.id === clip.id ? timelineDrag : null;
+          const left = clipped(x(edit?.start ?? clip.start)), right = clipped(x(edit?.end ?? clip.end));
+          if (right <= left) continue;
+          const selected = clip.id === el('clipChoice').value;
+          tl.fillStyle = selected ? '#9179ec' : '#554499';
+          tl.fillRect(left,y+4,Math.max(2,right-left),rowHeight-8);
+          if (right-left>25) { tl.fillStyle='#fff'; tl.fillText(clip.name,left+4,y+22,right-left-8); }
+          if (selected && editTimelineAllowed()) {
+            tl.fillStyle='#ebe2ff';
+            if (clip.start >= timeline.start) tl.fillRect(left,y+4,4,rowHeight-8);
+            if (clip.end <= end) tl.fillRect(right-4,y+4,4,rowHeight-8);
+          }
+          timelineHits.push({item:clip,left,right,y,cue:false});
+        }
+      });
+      const cueY = ruler + timeline.tracks.length * rowHeight;
+      tl.fillStyle='#272533'; tl.fillRect(0,cueY,label,rowHeight-1);
+      tl.fillStyle='#f6c987'; tl.fillText('Lighting cues',6,cueY+23);
+      for (const cue of timeline.cues) {
+        const time = timelineDrag?.item.id === cue.id ? timelineDrag.start : cue.time;
+        const center = clipped(x(time)), cy = cueY+18;
+        tl.fillStyle=cue.id === el('cueChoice').value ? '#fff0af' : '#f5aa66';
+        tl.beginPath(); tl.moveTo(center,cy-8); tl.lineTo(center+8,cy); tl.lineTo(center,cy+8); tl.lineTo(center-8,cy); tl.fill();
+        timelineHits.push({item:cue,left:center-12,right:center+12,y:cueY,cue:true});
+      }
+      if (state.time >= timeline.start && state.time < end) {
+        tl.fillStyle='#ff793b'; tl.fillRect(x(state.time),0,2,height);
+      }
+    }
+    function refreshTimelineWindow() {
+      clearTimeline();
+      el('timelineInfo').textContent = 'Loading timeline…';
+      fetchTimeline();
+    }
+    el('timelinePanel').ontoggle = () => {
+      if (el('timelinePanel').open) refreshTimelineWindow();
+      else clearTimeline();
+    };
+    el('timelineBack').onclick = () => { timelineStart=Math.max(0,timelineStart-timelineSpan()); refreshTimelineWindow(); };
+    el('timelineNext').onclick = () => {
+      timelineStart=Math.min(3600-timelineSpan(),timelineStart+timelineSpan()); refreshTimelineWindow();
+    };
+    el('timelineNow').onclick = () => {
+      timelineStart=Math.max(0,Math.min(3600-timelineSpan(),(state?.time || 0)-timelineSpan()/3)); refreshTimelineWindow();
+    };
+    el('timelineSpan').onchange = () => { timelineStart=Math.min(timelineStart,3600-timelineSpan()); refreshTimelineWindow(); };
+    el('trackBack').onclick = () => { timelinePage=Math.max(0,timelinePage-1); refreshTimelineWindow(); };
+    el('trackNext').onclick = () => { timelinePage+=1; refreshTimelineWindow(); };
+    el('clipChoice').onchange = el('cueChoice').onchange = () => { syncTimelineFields(); drawPhoneTimeline(); };
+    function editClip(action, fields) {
+      const item=clipValue();
+      if (!editTimelineAllowed() || !item || !timeline || timeline.revision !== state.revision) return;
+      command(action,{clip:item.id,owner:item.owner,...fields},timeline);
+    }
+    el('clipMove').onclick = () => {
+      const start=numberField('clipStart');
+      if (validTime(start)) editClip('clipMove',{start}); else message('Enter a valid start time.');
+    };
+    el('clipTrim').onclick = () => {
+      const start=numberField('clipStart'), end=numberField('clipEnd');
+      if (validTime(start) && validTime(end)) editClip('clipTrim',{start,end}); else message('Enter valid trim times.');
+    };
+    el('sourceApply').onclick = () => {
+      const begin=numberField('sourceIn'), end=numberField('sourceOut');
+      if (Number.isFinite(begin) && Number.isFinite(end)) editClip('clipSource',{in:begin,out:end});
+      else message('Enter both source times.');
+    };
+    el('cueSelect').onclick = () => {
+      const item=cueValue();
+      if (item && timeline) command('selectCue',{cue:item.id},timeline);
+    };
+    el('cueApply').onclick = () => {
+      const item=cueValue(), time=numberField('cueTime');
+      if (item && timeline && validTime(time)) command('cueTime',{cue:item.id,time},timeline);
+    };
+    function timelinePoint(event) {
+      const rect=phoneTimeline.getBoundingClientRect();
+      return {x:(event.clientX-rect.left)*phoneTimeline.width/rect.width, y:(event.clientY-rect.top)*phoneTimeline.height/rect.height};
+    }
+    phoneTimeline.onpointerdown = event => {
+      if (!timeline || !editTimelineAllowed() || busy || timeline.revision !== state.revision || timelineDrag) return;
+      const {x,y}=timelinePoint(event);
+      const hit=[...timelineHits].reverse().find(h=>x>=h.left && x<=h.right && y>=h.y && y<h.y+36);
+      if (!hit) return;
+      const item=hit.item, selected=el('clipChoice').value===item.id;
+      if (hit.cue) el('cueChoice').value=item.id; else el('clipChoice').value=item.id;
+      const mode=hit.cue ? 'cueTime' : selected && x-hit.left<14 && item.start>=timeline.start ? 'left' :
+        selected && hit.right-x<14 && item.end<=timeline.start+timeline.span ? 'right' : 'clipMove';
+      timelineDrag={item,mode,base:timeline,x,pointer:event.pointerId,start:item.time??item.start,end:item.end,moved:false};
+      event.preventDefault();
+      phoneTimeline.setPointerCapture(event.pointerId);
+      syncTimelineFields(); drawPhoneTimeline();
+    };
+    phoneTimeline.onpointermove = event => {
+      const d=timelineDrag;
+      if (!d || event.pointerId!==d.pointer) return;
+      const dx=timelinePoint(event).x-d.x;
+      if (!d.moved && Math.abs(dx)<4) return;
+      d.moved=true;
+      const delta=dx/Math.max(1,phoneTimeline.width-138)*d.base.span, item=d.item;
+      if (d.mode==='cueTime') d.start=Math.max(0,Math.min(3600,snapTime(item.time+delta)));
+      if (d.mode==='left') d.start=Math.max(0,Math.min(item.end-.1,snapTime(item.start+delta)));
+      if (d.mode==='right') d.end=Math.min(3600,Math.max(item.start+.1,snapTime(item.end+delta)));
+      if (d.mode==='clipMove') {
+        const length=item.end-item.start;
+        d.start=Math.min(3600-length,Math.max(0,snapTime(item.start+delta))); d.end=d.start+length;
+      }
+      drawPhoneTimeline();
+    };
+    phoneTimeline.onpointerup = event => {
+      const d=timelineDrag;
+      if (!d || event.pointerId!==d.pointer) return;
+      timelineDrag=null; drawPhoneTimeline();
+      if (!d.moved || !editTimelineAllowed() || d.base.revision!==state.revision) return;
+      if (d.mode==='cueTime') command('cueTime',{cue:d.item.id,time:d.start},d.base);
+      else {
+        const action=d.mode==='clipMove'?'clipMove':'clipTrim';
+        command(action,{clip:d.item.id,owner:d.item.owner,start:d.start,end:d.end},d.base);
+      }
+    };
+    phoneTimeline.onpointercancel = phoneTimeline.onlostpointercapture = () => { timelineDrag=null; drawPhoneTimeline(); };
+
+    let previewActive=false, previewBusy=false, previewEpoch=0, previewDisplayed=0;
+    function clearPreviewFrame() {
+      previewEpoch+=1; previewDisplayed=0;
+      el('macPreview').hidden=true; el('macPreview').removeAttribute('src');
+    }
+    function stopPreview() {
+      previewActive=false; clearPreviewFrame();
+      el('previewToggle').textContent='Start Preview';
+      el('previewInfo').textContent=state?.previewAvailable===false?'Preview is disabled on the Mac.':'Preview stopped.';
+    }
+    async function refreshPreview() {
+      if (!previewActive || previewBusy || document.hidden || !state || !token ||
+          el('remote').hidden || !el('previewPanel').open) return;
+      previewBusy=true;
+      const epoch=previewEpoch, projectID=state.projectID, start=performance.now();
+      try {
+        const frame=await api('/preview',{projectID});
+        if (epoch!==previewEpoch || projectID!==state?.projectID || !previewActive || document.hidden) return;
+        if (frame.pending) {
+          if (!previewDisplayed || performance.now()-previewDisplayed>4000) {
+            el('macPreview').hidden=true; el('previewInfo').textContent='Waiting for a frame from the Mac…';
+          }
+          return;
+        }
+        if (typeof frame.jpeg!=='string' || frame.jpeg.length>200000) throw Error('Preview frame unavailable.');
+        el('macPreview').src='data:image/jpeg;base64,'+frame.jpeg;
+        el('macPreview').hidden=false; previewDisplayed=performance.now();
+        const age=frame.age + (previewDisplayed-start)/1000;
+        el('previewInfo').textContent='Captured at '+frame.time.toFixed(2)+' s · about '+age.toFixed(1)+' s old';
+      } catch (error) {
+        if (epoch===previewEpoch) { clearPreviewFrame(); el('previewInfo').textContent=error.message; }
+      } finally { previewBusy=false; }
+    }
+    el('previewToggle').onclick = () => {
+      if (previewActive) { stopPreview(); return; }
+      previewActive=true; el('previewToggle').textContent='Stop Preview'; refreshPreview();
+    };
+    el('previewPanel').ontoggle = () => { if (!el('previewPanel').open) stopPreview(); };
+    document.addEventListener('visibilitychange', () => {
+      drag=null; timelineDrag=null;
+      if (document.hidden) { clearPreviewFrame(); clearTimeline(); }
+      else { refresh(); if (el('timelinePanel').open) fetchTimeline(); refreshPreview(); }
+    });
+    setInterval(refreshPreview,1250);
     const invitation = location.hash.slice(1);
     if (invitation) { history.replaceState(null,'',location.pathname); pair(invitation); }
     setInterval(refresh,800);

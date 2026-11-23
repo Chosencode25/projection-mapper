@@ -54,7 +54,7 @@ struct PhoneResponse {
         let headers = [
             "HTTP/1.1 \(status)", "Content-Type: \(type)", "Content-Length: \(body.count)", "Connection: close",
             "Cache-Control: no-store", "Referrer-Policy: no-referrer", "X-Content-Type-Options: nosniff",
-            "Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"
+            "Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src data:; frame-ancestors 'none'; base-uri 'none'"
         ].joined(separator: "\r\n")
         return Data((headers + "\r\n\r\n").utf8) + body
     }

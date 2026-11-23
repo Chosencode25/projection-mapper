@@ -28,19 +28,26 @@ struct PhoneRemoteView: View {
                             .accessibilityLabel("Phone pairing QR code")
                     }
                     Text(url.absoluteString).font(.caption.monospaced()).textSelection(.enabled)
-                    Button("New Invitation") { remote.newInvitation() }
+                    Button("New Invitation") {
+                        if remote.hasPhone { remote.newViewerInvitation() } else { remote.newInvitation() }
+                    }
                 }
                 if remote.hasPendingPhone || remote.hasPhone {
-                    Picker("Phone permissions", selection: $remote.role) {
+                    Picker("Primary phone permissions", selection: $remote.role) {
                         ForEach(PhoneRole.allCases) { Text($0.rawValue).tag($0) }
                     }
                 }
                 if remote.hasPendingPhone {
                     Button("Approve Phone") { remote.approve() }.buttonStyle(.borderedProminent)
                 }
-                if remote.hasPhone { Text("Phone approved") }
+                if remote.hasPhone {
+                    Text(remote.additionalViewerCount == 0 ? "Phone approved" : "Phone approved · \(remote.additionalViewerCount) extra viewers")
+                    Button("Invite Read-Only Viewer") { remote.newViewerInvitation() }
+                        .disabled(remote.additionalViewerCount >= 4 || remote.hasPendingPhone)
+                }
+                Toggle("Allow Phone Preview", isOn: $remote.allowsPreview)
                 if remote.hasPendingPhone || remote.hasPhone {
-                    Button("Revoke Phone") { remote.revoke(); remote.newInvitation() }
+                    Button("Revoke All Phones") { remote.revoke(); remote.newInvitation() }
                 }
                 Button("Stop Phone Remote", role: .destructive) { remote.stop() }
             } else {

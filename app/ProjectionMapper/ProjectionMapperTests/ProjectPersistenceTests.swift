@@ -739,6 +739,91 @@ struct PhoneRemoteTests {
         #expect(session.project.surfaces.first?.corners == face.corners)
     }
 
+    @Test func phoneTimelinePreservesConnectedOwnershipUndoAndRejectsStaleOrOverlappingEdits() throws {
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        session.addSurface()
+        session.createObject(faceIDs: Set(session.project.surfaces.map(\.id)))
+        let owner = try #require(session.project.baseTimelineTracks.first?.id)
+        let id = try #require(session.addTimelineClip(sourceID: owner, at: 1, duration: 3))
+        _ = try #require(session.addTimelineClip(sourceID: owner, at: 8, duration: 2))
+        let remote = PhoneRemote(session: session)
+        remote.role = .editor
+        let initial = session.project
+        let revision = try #require(remote.snapshot()["revision"] as? String)
+        var request: [String: Any] = ["action": "clipMove", "projectID": initial.id.uuidString, "revision": revision,
+                                       "owner": owner.uuidString, "clip": id.uuidString, "start": 3.0]
+        let lanes = try #require(remote.timelineSnapshot(start: 0, span: 10, page: 0)["tracks"] as? [[String: Any]])
+        #expect(lanes.count == 1 && lanes[0]["faces"] as? Int == 2)
+        try remote.perform(request)
+        #expect(session.selectedClip?.sourceID == owner && session.selectedClip?.start == 3 && session.selectedClip?.duration == 3)
+        #expect(session.project.surfaces == initial.surfaces && session.project.objects == initial.objects)
+        #expect(throws: PhoneError.self) { try remote.perform(request) }
+        request["revision"] = remote.snapshot()["revision"]
+        request["start"] = 7.0
+        #expect(throws: PhoneError.self) { try remote.perform(request) }
+        request["action"] = "clipTrim"
+        request["start"] = 4.0
+        request["end"] = 6.0
+        try remote.perform(request)
+        #expect(session.selectedClip?.start == 4 && session.selectedClip?.duration == 2)
+        #expect(try ProjectCodec.decode(ProjectCodec.encode(session.document)) == session.document)
+        session.undoProjectEdit()
+        #expect(session.project.timelineClips.first(where: { $0.id == id })?.start == 3)
+        session.deleteTimelineClip(id)
+        request["revision"] = remote.snapshot()["revision"]
+        #expect(throws: PhoneError.self) { try remote.perform(request) }
+        session.switchWorkspace(to: .show)
+        #expect(throws: PhoneError.self) { try remote.perform(request) }
+    }
+
+    @Test func phoneCanChangeCueTimingAndSelectItOnMac() throws {
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let controller = LightingController(name: "Relay", kind: .arduino)
+        let fixture = PatchedFixture(name: "Plug", kind: .plug, controllerID: controller.id)
+        let cue = LightingCue(name: "On", time: 1, entries: [.init(id: fixture.id, state: .plug(true))])
+        #expect(session.editLighting { $0.controllers = [controller]; $0.fixtures = [fixture]; $0.cues = [cue] })
+        let remote = PhoneRemote(session: session)
+        remote.role = .viewer
+        let state = remote.snapshot()
+        let payload: [String: Any] = ["action":"cueTime", "projectID":session.project.id.uuidString,
+                                       "revision":state["revision"] as Any, "cue":cue.id.uuidString, "time":2.5]
+        #expect(throws: PhoneError.self) { try remote.perform(payload) }
+        remote.role = .editor
+        var command = payload
+        command["revision"] = remote.snapshot()["revision"]
+        try remote.perform(command)
+        #expect(session.selectedLightingCue?.time == 2.5)
+        #expect(session.selectedLightingCue?.entries == cue.entries)
+        session.undoProjectEdit()
+        #expect(session.project.lighting.cues.first?.time == 1)
+    }
+
+    @Test func phonePreviewUsesSmallMacRenderedFramesAndDiscardsStaleProjectFrames() async throws {
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let preview = PhonePreview()
+        let key = UUID()
+        let instant = ProcessInfo.processInfo.systemUptime
+        #expect(preview.request(scene: session.scene, aspect: 16 / 9, key: key, at: instant).status == "202 Accepted")
+        func payload(_ response: PhoneResponse) throws -> [String: Any] {
+            try #require(JSONSerialization.jsonObject(with: response.body) as? [String: Any])
+        }
+        var result: [String: Any] = [:]
+        for _ in 0..<100 where result["jpeg"] == nil {
+            try await Task.sleep(for: .milliseconds(10))
+            result = try payload(preview.request(scene: session.scene, aspect: 16 / 9, key: key, at: instant + 0.5))
+        }
+        let jpeg = try #require((result["jpeg"] as? String).flatMap { Data(base64Encoded: $0) })
+        #expect(jpeg.prefix(2) == Data([0xff, 0xd8]) && jpeg.count <= 144 * 1024)
+        #expect(result["age"] as? Double == 0.5)
+        let stale = try payload(preview.request(scene: session.scene, aspect: 1, key: UUID(), at: instant + 0.5))
+        #expect(stale["jpeg"] == nil)
+        #expect(PhonePreview.dimensions(aspect: 16 / 9).height == 270)
+        preview.clear()
+    }
+
     private nonisolated static func run(_ executable: String, _ arguments: [String]) throws -> Data {
         let process = Process()
         let pipe = Pipe()
@@ -807,9 +892,37 @@ struct PhoneRemoteTests {
         #expect(applied["projectionBlackout"] as? Bool == true)
         let replay = try json(await request("/command", payload: command, token: token))
         #expect(replay["error"] != nil)
+        try await Task.sleep(for: .seconds(1))
+        var viewerTokens: [String] = []
+        for _ in 0..<2 {
+            remote.newViewerInvitation()
+            let viewerCode = try #require(remote.pairingURL?.fragment)
+            let joined = try json(await request("/pair", payload: ["code": viewerCode]))
+            let viewerToken = try #require(joined["token"] as? String)
+            let pending = try json(await request("/state", payload: [:], token: viewerToken))
+            #expect(pending["pending"] as? Bool == true)
+            remote.approve()
+            viewerTokens.append(viewerToken)
+            let state = try json(await request("/state", payload: [:], token: viewerToken))
+            #expect(state["role"] as? String == PhoneRole.viewer.rawValue && state["faces"] == nil)
+            let timeline = try json(await request("/timeline", payload: ["projectID": session.project.id.uuidString], token: viewerToken))
+            #expect(timeline["tracks"] != nil)
+            let attempt = try json(await request("/command", payload: command, token: viewerToken))
+            #expect(attempt["error"] != nil)
+        }
+        #expect(remote.additionalViewerCount == 2 && remote.role == .operatorRole)
+        let disabled: [String: Any] = ["projectID": session.project.id.uuidString]
+        remote.allowsPreview = false
+        let gated = try json(await request("/preview", payload: disabled, token: token))
+        #expect(gated["error"] != nil && gated["jpeg"] == nil)
+        remote.allowsPreview = true
+        let anonymous = try json(await request("/preview", payload: disabled))
+        #expect(anonymous["error"] != nil && anonymous["jpeg"] == nil)
         remote.revoke()
         let revoked = try json(await request("/state", payload: [:], token: token))
         #expect(revoked["error"] != nil)
+        let revokedViewer = try json(await request("/state", payload: [:], token: viewerTokens[0]))
+        #expect(revokedViewer["error"] != nil)
         remote.newInvitation()
         let oldInvitation = try json(await request("/pair", payload: ["code": code]))
         #expect(oldInvitation["error"] != nil)
@@ -898,5 +1011,98 @@ struct PhoneRemoteTests {
         remote.checkNetworkBinding()
         try await Task.sleep(for: .milliseconds(2200))
         #expect(!remote.isRunning && remote.status.contains("unavailable"))
+    }
+}
+
+struct ShowPlaylistScheduleTests {
+    @Test func playlistKeepsIntrosOutrosAndIntermissionsInTheirRoles() {
+        let intro = ShowPlaylist.Entry(path: "/Intro.projectionmap", role: .intro)
+        let main = ShowPlaylist.Entry(path: "/Show.projectionmap")
+        let idle = ShowPlaylist.Entry(path: "/Idle.projectionmap", role: .idle, seconds: 3)
+        let end = ShowPlaylist.Entry(path: "/Outro.projectionmap", role: .outro)
+        let playlist = ShowPlaylist(entries: [main, end, intro, idle], repeats: 2)
+        #expect(playlist.isValid)
+        #expect(playlist.sequence() == [intro, main, idle, main, idle, end])
+    }
+
+    @Test func scheduleCrossesMidnightAndDeduplicatesConflictingStarts() throws {
+        let parser = ISO8601DateFormatter()
+        let now = try #require(parser.date(from: "2026-12-25T05:30:10Z"))
+        let armed = try #require(parser.date(from: "2026-12-25T05:29:00Z"))
+        var a = ShowSchedule(playlistID: UUID(), enabled: true, timeZoneID: "America/Chicago",
+                             startMinute: 23 * 60 + 30, endMinute: 60)
+        var b = a
+        b.id = UUID()
+        b.priority = 5
+        #expect(a.conflicts(with: b, around: now))
+        let due = ShowSchedule.due([a, b], now: now, armedAt: armed, seen: [])
+        #expect(due.map { $0.0.id } == [b.id, a.id])
+        #expect(due.first?.1.ends == parser.date(from: "2026-12-25T07:00:00Z"))
+        #expect(ShowSchedule.due([a, b], now: now, armedAt: armed, seen: Set(due.map { $0.1.id })).isEmpty)
+        #expect(ShowSchedule.due([a], now: now, armedAt: now, seen: []).isEmpty)
+        a.excludedDates = "2026-12-24"
+        #expect(a.occurrence(on: now) == nil)
+    }
+
+    @Test func scheduleUsesFirstFallOccurrenceAndSkipsMissingSpringTime() throws {
+        let parser = ISO8601DateFormatter()
+        let spring = try #require(parser.date(from: "2026-03-08T12:00:00Z"))
+        let fall = try #require(parser.date(from: "2026-11-01T12:00:00Z"))
+        var rule = ShowSchedule(playlistID: UUID(), enabled: true, timeZoneID: "America/Chicago",
+                                startMinute: 150, endMinute: 240)
+        #expect(rule.occurrence(on: spring) == nil)
+        rule.startMinute = 90
+        #expect(rule.occurrence(on: fall)?.starts == parser.date(from: "2026-11-01T06:30:00Z"))
+    }
+}
+
+@MainActor
+struct ShowPlaylistRunTests {
+    @Test func runnerFinishesCurrentWithoutStartingNextAndReloadsSavedPlaylist() async throws {
+        let files = ProjectPersistenceTests()
+        let folder = try files.temporary()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let first = folder.appendingPathComponent("First.projectionmap")
+        let second = folder.appendingPathComponent("Second.projectionmap")
+        try ProjectPackageStore().write(ProjectDocument(project: MappingProject()), to: first)
+        try ProjectPackageStore().write(ProjectDocument(project: MappingProject()), to: second)
+        let domain = "ProjectionMapper.playlist.tests." + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: domain))
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let library = ShowLibrary(defaults: defaults)
+        let playlist = ShowPlaylist(entries: [.init(path: first.path, seconds: 1), .init(path: second.path, seconds: 1)])
+        library.put(playlist)
+        #expect(ShowLibrary(defaults: defaults).playlists == [playlist])
+        var started: [String] = []
+        var complete = false
+        var stopped = false
+        library.canStart = { true }
+        library.runEntry = { entry, _ in started.append(entry.url.standardizedFileURL.path) }
+        library.stopOutput = { stopped = true }
+        library.itemOutcome = { complete ? "" : nil }
+        library.start(playlist)
+        defer { library.stopNow() }
+        for _ in 0..<50 where started.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(started == [first.standardizedFileURL.path])
+        #expect(library.running)
+        library.finishCurrent()
+        #expect(library.running && library.stoppingAfterCurrent && !stopped)
+        complete = true
+        for _ in 0..<80 where library.running { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(started == [first.standardizedFileURL.path])
+        #expect(stopped && !library.running)
+    }
+
+    @Test func timedStillCompletesItsPlaylistItemWithoutChangingTheProject() async {
+        let session = ProjectPersistenceTests().session()
+        defer { session.releaseRuntimeResources() }
+        let project = session.project
+        session.switchWorkspace(to: .show, at: 100)
+        await session.prepareShow()
+        session.configurePlaylistItem(end: 4) {}
+        #expect(session.setPlaying(true, at: 100))
+        session.inspectArmedShow(at: 105)
+        #expect(session.playlistItemCompleted && session.transport.position == 4)
+        #expect(!session.playbackRequested && session.project == project)
     }
 }

@@ -20,10 +20,12 @@ struct EditorWindowView: View {
     var choosePlayground: () -> Void = {}
     var managePlaygrounds: () -> Void = {}
     var saveCopy: () -> Void = {}
+    var projectHome: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
+                Button(action: projectHome) { Image(systemName: "house") }.help("Project Home").accessibilityLabel("Project Home")
                 Picker("Workspace", selection: Binding(get: { session.workspace }, set: { target in
                     if target != .show && session.needsPauseToEdit { pendingWorkspace = target; confirmsPauseToEdit = true }
                     else { session.switchWorkspace(to: target) }

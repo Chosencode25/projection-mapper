@@ -18,6 +18,9 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }()
     private lazy var displayDiscovery = DisplayDiscoveryService(output: session.output)
     private var editorWindow: NSWindow?
+    private var homeWindow: NSWindow?
+    private let showLibrary = ShowLibrary()
+    private var playlistRoute: (id: UUID, destination: OutputDestination, resolution: TestResolution, wasOpen: Bool, muted: Bool)?
     private var shortcutsWindow: NSWindow?
     private let commandFocus = EditorCommandFocus()
     private var isPrompting = false
@@ -31,31 +34,137 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
             name: NSWorkspace.willSleepNotification, object: nil)
         session.configureRecovery(recovery)
         let drafts = ProjectRecoveryStore.defaultDirectory.deletingLastPathComponent().appendingPathComponent("Drafts", isDirectory: true)
-        session.configureAutosave(directory: drafts)
-        showEditor()
-        DispatchQueue.main.async { [weak self] in
+        session.configureAutosave(directory: drafts, startWithDraft: false)
+        configureShowLibrary()
+        showHome()
+    }
+
+    func showHome() {
+        let window = homeWindow ?? NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 670),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        if homeWindow == nil {
+            window.title = "Projection Mapper"
+            window.isReleasedWhenClosed = false
+            window.minSize = NSSize(width: 740, height: 500)
+            window.center()
+            homeWindow = window
+        }
+        if !window.isVisible || window.contentView == nil {
+            let recoveryURLs = recovery.entries().map(\.url)
+            window.contentView = NSHostingView(rootView: ProjectHomeView(
+                library: showLibrary, recent: recentProjects, drafts: session.availableDrafts,
+                canRecover: !recoveryURLs.isEmpty,
+                open: { [weak self] in self?.openProject($0) },
+                browse: { [weak self] in self?.browseFromHome() },
+                new: { [weak self] in self?.newProject() },
+                playground: { [weak self] in self?.showPlaygrounds(.choose) },
+                demo: { [weak self] in self?.openDemo() },
+                recover: { [weak self] in self?.showEditor(); self?.recoverProject() }
+            ))
+        }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func browseFromHome() {
+        guard !isPrompting, !showLibrary.running, let window = homeWindow else { return }
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [ProjectPackageStore.contentType]
+        panel.canChooseDirectories = false
+        isPrompting = true
+        panel.beginSheetModal(for: window) { [weak self] response in
             guard let self else { return }
-            if let path = UserDefaults.standard.string(forKey: "ProjectionMapper.lastDraft"),
-               FileManager.default.fileExists(atPath: path) {
-                let url = URL(fileURLWithPath: path)
-                Task { @MainActor in
-                    do {
-                        let saved = try ProjectPackageStore().read(url)
-                        if self.recovery.entries().contains(where: {
-                            $0.document.project.id == saved.project.id &&
-                            $0.document.project.modifiedAt > saved.project.modifiedAt &&
-                            $0.document.project != saved.project
-                        }) { self.recoverProject(); return }
-                        try self.session.load(saved, from: url)
-                        self.updateWindowTitle()
-                    }
-                    catch { self.recoverProject() }
-                }
-            } else { self.recoverProject() }
+            self.isPrompting = false
+            if response == .OK, let url = panel.url { self.openProject(url) }
         }
     }
 
+    private func configureShowLibrary() {
+        showLibrary.canStart = { [weak self] in
+            guard let self else { return false }
+            return !self.isPrompting && !self.session.playbackRequested &&
+                self.session.showArmState != .armed && self.session.showArmState != .preparing &&
+                !self.session.isImportingImage && !self.session.isImportingVideo
+        }
+        showLibrary.runEntry = { [weak self] entry, id in
+            guard let self else { throw CancellationError() }
+            try await self.runPlaylistEntry(entry, id: id)
+        }
+        showLibrary.itemOutcome = { [weak self] in
+            guard let self else { return "Editor closed." }
+            if self.session.workspace != .show || self.session.showArmState != .armed {
+                return self.session.showStatus ?? "Show was disarmed."
+            }
+            return self.session.playlistItemCompleted ? "" : nil
+        }
+        showLibrary.stopOutput = { [weak self] in
+            guard let self else { return }
+            self.session.clearPlaylistItem()
+            if self.session.workspace == .show { self.session.disarmShow() }
+            else if self.playlistRoute != nil { self.session.blackoutOutput() }
+            self.playlistRoute = nil
+        }
+    }
+
+    private func runPlaylistEntry(_ entry: ShowPlaylist.Entry, id: UUID) async throws {
+        guard showLibrary.mayBeginItem(id) else { throw CancellationError() }
+        isPrompting = true
+        defer { isPrompting = false }
+        if playlistRoute?.id != id {
+            while session.hasUserChanges {
+                try Task.checkCancellation()
+                try await session.flushAutosave()
+            }
+            playlistRoute = (id, session.output.destination, session.output.testResolution,
+                             session.isOutputOpen, session.songMuted)
+        }
+        guard let route = playlistRoute, showLibrary.mayBeginItem(id) else { throw CancellationError() }
+        let original = try ProjectPackageStore().read(entry.url)
+        let assets = original.project.imageAssets
+        let media = await Task.detached(priority: .userInitiated) {
+            ImageImportService.loadAssets(assets, package: entry.url)
+        }.value
+        let videos = await VideoImportService.loadAssets(original.project.videoAssets, package: entry.url)
+        defer { removeUnadoptedVideoStages(videos.urls) }
+        guard showLibrary.mayBeginItem(id), !Task.isCancelled else { return }
+        let naturalEnd = original.project.song?.duration ?? original.project.timelineContentEnd
+        let end = entry.seconds > 0 ? min(Double(entry.seconds), original.project.song?.duration ?? 3600) :
+            (naturalEnd > 0 ? naturalEnd : (entry.role == .idle ? 10 : 0))
+        guard end > 0 else { throw ProjectFileError.invalid("Give " + original.project.name + " a duration in the playlist.") }
+        try session.load(original, from: entry.url, loadedMedia: media, loadedVideos: videos)
+        showEditor()
+        updateWindowTitle()
+        session.switchWorkspace(to: .show)
+        session.blackoutOutput()
+        session.songMuted = route.muted
+        session.output.select(route.destination)
+        session.setTestResolution(route.resolution)
+        guard session.output.destination == route.destination else {
+            throw ProjectFileError.io("The playlist projection output became unavailable.")
+        }
+        if route.wasOpen || route.destination != .testWindow { openPlaylistOutput() }
+        if route.wasOpen && !session.isOutputOpen { throw ProjectFileError.io("The playlist could not reopen its output.") }
+        for _ in 0..<200 where session.songBusy {
+            guard showLibrary.mayBeginItem(id) else { return }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        guard showLibrary.mayBeginItem(id) else { return }
+        await session.prepareShow()
+        guard showLibrary.mayBeginItem(id), !Task.isCancelled else { return }
+        guard session.showArmState == .armed else { throw ProjectFileError.io(session.showStatus ?? "A show could not be armed.") }
+        session.configurePlaylistItem(end: end) { [weak self] in self?.showLibrary.stopNow() }
+        session.restoreOutput()
+        guard session.setPlaying(true) else { throw ProjectFileError.io(session.showStatus ?? "A show could not start.") }
+    }
+
+    private func openPlaylistOutput() {
+        let wanted = session.output.destination
+        if wanted != .testWindow { displayDiscovery.refresh() }
+        if wanted == session.output.destination { session.openOutput() }
+    }
+
     func showEditor() {
+        homeWindow?.orderOut(nil)
         if editorWindow == nil {
             let window = EditorShortcutWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
@@ -87,7 +196,8 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
                 newPlaygroundShow: { [weak self] in self?.newShowFromCurrentPlayground() },
                 choosePlayground: { [weak self] in self?.showPlaygrounds(.choose) },
                 managePlaygrounds: { [weak self] in self?.showPlaygrounds(.manage) },
-                saveCopy: { [weak self] in self?.saveProject(asNew: true) }
+                saveCopy: { [weak self] in self?.saveProject(asNew: true) },
+                projectHome: { [weak self] in self?.showHome() }
             ))
             window.center()
             editorWindow = window
@@ -117,22 +227,28 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     @objc private func systemWillSleep(_ notification: Notification) {
+        showLibrary.stopNow(message: "The Mac went to sleep.")
+        showLibrary.disarmAfterFault()
         session.interruptShow("The Mac went to sleep. Check devices and prepare the show again.")
     }
 
     func windowWillClose(_ notification: Notification) {
         if let closing = notification.object as? NSWindow, closing === editorWindow {
             phoneRemote.stop()
+            showLibrary.stopNow()
             if session.workspace == .show { session.disarmShow() }
             session.closeOutput()
             closing.contentView = nil
             closing.delegate = nil
             editorWindow = nil
+            showHome()
         }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         NSWorkspace.shared.notificationCenter.removeObserver(self)
+        showLibrary.stopNow()
+        showLibrary.disarmAfterFault()
         if session.workspace == .show { session.disarmShow() }
         phoneRemote.stop()
         session.releaseRuntimeResources()
@@ -143,6 +259,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func showPlaygrounds(_ mode: PlaygroundsView.Mode) {
+        guard !showLibrary.running else { return }
         guard !isPrompting, !session.isImportingImage, !session.isImportingVideo, !session.songBusy else { return }
         showEditor()
         guard let window = editorWindow else { return }
@@ -201,6 +318,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
 
     func newProject() {
+        guard !showLibrary.running else { return }
         guard !isPrompting else { return }
         showEditor()
         confirmSaveChanges(action: "start a new project") { [weak self] shouldDiscard in
@@ -271,7 +389,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        showEditor()
+        if editorWindow != nil { showEditor() } else { showHome() }
         return true
     }
 
@@ -388,6 +506,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
         UserDefaults.standard.set(Array(paths.prefix(10)), forKey: "recentProjects")
     }
     func openProject(_ url: URL? = nil) {
+        guard !showLibrary.running else { return }
         guard !isPrompting else { return }
         showEditor()
         if let url { readProject(url); return }
@@ -431,6 +550,7 @@ final class EditorLifecycleCoordinator: NSObject, NSApplicationDelegate, NSWindo
     }
     func application(_ application: NSApplication, open urls: [URL]) { if let url = urls.first { openProject(url) } }
     func recoverProject() {
+        guard !showLibrary.running else { return }
         guard !isPrompting, let window = editorWindow else { return }
         let entries = recovery.entries(); guard !entries.isEmpty else { return }
         let picker = NSPopUpButton(frame: NSRect(x: 0,y: 0,width: 360,height: 28))

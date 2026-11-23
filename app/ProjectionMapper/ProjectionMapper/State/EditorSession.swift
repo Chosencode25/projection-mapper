@@ -44,6 +44,9 @@ final class EditorSession {
     var timelineSnap = true
     var timelineFollow = true
 
+    var playlistItemEnd: Double?
+    private(set) var playlistItemCompleted = false
+    @ObservationIgnored var playlistStopRequested: (() -> Void)?
     private(set) var showArmState = ShowArmState.unarmed
     private(set) var showStatus: String?
     private(set) var showLog: [ShowLogEntry] = []
@@ -306,6 +309,7 @@ final class EditorSession {
     }
     func stopPlayback(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard uptime.isFinite else { return }
+        if let playlistStopRequested { playlistStopRequested(); return }
         cancelBeatQueue()
         lightingSimulation.stop()
         if workspace == .show { showOutput.blackout(); identifyingSourceID = nil; recordShowEvent("Stopped and blacked out projection.") }
@@ -626,9 +630,9 @@ final class EditorSession {
             catch { editMessage = error.localizedDescription }
         }
     }
-    func configureAutosave(directory: URL) {
+    func configureAutosave(directory: URL, startWithDraft: Bool = true) {
         draftDirectory = directory
-        if documentURL == nil { isRecovered = true }
+        if documentURL == nil && startWithDraft { isRecovered = true }
         scheduleDocumentSave()
     }
     func scheduleDocumentSave() {
@@ -697,6 +701,7 @@ final class EditorSession {
     func load(_ document: ProjectDocument, from url: URL, recovering: Bool = false, store: ProjectPackageStore = ProjectPackageStore(), loadedMedia: (pixels: [UUID:ImagePixels], files: [UUID:Data], problems: [UUID:String])? = nil, loadedVideos: (urls: [UUID:URL],posters: [UUID:ImagePixels],problems: [UUID:String])? = nil) throws {
         try ProjectCodec.validate(document)
         resetShowArming(clearLog: true)
+        clearPlaylistItem()
         workspace = .edit
         clearSongRuntime()
         closeOutput()
@@ -2313,6 +2318,7 @@ extension EditorSession {
             if playing { songMessage = "The soundtrack is unavailable. Replace or remove it to continue." }
             return
         }
+        let loop = playlistItemEnd == nil ? song.loop : nil
         if playing {
             refreshSongDevices()
             guard songDeviceID.map({ id in songDevices.contains { $0.id == id } }) ?? !songDevices.isEmpty else {
@@ -2324,13 +2330,13 @@ extension EditorSession {
             if !songAudioOnly { lightingSimulation.resume() }
             if songSeeking { return }
             if transport.position >= song.duration ||
-                (song.loop.map { transport.position < $0.start || transport.position >= $0.end } ?? false) {
-                seekSong(to: song.loop?.start ?? 0, resume: true, wrapping: song.loop != nil)
+                (loop.map { transport.position < $0.start || transport.position >= $0.end } ?? false) {
+                seekSong(to: loop?.start ?? 0, resume: true, wrapping: loop != nil)
                 return
             }
-            player.currentItem?.forwardPlaybackEndTime = song.loop.map {
+            player.currentItem?.forwardPlaybackEndTime = loop.map {
                 CMTime(seconds: $0.end, preferredTimescale: 60000)
-            } ?? .invalid
+            } ?? (playlistItemEnd.map { CMTime(seconds: $0, preferredTimescale: 60000) } ?? .invalid)
             player.play()
             sampleSong(at: transport.position, playing: true)
             startSongTicker()
@@ -2423,10 +2429,10 @@ extension EditorSession {
         } else { audioWaitingSince = nil }
         let current = player.currentTime().seconds
         guard current.isFinite else { return }
-        if let loop = song.loop, current >= loop.end - 0.0001 {
+        if playlistItemEnd == nil, let loop = song.loop, current >= loop.end - 0.0001 {
             fireBeatQueue(at: loop.end, uptime: uptime)
             seekSong(to: loop.start, resume: true, wrapping: true)
-        } else if current >= song.duration - 0.0001 ||
+        } else if current >= (playlistItemEnd ?? song.duration) - 0.005 ||
                   (player.rate == 0 && current > 0 && abs((player.currentItem?.duration.seconds ?? 0) - current) < 0.02) {
             setSongPlaying(false)
             lightingSimulation.stop()
@@ -2436,7 +2442,8 @@ extension EditorSession {
                 showOutput.blackout()
                 recordShowEvent("Song ended. Projection is blacked out and fixtures are stopped.")
             }
-            sampleSong(at: song.duration, playing: false)
+            if playlistItemEnd != nil { playlistItemCompleted = true }
+            sampleSong(at: playlistItemEnd ?? song.duration, playing: false)
         } else {
             if waiting && songMessage == nil { songMessage = "Waiting for audio…" }
             if !waiting && songMessage == "Waiting for audio…" { songMessage = nil }
@@ -2897,12 +2904,13 @@ extension EditorSession {
             interruptShow(fault)
             return
         }
-        let end = project.timelineContentEnd
+        let end = playlistItemEnd ?? project.timelineContentEnd
         if project.song == nil, transport.isPlaying, end > 0, transport.elapsed(at: uptime) >= end {
             setPlaying(false, at: uptime)
             seekPlayback(to: end, at: uptime)
             lightingSimulation.stop()
             showOutput.blackout()
+            if playlistItemEnd != nil { playlistItemCompleted = true }
             recordShowEvent("Timeline ended. Projection is blacked out and fixtures are stopped.")
             updateOutputScene(at: uptime)
         }
@@ -2954,5 +2962,20 @@ extension EditorSession {
         guard workspace == .show, !showRunInProgress, project.renderScene.surfaces.contains(where: { $0.sourceID == id }) else { return }
         identifyingSourceID = id
         updateOutputScene()
+    }
+}
+
+
+extension EditorSession {
+    func clearPlaylistItem() {
+        playlistItemEnd = nil
+        playlistItemCompleted = false
+        playlistStopRequested = nil
+    }
+
+    func configurePlaylistItem(end: Double, stop: @escaping () -> Void) {
+        playlistItemEnd = end
+        playlistItemCompleted = false
+        playlistStopRequested = stop
     }
 }

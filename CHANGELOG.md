@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.14/build 38 — Phone timeline and preview
+
+- Move or trim clips, edit video source ranges, and select or retime lighting cues from the paired phone editor.
+- View optional Mac-rendered JPEG previews with approximate frame age. Approve up to four additional read-only viewers.
+- Final Release reported 390 tests and zero failures. Physical phone rehearsal remains pending.
+
+## Local v2.13/build 37 — Project Home, playlists and scheduling
+
+- Browse recent projects and drafts in Project Home with a preview drawn from each saved map.
+- Play ordered saved shows with introductions, intermissions and outros. Repeat or shuffle the main shows, and stop immediately or finish the current item.
+- Arm app-local calendar rules with weekdays, date limits, holiday exceptions, priority and cutoff.
+- Final Release reported 386 tests and zero failures. Live rehearsal remains pending.
+
 ## Local v2.11/build 36 — Show Mode
 
 - Prepare and arm a show with readiness checks, bounded video preparation and a shared Mac and phone playback gate.

@@ -20,8 +20,8 @@ v2.05 song sync is available for local rehearsal using Mac audio, Test Mode and 
 | v2.10 · Reusable Shows and Layouts | Playgrounds implemented locally; user rehearsal pending. Layout roles, programmed templates/packs and cue-performance recording remain planned. |
 | v2.11 · Show Mode and Readiness | Implemented, automatically verified and installed in build 36. User and hardware rehearsal pending. |
 | v2.12 · External Synchronization and Lighting Integration | Verify a specific xLights/FPP workflow and MIDI/OSC controls. Measure trigger/follow behavior and timing offsets. |
-| v2.13 · Playlists and Scheduling | Build playlists, idle scenes, schedule rules, graceful endings and restart handling. |
-| v2.14 · Phone Timeline and Preview | Move and trim clips, edit cue timing and view a lightweight Mac-generated preview. |
+| v2.13 · Playlists and Scheduling | Implemented and verified locally in build 37 with Project Home. Live rehearsal pending. |
+| v2.14 · Phone Timeline and Preview | Implemented and verified locally in build 38. Physical phone rehearsal pending. |
 | v2.15 · Export and Portable Delivery | Collect portable show assets and export mapped output or unmapped content with explicit audio and timing. |
 | v2.16 · Acceptance, Packaging and Release | Rehearse the full show, measure timing, record compatibility, and prepare a release for separately authorized publication. |
 

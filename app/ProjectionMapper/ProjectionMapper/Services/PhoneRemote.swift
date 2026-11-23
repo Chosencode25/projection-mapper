@@ -95,6 +95,14 @@ final class PhoneRemote {
     private var pendingToken: String?
     private var pendingUntil = Date.distantPast
     private var activeToken: String?
+    private var viewerTokens: [String: Date] = [:]
+    private var viewerInvitation = false
+    private var pendingViewer = false
+    private(set) var additionalViewerCount = 0
+    var allowsPreview = true {
+        didSet { if !allowsPreview { preview.clear(); session.videoPlayback.endPhonePreview() } }
+    }
+    private let preview = PhonePreview()
     private var sessionUntil = Date.distantPast
     private var commandNumber = 0
     private var rateWindow = Date.distantPast
@@ -227,27 +235,61 @@ final class PhoneRemote {
         status = "Off"
     }
 
-    func newInvitation() {
-        guard isRunning, !hasPhone else { return }
+    func newInvitation() { makeInvitation(viewer: false) }
+
+    func newViewerInvitation() { makeInvitation(viewer: true) }
+
+    private func pruneViewers(at now: Date) {
+        viewerTokens = viewerTokens.filter { $0.value > now }
+        additionalViewerCount = viewerTokens.count
+    }
+
+    private func makeInvitation(viewer: Bool) {
+        pruneViewers(at: .now)
+        guard isRunning, viewer ? (hasPhone && viewerTokens.count < 4) : !hasPhone else { return }
         pendingToken = nil
         hasPendingPhone = false
-        role = .viewer
+        viewerInvitation = viewer
+        pendingViewer = false
+        if !viewer { role = .viewer }
         invite = UUID().uuidString.lowercased() + UUID().uuidString.lowercased()
         inviteUntil = Date().addingTimeInterval(120)
         pairingURL = URL(string: "\(origin)/#\(invite)")
     }
 
     func approve() {
-        guard let pendingToken, Date() < pendingUntil else { revoke(); newInvitation(); return }
-        activeToken = pendingToken
-        sessionUntil = Date().addingTimeInterval(4 * 3600)
-        commandNumber = 0
+        let now = Date()
+        guard let pendingToken, now < pendingUntil else {
+            self.pendingToken = nil
+            hasPendingPhone = false
+            if !hasPhone { newInvitation() }
+            return
+        }
+        if pendingViewer {
+            pruneViewers(at: now)
+            guard viewerTokens.count < 4 else { return }
+            viewerTokens[pendingToken] = now.addingTimeInterval(4 * 3600)
+            additionalViewerCount = viewerTokens.count
+        } else {
+            activeToken = pendingToken
+            sessionUntil = now.addingTimeInterval(4 * 3600)
+            commandNumber = 0
+            hasPhone = true
+        }
         self.pendingToken = nil
+        pendingViewer = false
         hasPendingPhone = false
-        hasPhone = true
     }
 
     func revoke() {
+        preview.clear()
+        session.videoPlayback.endPhonePreview()
+        viewerTokens.removeAll()
+        additionalViewerCount = 0
+        viewerInvitation = false
+        pendingViewer = false
+        invite = ""
+        pairingURL = nil
         activeToken = nil
         pendingToken = nil
         hasPendingPhone = false
@@ -280,13 +322,15 @@ final class PhoneRemote {
         guard requests <= 24 else { return .json(["error": "Too many requests."], status: "429 Too Many Requests") }
         let data = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any] ?? [:]
         if request.path == "/pair" {
-            guard !invite.isEmpty, now < inviteUntil, data["code"] as? String == invite, !hasPhone else {
+            guard !invite.isEmpty, now < inviteUntil, data["code"] as? String == invite,
+                  viewerInvitation ? (hasPhone && viewerTokens.count < 4) : !hasPhone else {
                 return .json(["error": "Invitation expired or already used."], status: "403 Forbidden")
             }
             let token = UUID().uuidString + UUID().uuidString
             invite = ""
             pairingURL = nil
             pendingToken = token
+            pendingViewer = viewerInvitation
             pendingUntil = now.addingTimeInterval(120)
             hasPendingPhone = true
             return .json(["token": token])
@@ -295,10 +339,26 @@ final class PhoneRemote {
         if let pendingToken, auth == "Bearer " + pendingToken, now < pendingUntil, request.path == "/state" {
             return .json(["pending": true])
         }
-        guard let activeToken, auth == "Bearer " + activeToken, now < sessionUntil else {
+        let primary = activeToken.map { auth == "Bearer " + $0 && now < sessionUntil } ?? false
+        pruneViewers(at: now)
+        let readOnly = !primary && viewerTokens.keys.contains { auth == "Bearer " + $0 }
+        guard primary || readOnly else {
             return .json(["error": "Pair this phone again on the Mac."], status: "401 Unauthorized")
         }
-        if request.path == "/state" { return .json(snapshot()) }
+        if request.path == "/state" { return .json(snapshot(as: readOnly ? .viewer : role)) }
+        if request.path == "/timeline" || request.path == "/preview" {
+            refreshRevision()
+            guard data["projectID"] as? String == session.project.id.uuidString else {
+                return .json(["error": "The Mac opened another project."], status: "409 Conflict")
+            }
+            if request.path == "/timeline" {
+                return .json(timelineSnapshot(start: data["start"] as? Double, span: data["span"] as? Double, page: data["page"] as? Int))
+            }
+            guard allowsPreview else { return .json(["error": "Preview is disabled on the Mac."], status: "403 Forbidden") }
+            session.videoPlayback.requestPhonePreview()
+            return preview.request(scene: session.scene, aspect: session.output.aspectRatio, key: revision)
+        }
+        guard primary else { return .json(["error": "This phone has viewer access."], status: "403 Forbidden") }
         guard request.path == "/command", let number = data["sequence"] as? Int, number > commandNumber else {
             return .json(["error": "Duplicate or invalid command."], status: "409 Conflict")
         }
@@ -315,8 +375,9 @@ final class PhoneRemote {
         if revisionProject != session.project { revisionProject = session.project; revision = UUID() }
     }
 
-    func snapshot() -> [String: Any] {
+    func snapshot(as viewerRole: PhoneRole? = nil) -> [String: Any] {
         refreshRevision()
+        let role = viewerRole ?? self.role
         let project = session.project
         let time = session.transport.elapsed(at: ProcessInfo.processInfo.systemUptime)
         let upcoming = ShowCuePreview.upcoming(session.manualCueList, at: time, loop: project.song?.loop,
@@ -335,7 +396,8 @@ final class PhoneRemote {
                  "status": session.project.lighting.fixtures.first(where: { $0.id == value.id })
                      .flatMap { session.lightingSimulation.reports[$0.controllerID]?.status.rawValue } ?? ""]
             },
-            "saveStatus": saveStatus, "readiness": readinessStatus
+            "saveStatus": saveStatus, "readiness": readinessStatus,
+            "previewAvailable": allowsPreview, "timelineEnd": project.timelineContentEnd
         ]
         if role == .editor {
             state["brightness"] = project.masterOutput.brightness
@@ -360,6 +422,37 @@ final class PhoneRemote {
             }
         }
         return state
+    }
+
+    func timelineSnapshot(start rawStart: Double?, span rawSpan: Double?, page rawPage: Int?) -> [String: Any] {
+        refreshRevision()
+        let start = rawStart.flatMap { $0.isFinite ? min(3600, max(0, $0)) : nil } ?? 0
+        let span = rawSpan.flatMap { $0.isFinite ? min(120, max(5, $0)) : nil } ?? 30
+        let end = min(3600, start + span)
+        let project = session.project
+        let tracks = project.timelineTracks
+        let pageSize = 12
+        let pages = max(1, (tracks.count + pageSize - 1) / pageSize)
+        let page = min(pages - 1, max(0, rawPage ?? 0))
+        let visible = Array(tracks.dropFirst(page * pageSize).prefix(pageSize))
+        let visibleIDs = Set(visible.map(\.id))
+        let clips = project.timelineClips.filter { visibleIDs.contains($0.sourceID) && $0.start < end && $0.end > start }
+            .sorted { $0.start < $1.start }
+        let cues = project.lighting.cues.filter { !$0.isManual && $0.time >= start && $0.time <= end }
+            .sorted { $0.time < $1.time }
+        return ["projectID": project.id.uuidString, "revision": revision.uuidString, "page": page, "pages": pages,
+                "start": start, "span": span, "limited": clips.count > 220 || cues.count > 160,
+                "tracks": visible.map { ["id": $0.id.uuidString, "name": $0.name, "faces": $0.faceCount] },
+                "clips": clips.prefix(220).map { clip -> [String: Any] in
+                    var result: [String: Any] = ["id": clip.id.uuidString, "owner": clip.sourceID.uuidString,
+                        "name": clip.source.content.title, "start": clip.start, "end": clip.end, "fade": clip.transition ?? 0]
+                    if clip.source.content == .video, let video = clip.source.video {
+                        result["in"] = video.inPoint
+                        result["out"] = video.outPoint
+                    }
+                    return result
+                },
+                "cues": cues.prefix(160).map { ["id": $0.id.uuidString, "name": $0.name, "time": $0.time] }]
     }
 
     func perform(_ data: [String: Any]) throws {
@@ -391,6 +484,43 @@ final class PhoneRemote {
         }
     }
 
+    private func editTimelineClip(_ action: String, data: [String: Any]) throws {
+        guard let id = (data["clip"] as? String).flatMap(UUID.init(uuidString:)),
+              let owner = (data["owner"] as? String).flatMap(UUID.init(uuidString:)),
+              let existing = session.project.timelineClips.first(where: { $0.id == id && $0.sourceID == owner }),
+              let track = session.project.timelineTracks.first(where: { $0.id == owner }) else {
+            throw PhoneError("Clip unavailable. Refresh the timeline.")
+        }
+        var candidate = existing
+        switch action {
+        case "clipMove":
+            guard let start = data["start"] as? Double, (0...3600).contains(start) else { throw PhoneError("Invalid start time.") }
+            candidate.start = start
+        case "clipTrim":
+            guard let start = data["start"] as? Double, let end = data["end"] as? Double,
+                  (0...3600).contains(start), (0...3600).contains(end), end - start >= 0.1 - 0.000001 else {
+                throw PhoneError("A clip needs at least 0.1 seconds within the timeline.")
+            }
+            candidate = existing.trimming(start: start, duration: max(0.1, end - start))
+        case "clipSource":
+            guard existing.source.content == .video, var video = existing.source.video,
+                  let begin = data["in"] as? Double, let end = data["out"] as? Double,
+                  (0...86400).contains(begin), (0...86400).contains(end), end - begin >= 0.1 else {
+                throw PhoneError("Invalid video source range.")
+            }
+            video.inPoint = begin
+            video.outPoint = end
+            if (video.loopOffset ?? 0) >= video.rangeDuration { video.loopOffset = nil }
+            candidate = existing.replacingVideo(video)
+        default: return
+        }
+        guard session.updateTimelineClip(candidate) else {
+            throw PhoneError(session.timelineMessage ?? "Clip timing could not be changed.")
+        }
+        session.selectedClipID = id
+        session.selectTimelineTrack(track)
+    }
+
     private func edit(_ action: String, data: [String: Any]) throws {
         refreshRevision()
         guard role == .editor, session.workspace == .edit else { throw PhoneError("Editing is locked. Switch to Edit on the Mac.") }
@@ -399,6 +529,24 @@ final class PhoneRemote {
             throw PhoneError("The Mac is busy with media.")
         }
         switch action {
+        case "clipMove", "clipTrim", "clipSource":
+            try editTimelineClip(action, data: data)
+            return
+        case "cueTime", "selectCue":
+            guard let id = (data["cue"] as? String).flatMap(UUID.init(uuidString:)),
+                  let cue = session.project.lighting.cues.first(where: { $0.id == id }) else {
+                throw PhoneError("Cue unavailable. Refresh the timeline.")
+            }
+            if action == "cueTime" {
+                guard let time = data["time"] as? Double, (0...3600).contains(time) else { throw PhoneError("Invalid cue time.") }
+                guard session.editLighting({ lighting in
+                    if let index = lighting.cues.firstIndex(where: { $0.id == id }) {
+                        lighting.cues[index].time = time
+                    }
+                }) else { throw PhoneError(session.lightingMessage ?? "Cue time could not be changed.") }
+            }
+            session.selectLightingCue(cue.id)
+            return
         case "undo": session.undoProjectEdit(); return
         case "redo": session.redoProjectEdit(); return
         case "finish": session.finishIdentification(); identificationID = nil; return

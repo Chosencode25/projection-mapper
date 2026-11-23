@@ -292,6 +292,35 @@ import Darwin
         let resumed = try await waitForFrame(coordinator,owner: rotatedOwner)
         #expect(abs(resumed.sourceTime-3) < 0.04)
     }
+    @Test func phoneTrimAndSourceRangeUseTheDesktopVideoBounds() async throws {
+        let folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let imported = try await VideoImportService.read(movie(in: folder))
+        let session = EditorSession(presentOutput: { _ in })
+        defer { session.releaseRuntimeResources() }
+        let owner = try #require(session.project.timelineTracks.first?.id)
+        try session.installVideo(imported, target: .owner(owner))
+        let id = try #require(session.addTimelineClip(sourceID: owner, at: 1))
+        let remote = PhoneRemote(session: session)
+        remote.role = .editor
+        var request: [String: Any] = ["action": "clipTrim", "projectID": session.project.id.uuidString,
+                                      "clip": id.uuidString, "owner": owner.uuidString, "start": 2.0, "end": 4.0]
+        request["revision"] = remote.snapshot()["revision"]
+        try remote.perform(request)
+        #expect(session.selectedClip?.source.video?.inPoint == 1)
+        #expect(session.selectedClip?.source.video?.outPoint == 3)
+        request["action"] = "clipSource"
+        request["revision"] = remote.snapshot()["revision"]
+        request["in"] = 0.5
+        request["out"] = 100.0
+        #expect(throws: PhoneError.self) { try remote.perform(request) }
+        request["out"] = 2.0
+        try remote.perform(request)
+        #expect(session.selectedClip?.start == 2 && session.selectedClip?.duration == 1.5)
+        #expect(session.selectedClip?.source.video?.assetID == imported.asset.id)
+        #expect(session.selectedClip?.source.video?.inPoint == 0.5)
+    }
+
     @Test func showPreparesVideoAndDetectsAMissingAssetWhileArmed() async throws {
         let folder = try directory()
         defer { try? FileManager.default.removeItem(at: folder) }

@@ -168,8 +168,20 @@ struct VideoPlaybackRequest: Equatable {
         frames.removeAll(); problems.removeAll(); revision = UUID(); lostDevice = false
     }
     func rearmAudio() { lostDevice = false; deviceCheckAt = -100 }
+    @ObservationIgnored private var phonePreviewUntil: TimeInterval = -.infinity
+
+    func requestPhonePreview(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        phonePreviewUntil = uptime + 2.5
+    }
+
+    func endPhonePreview() { phonePreviewUntil = -.infinity }
+
+    private func wantsVideoFrames(at uptime: TimeInterval) -> Bool {
+        visualOverride ?? (VideoRenderAvailability.isVisible || uptime < phonePreviewUntil)
+    }
+
     func tick(at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        let visual = (visualOverride ?? VideoRenderAvailability.isVisible) &&
+        let visual = wantsVideoFrames(at: uptime) &&
             !scene.calibration.pattern.isActive && scene.effectiveGain(at: uptime) > 0
         if uptime-deviceCheckAt >= 1 {
             deviceCheckAt = uptime
@@ -312,7 +324,7 @@ struct VideoPlaybackRequest: Equatable {
             if let latest = VideoPlaybackRequest.requests(scene: self.scene,assets: self.assets,audioEnabled: self.audioEnabled && !self.lostDevice,at: now).first(where: { $0.ownerID == owner && $0.clipID == entry.clipID && $0.asset.id == entry.assetID }) {
                 entry.request = latest
                 entry.player.setRate(Float(latest.rate),time: CMTime(seconds: latest.sourceTime,preferredTimescale: 60000),atHostTime: CMClockGetTime(CMClockGetHostTimeClock()))
-                if latest.rate == 0, self.visualOverride ?? VideoRenderAvailability.isVisible {
+                if latest.rate == 0, self.wantsVideoFrames(at: ProcessInfo.processInfo.systemUptime) {
                     do {
                         let result = try await entry.stillImage(at: CMTime(seconds: latest.sourceTime,preferredTimescale: 60000))
                         guard !Task.isCancelled, entry.token == token, self.entries[owner] === entry else { return }

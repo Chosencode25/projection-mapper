@@ -82,6 +82,7 @@ struct AppCommands: Commands {
             ForEach(EditorAction.timeline) { action in shortcutButton(action) }
         }
         CommandGroup(after: .windowArrangement) {
+            Button("Project Home") { coordinator.showHome() }.keyboardShortcut("h", modifiers: [.command, .shift])
             Button("Show Editor") { coordinator.showEditor() }
                 .keyboardShortcut("e", modifiers: [.command, .control])
             Divider()

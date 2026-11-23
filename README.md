@@ -4,13 +4,13 @@
 Shape your canvas, bring it to life with effects and media, and rehearse in a separate Test Window.
 
 <p>
-  <a href="https://github.com/Chosencode25/projection-mapper/releases/download/v1.15.1/ProjectionMapper-v1.15.1-macOS-universal.zip"><img src="assets/github/download-stable.svg" alt="Download stable v1.15.1 for macOS" height="46"></a>
-  <a href="docs/BUILD_AND_RUN.md"><img src="assets/github/build-latest.svg" alt="Build latest v2.09 from source" height="46"></a>
+  <a href="https://github.com/Chosencode25/projection-mapper/releases/download/v2.14/ProjectionMapper-Phone-Timeline-build38-macOS-universal.zip"><img src="assets/github/download-stable.svg" alt="Download v2.14 for macOS" height="46"></a>
+  <a href="docs/BUILD_AND_RUN.md"><img src="assets/github/build-latest.svg" alt="Build v2.14 from source" height="46"></a>
 </p>
 
 macOS **15+** · Apple Silicon + Intel builds · SwiftUI, AppKit & Metal
 
-**Latest source is v2.09/build 28.** It includes Edit and Show workspaces, music and fixture timelines, the phone remote, holiday choreography, layers, regions, projected text, and manually keyed singing faces. 342 Release tests passed with Xcode 27.0 beta 5 (27A5237l). Try the [Winter Lights Encore demo](docs/V2.09_REHEARSAL.md). See the [verification record](docs/V2.09_VERIFICATION.md) for pending visual, listening, and hardware checks.
+**Latest release is v2.14/build 38.** Open shows from Project Home, reuse a mapped setup with Playgrounds, build fixture cues in Lighting, and run playlists or scheduled shows. From a paired phone, move and trim clips, retime lighting cues, and view an optional preview from the Mac. [Phone timeline guide](docs/PHONE_TIMELINE_GUIDE.md) · [Playlists and scheduling guide](docs/SHOW_PLAYLIST_GUIDE.md)
 
 [Getting started](docs/GETTING_STARTED.md) · [User guide](docs/V1_USER_GUIDE.md) · [Keyboard shortcuts](#keyboard-shortcuts) · [Documentation](docs/README.md) · [Roadmap](docs/V2_ROADMAP.md) · [Report a bug](https://github.com/Chosencode25/projection-mapper/issues/new/choose)
 
@@ -49,7 +49,7 @@ Captured from the actual v2.01 app using project-owned demo media. This shows Te
 
 ## Keyboard shortcuts
 
-**Latest source is v2.09/build 28.** Space plays/pauses in the editor and clean output
+Space plays/pauses in the editor and clean output
 windows. Use **Command-/** to open the searchable reference inside the app.
 
 | Start here | Shortcut |
@@ -67,7 +67,7 @@ windows. Use **Command-/** to open the searchable reference inside the app.
 <summary><b>All keyboard shortcuts</b> — playback, editing, timeline, files, panels and output</summary>
 
 **Key:** ⌘ Command · ⌥ Option · ⌃ Control · ⇧ Shift · ↩ Return · ⌫ Delete.
-The v1.15.1 download has an earlier shortcut set; these tables retain the core shortcuts introduced in build 16. The in-app reference includes the current canvas and timeline navigation shortcuts.
+The in-app reference also lists the current canvas and timeline navigation shortcuts.
 
 ### Playback
 
@@ -191,17 +191,11 @@ The v1.15.1 download has an earlier shortcut set; these tables retain the core s
 
 </details>
 
-## Choose your version
+## Release and source
 
-| | Downloadable release | Latest source |
-|---|---|---|
-| **Version** | [v1.15.1 / build 13](https://github.com/Chosencode25/projection-mapper/releases/tag/v1.15.1) | [v2.01 / build 16](docs/BUILD_AND_RUN.md) |
-| **Output** | Resizable Test Window | Test Window + explicit external fullscreen output |
-| **Use it** | [Download the universal app](https://github.com/Chosencode25/projection-mapper/releases/download/v1.15.1/ProjectionMapper-v1.15.1-macOS-universal.zip) | Build with **Xcode 27.0 beta 5 (27A5237l)** |
+[Download the universal app](https://github.com/Chosencode25/projection-mapper/releases/download/v2.14/ProjectionMapper-Phone-Timeline-build38-macOS-universal.zip) · [v2.14 release notes](https://github.com/Chosencode25/projection-mapper/releases/tag/v2.14) · [Build from source](docs/BUILD_AND_RUN.md)
 
-The latest source passed **312 correctness checks in both Debug and Release** on the recorded Apple Silicon test host. These are local automated checks, not hosted CI. [Verification and exclusions →](docs/LOCAL_SHORTCUTS_VERIFICATION.md)
-
-**Current limits:** physical projector and optical timing acceptance remain pending. Listening/device-loss and Intel/older-macOS runtime acceptance are also pending. Builds are locally ad-hoc signed; Developer ID signing and notarization are not established. Music sequencing, advanced choreography, and the phone editor are on the [V2 roadmap](docs/V2_ROADMAP.md).
+The v2.14 Release test run reported **390 tests across 42 suites** with zero failures. The archived app contains Apple Silicon and Intel builds and uses an ad-hoc signature. Physical projector timing, real-phone rehearsal and Developer ID notarization remain pending. [Verification](docs/V2.14_PLAN.md)
 
 ## Get started
 
